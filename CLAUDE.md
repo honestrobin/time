@@ -7,6 +7,11 @@ decisions are recorded in `docs/decisions/`.
 
 ## Project rules
 
+- **Honest, in everything.** It's the core value: never mislead, and disclose by default, in the
+  UI, emails, docs, pricing, billing, uptime and in how the product is made (by Claude, said
+  openly). State limits and mistakes plainly, with numbers where there are numbers. Hold back
+  only personal data, unfixed security issues and legal risk, and never in a way that leaves a
+  false impression.
 - **Global by default.** No defaults, copy or compliance scoped to one country or region
   (decision record 0009). Country rules go in modules behind a neutral core.
 - **Plain English** in the UI, emails and docs: short sentences, no jargon.
