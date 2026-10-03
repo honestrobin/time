@@ -28,3 +28,7 @@ pnpm --filter @honestrobin/e2e test
 ```
 
 `00-first-user.spec.ts` covers AT-0.1 and needs a fresh database.
+
+Sign-ups per network are rate-limited in the database (`rate_limit_events`), so the limit
+survives restarts. On a development database used for many test sign-ups, clear it with
+`delete from rate_limit_events where bucket like 'signup:%';`.

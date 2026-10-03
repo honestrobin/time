@@ -40,6 +40,8 @@ The e2e tests need the backend (`bootRun`, see `docs/development.md`) and Vite (
 
 - Tests share one `MutableClock` that other tests move: use wall-clock `Instant.now()` for
   scheduling, signatures and sessions; pin dates (`atMidday`) where a test depends on "today".
+- Never hard-code a date where the app wants today (timers only run today): a test written that
+  way passes on the day it's written and fails at midnight. Give the entry a duration instead.
 - Kotlin default arguments on Spring-proxied (`@Transactional`) methods are evaluated on the
   proxy: use overloads.
 - Every new table must be listed in `ExportFormat` (`TABLES` or `EXCLUDED`), or a test fails.
