@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+.gradle/
+.idea/
+*.iml
+.DS_Store
+*.log
+/data/
+backend/data/
+deploy/.env
+e2e/screenshots/
+e2e/test-results/
+e2e/playwright-report/
+extension/.output/
+.kotlin/

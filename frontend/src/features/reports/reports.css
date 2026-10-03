@@ -1,0 +1,227 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+@import "../projects/catalog.css";
+@import "../invoices/invoices.css";
+
+.page-wide {
+  max-width: 1320px;
+}
+
+.report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+}
+
+.period {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.period-label {
+  min-width: 11rem;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.seg-sm button {
+  padding: 4px var(--s2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: var(--text-sm);
+  overflow: hidden;
+}
+
+.chip button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip-label {
+  padding: 3px var(--s1) 3px var(--s3);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  padding: 0 var(--s2);
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.chip-remove:hover {
+  color: var(--signal);
+}
+
+.filter-options {
+  display: grid;
+  gap: var(--s1);
+  max-height: 50vh;
+  overflow: auto;
+  padding-right: var(--s1);
+}
+
+.report-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4) var(--s6);
+  margin: 0 0 var(--s4);
+}
+
+.report-summary dt {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.report-summary dd {
+  margin: 0;
+  font-stretch: var(--stretch-condensed);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-summary dd.small {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.report-money div + div {
+  font-size: var(--text-lg);
+}
+
+.report-share {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.report-line {
+  margin: 0 0 var(--s3);
+}
+
+.report-table td.num,
+.report-table th.num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hours bar: its length is the row's share of the longest row, the dark part is billable. */
+.col-bar {
+  width: 22%;
+  min-width: 90px;
+}
+
+.hours-bar {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--rule-strong);
+  overflow: hidden;
+}
+
+.hours-bar span {
+  display: block;
+  height: 100%;
+  background: var(--action);
+}
+
+.col-check {
+  width: 2rem;
+}
+
+.col-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--action);
+}
+
+.detailed-table tr.is-selected td {
+  background: var(--action-tint);
+}
+
+.notes-cell {
+  max-width: 28rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.bulk-bar {
+  position: sticky;
+  bottom: var(--s4);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.bulk-bar strong {
+  margin-right: var(--s2);
+}
+
+.group-row td {
+  background: var(--surface-sunk);
+}
+
+.sub-row td:first-child {
+  padding-left: var(--s6);
+}
+
+.col-meter {
+  width: 18%;
+  min-width: 120px;
+}
+
+.report-table tr.is-over td {
+  background: var(--signal-tint);
+}
+
+.report-table td.over {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .col-bar,
+  .col-meter {
+    display: none;
+  }
+}

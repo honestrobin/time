@@ -1,0 +1,91 @@
+{
+  "clients": {
+    "title": "Clients",
+    "lead": "The companies and people you work for. Every project belongs to one client.",
+    "newClient": "New client",
+    "editClient": "Edit client",
+    "dialogLead": "Only the name is required. Add the address and tax details before you send the first invoice.",
+    "create": "Create client",
+    "created": "Client created",
+    "edit": "Edit",
+    "archive": "Archive",
+    "restore": "Restore",
+    "delete": "Delete",
+    "archived": "{{name}} archived",
+    "restored": "{{name}} restored",
+    "deleted": "{{name}} deleted",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "The client and its contacts are removed for good. A client that has projects can't be deleted; archive it instead.",
+    "empty": {
+      "title": "No clients yet",
+      "body": "Add your first client, then create projects for them.",
+      "action": "Add a client"
+    },
+    "list": {
+      "country": "Country",
+      "contacts": "Contacts",
+      "status": "Status",
+      "actions": "Actions",
+      "actionsFor": "Actions for {{name}}",
+      "active": "Active",
+      "archivedBadge": "Archived"
+    },
+    "sections": {
+      "address": "Address",
+      "tax": "Tax and e-invoicing",
+      "taxLead": "Shown on invoices. Use the VAT, GST or other tax number the client is registered under. EU e-invoices need it, and delivery over Peppol needs the Peppol ID."
+    },
+    "fields": {
+      "name": "Name",
+      "currency": "Currency",
+      "currencyHint": "Rates, budgets and invoices for this client's projects use this currency.",
+      "addressLine1": "Address",
+      "addressLine2": "Address line 2",
+      "postalCode": "Postal code",
+      "city": "City",
+      "region": "Region",
+      "countryCode": "Country code",
+      "countryCodeHint": "Two letters, e.g. US, DE or JP.",
+      "vatId": "Tax ID",
+      "companyRegNo": "Company registration number",
+      "peppolScheme": "Peppol scheme",
+      "peppolSchemeHint": "The four-digit code for the type of ID, e.g. 0088 for a GLN.",
+      "peppolId": "Peppol ID",
+      "notes": "Notes",
+      "notesHint": "Only visible inside your account.",
+      "active": "Active",
+      "activeHint": "Archived clients are hidden when you create projects. Their projects and history are kept."
+    },
+    "contacts": {
+      "title": "Contacts",
+      "addButton": "Add contact",
+      "newTitle": "New contact",
+      "editTitle": "Edit contact",
+      "name": "Name",
+      "titleField": "Job title",
+      "titleHint": "e.g. Finance manager.",
+      "email": "Email",
+      "phone": "Phone",
+      "invoiceRecipient": "Receives invoices",
+      "invoiceRecipientHint": "Invoices for this client are sent to this contact.",
+      "invoices": "Invoices",
+      "receivesInvoices": "Receives invoices",
+      "add": "Add contact",
+      "save": "Save contact",
+      "added": "{{name}} added",
+      "saved": "Contact saved",
+      "deleted": "{{name}} deleted",
+      "editFor": "Edit {{name}}",
+      "deleteFor": "Delete {{name}}",
+      "empty": "No contacts yet.",
+      "afterCreate": "Create the client first, then add contacts.",
+      "noRecipient": "No contact receives invoices yet. Mark one so invoices have someone to go to."
+    },
+    "peppol": {
+      "reachable": "Reachable via Peppol ✓",
+      "unreachable": "Not reachable via Peppol",
+      "unchecked": "Not checked with Peppol yet",
+      "check": "Check now"
+    }
+  }
+}

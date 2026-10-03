@@ -1,0 +1,5 @@
+[(#{mail.invoice-overdue.body(${number}, ${seller}, ${days})})]
+
+[(#{mail.invoice.button})]: [(${link})]
+
+[(#{mail.invoice.reminderFooter})]

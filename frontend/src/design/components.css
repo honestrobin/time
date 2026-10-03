@@ -1,0 +1,652 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* ---- Buttons ---------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 36px;
+  padding: 0 var(--s4);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--duration), border-color var(--duration);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-primary {
+  background: var(--action);
+  color: var(--action-ink);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--action-hover);
+  color: var(--action-ink);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.btn-danger {
+  background: var(--surface);
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--signal-tint);
+}
+
+.btn-sm {
+  min-height: 28px;
+  padding: 0 var(--s3);
+  font-size: var(--text-sm);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 1px 5px;
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* ---- Forms ------------------------------------------------------------ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.field-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.field-hint {
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+}
+
+.field-error {
+  font-size: var(--text-sm);
+  color: var(--signal);
+}
+
+.input,
+.select-trigger,
+.textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: var(--text-md);
+}
+
+.textarea {
+  padding: var(--s2) var(--s3);
+  min-height: 72px;
+  resize: vertical;
+}
+
+.input:hover,
+.select-trigger:hover,
+.textarea:hover {
+  border-color: var(--ink-soft);
+}
+
+.input[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-color: var(--signal);
+}
+
+.input:focus-visible,
+.textarea:focus-visible,
+.select-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+  border-color: var(--focus);
+}
+
+.input-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  cursor: pointer;
+  text-align: left;
+}
+
+.select-content,
+.menu-content,
+.popover-content {
+  z-index: 50;
+  min-width: 180px;
+  max-height: min(360px, var(--radix-select-content-available-height, 360px));
+  overflow: auto;
+  padding: var(--s1);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.select-item,
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px var(--s3);
+  border-radius: 3px;
+  font-size: var(--text-md);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.select-item[data-highlighted],
+.menu-item[data-highlighted] {
+  background: var(--action-tint);
+}
+
+.select-item[data-state="checked"] {
+  font-weight: 600;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: var(--s1) 0;
+  background: var(--rule);
+}
+
+.menu-label {
+  padding: 6px var(--s3);
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  cursor: pointer;
+}
+
+.checkbox {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.checkbox[data-state="checked"] {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--action-ink);
+}
+
+/* ---- Dialog ------------------------------------------------------------ */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(28 43 37 / 0.32);
+}
+
+.dialog-content {
+  position: fixed;
+  z-index: 41;
+  top: 12vh;
+  left: 50%;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow: auto;
+  transform: translateX(-50%);
+  padding: var(--s5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog-content.wide {
+  width: min(840px, calc(100vw - 32px));
+}
+
+.dialog-title {
+  margin-bottom: var(--s4);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+/* ---- Notices ----------------------------------------------------------- */
+.notice {
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--rule-strong);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+}
+
+.notice-error {
+  border-color: var(--signal);
+  background: var(--signal-tint);
+}
+
+.notice-warn {
+  border-color: var(--warn);
+  background: var(--warn-tint);
+}
+
+.notice-ok {
+  border-color: var(--action);
+  background: var(--action-tint);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.badge-ok {
+  background: var(--action-tint);
+  color: var(--action);
+}
+
+.badge-warn {
+  background: var(--warn-tint);
+  color: #7a4f10;
+}
+
+.badge-signal {
+  background: var(--signal-tint);
+  color: var(--signal);
+}
+
+/* ---- Toasts ------------------------------------------------------------ */
+.toast-viewport {
+  position: fixed;
+  bottom: var(--s5);
+  right: var(--s5);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toast {
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--action);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--text-md);
+}
+
+.toast-error {
+  border-color: var(--signal);
+}
+
+/* ---- Ledger tables ----------------------------------------------------- */
+/* Green rules between rows; totals get the accountant's single rule above, double rule below. */
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-size: var(--text-md);
+}
+
+.ledger th {
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ledger td {
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.ledger tr.is-clickable {
+  cursor: pointer;
+}
+
+.ledger tbody tr:hover td {
+  background: #f8faf6;
+}
+
+.ledger .num,
+.ledger th.num {
+  text-align: right;
+}
+
+.ledger tfoot td {
+  border-bottom: 0;
+  font-weight: 650;
+}
+
+.ledger tfoot .total {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--signal);
+}
+
+.ledger-empty {
+  padding: var(--s7) var(--s5);
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* ---- Page layout ------------------------------------------------------- */
+.page {
+  width: 100%;
+  max-width: 1180px;
+  padding: var(--s5) var(--s6) var(--s8);
+}
+
+.page-narrow {
+  max-width: 720px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s4);
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.page-header h1 {
+  font-size: var(--text-2xl);
+  font-stretch: var(--stretch-condensed);
+  font-weight: 700;
+}
+
+.page-header .actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--s2);
+}
+
+.section {
+  margin-top: var(--s6);
+}
+
+.section > h2 {
+  margin-bottom: var(--s3);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+
+.form-grid .span-2 {
+  grid-column: span 2;
+}
+
+.panel {
+  padding: var(--s5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--action);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: var(--s4);
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid .span-2 {
+    grid-column: auto;
+  }
+}
+
+/* ---- Input with a trailing label (currency, unit) -------------------------- */
+.input-affix {
+  display: flex;
+  align-items: stretch;
+}
+
+.input-affix .input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-affix-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s3);
+  border: 1px solid var(--rule-strong);
+  border-left: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+/* ---- Tabs -------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: var(--s1);
+  margin-bottom: var(--s5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.tab {
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[data-state="active"] {
+  color: var(--ink);
+  border-bottom-color: var(--action);
+}
+
+/* ---- Definition list for detail pages ---------------------------------- */
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s2) var(--s5);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+/* ---- Budget meter ------------------------------------------------------ */
+.meter {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  overflow: hidden;
+}
+
+.meter > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--action);
+}
+
+.meter.warn > span {
+  background: var(--warn);
+}
+
+.meter.over > span {
+  background: var(--signal);
+}
+
+/* A button that reads as a link: drill-downs in reports, "send again" in banners. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--action);
+  text-decoration: underline;
+}
+
+/* Two-factor setup: numbered steps, the QR code on white (scanners need contrast in dark mode too). */
+.two-factor-setup .steps {
+  margin: 0 0 var(--s5);
+  padding-left: var(--s5);
+  display: grid;
+  gap: var(--s5);
+}
+.two-factor-setup .qr {
+  display: block;
+  margin: var(--s3) 0;
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: var(--s2);
+}
+.two-factor-setup .secret {
+  display: inline-block;
+  margin-top: var(--s2);
+  font-size: var(--text-md);
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+.recovery-codes {
+  list-style: none;
+  margin: 0;
+  padding: var(--s4);
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: var(--s2) var(--s6);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-md);
+}
+
+/* The code to compare when connecting a device. */
+.device-code {
+  font: 700 2rem/1 ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0.14em;
+  padding: var(--s4) var(--s5);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-lg);
+  width: fit-content;
+}

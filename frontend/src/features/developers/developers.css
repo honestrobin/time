@@ -1,0 +1,129 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.developers {
+  max-width: 1320px;
+}
+
+.dev-intro pre {
+  margin: 0;
+  padding: var(--s3);
+  overflow-x: auto;
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+}
+
+.dev-search {
+  max-width: 420px;
+  margin: var(--s5) 0 var(--s4);
+}
+
+.dev-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+
+.dev-toc {
+  position: sticky;
+  top: var(--s4);
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--text-sm);
+}
+
+.dev-toc a {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.dev-toc a:hover {
+  color: var(--action);
+}
+
+.dev-group {
+  margin-bottom: var(--s7);
+}
+
+.dev-group > h2 {
+  text-transform: capitalize;
+}
+
+.endpoint {
+  padding: var(--s4) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.endpoint h3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+  margin: 0 0 var(--s2);
+  font-size: var(--text-md);
+}
+
+.endpoint h4 {
+  margin: var(--s3) 0 var(--s1);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.method {
+  display: inline-block;
+  min-width: 4.2em;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink-soft);
+}
+
+.method-get {
+  background: var(--action);
+}
+
+.method-post {
+  background: #2f5f8a;
+}
+
+.method-patch,
+.method-put {
+  background: var(--warn);
+}
+
+.method-delete {
+  background: var(--signal);
+}
+
+.params {
+  margin-top: var(--s2);
+  font-size: var(--text-sm);
+}
+
+.schema summary {
+  cursor: pointer;
+}
+
+.schema-table {
+  margin: var(--s1) 0 var(--s2) var(--s4);
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.schema-table td {
+  padding: 2px var(--s3) 2px 0;
+  vertical-align: top;
+}
+
+@media (max-width: 800px) {
+  .dev-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dev-toc {
+    display: none;
+  }
+}

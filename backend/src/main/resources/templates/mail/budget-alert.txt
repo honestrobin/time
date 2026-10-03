@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[# th:if="${over}"][(#{mail.budget-alert.over(${project}, ${used})})][/][# th:unless="${over}"][(#{mail.budget-alert.intro(${project}, ${used})})][/]
+
+[(${link})]
+
+[(#{mail.budget-alert.footer})]

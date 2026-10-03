@@ -1,0 +1,16 @@
+{
+  "name": "honestrobin-time-workspace",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.18.0",
+  "scripts": {
+    "build": "pnpm --filter @honestrobin/api-client build && pnpm --filter @honestrobin/web build",
+    "dev": "pnpm --filter @honestrobin/web dev",
+    "test": "pnpm --filter '!@honestrobin/e2e' -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "e2e": "pnpm --filter @honestrobin/e2e test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

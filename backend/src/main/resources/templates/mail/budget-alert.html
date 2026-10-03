@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{mail/layout :: layout(~{::content})}">
+<body>
+<th:block th:fragment="content">
+  <p th:text="#{mail.greeting(${name})}">Hi,</p>
+  <p th:if="${over}" th:text="#{mail.budget-alert.over(${project}, ${used})}">over</p>
+  <p th:unless="${over}" th:text="#{mail.budget-alert.intro(${project}, ${used})}">intro</p>
+  <p style="margin:28px 0;">
+    <a th:href="${link}" style="background:#1f5f4a;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600;"
+       th:text="#{mail.budget-alert.button}">button</a>
+  </p>
+  <p style="color:#77736a;font-size:13px;" th:text="#{mail.budget-alert.footer}">footer</p>
+</th:block>
+</body>
+</html>

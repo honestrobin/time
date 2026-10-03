@@ -1,0 +1,126 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.import-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--s2);
+}
+
+.import-phases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s3);
+}
+
+.import-phases .phase {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  align-items: start;
+}
+
+.phase-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.phase-done .phase-mark {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--paper);
+}
+
+.phase-current .phase-mark {
+  border-color: var(--action);
+  color: var(--action);
+}
+
+.phase-waiting .phase-title {
+  opacity: 0.6;
+}
+
+.phase-stopped .phase-mark {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.phase-title {
+  font-weight: 600;
+}
+
+.phase-counts:empty {
+  display: none;
+}
+
+.import-next {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.import-again,
+.import-issues {
+  margin-top: var(--s5);
+}
+
+.import-again summary,
+.import-issues summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.small {
+  font-size: 0.875rem;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* CSV import: the file target, the preview's sections and problem list. */
+.csv-drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: var(--s5);
+  border: 2px dashed var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--action);
+  font-weight: 600;
+  cursor: pointer;
+}
+.csv-drop:hover,
+.csv-drop:focus-within {
+  background: var(--action-tint);
+}
+.csv-drop input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.csv-preview section h3 {
+  margin: var(--s4) 0 var(--s2);
+}
+.csv-problems {
+  margin: 0;
+  padding-left: var(--s5);
+  max-height: 16rem;
+  overflow: auto;
+  font-size: var(--text-sm);
+}
+.table-scroll {
+  overflow-x: auto;
+}

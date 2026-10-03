@@ -1,0 +1,14 @@
+**/node_modules
+**/build
+**/dist
+**/.gradle
+.git
+e2e
+extension/*
+!extension/src
+extension/src/*
+!extension/src/selectors.json
+docs
+**/*.log
+deploy/.env
+data

@@ -1,0 +1,5 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.account-deletion-cancelled.intro(${account}, ${by})})]
+
+[(${link})]

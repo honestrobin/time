@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# HTTPS in front of Honest Robin: Time. Caddy gets and renews the certificate by itself.
+{$HONESTROBIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080 {
+		# Live timer updates are a stream; pass it through as it comes.
+		flush_interval -1
+	}
+}

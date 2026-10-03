@@ -1,0 +1,73 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: transform var(--duration);
+}
+
+.expand-btn:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.expand-btn[aria-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+.ledger tbody tr.approval-open td {
+  border-bottom-color: transparent;
+}
+
+.ledger tbody tr.approval-detail > td,
+.ledger tbody tr.approval-detail:hover > td {
+  padding: 0 var(--s3) var(--s4) 52px;
+  background: var(--surface);
+}
+
+.approval-detail-body {
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--rule-strong);
+  background: var(--surface-sunk);
+}
+
+.approval-detail-body .ledger {
+  background: transparent;
+  font-size: var(--text-sm);
+}
+
+.approval-detail-body .ledger td,
+.approval-detail-body .ledger th {
+  padding: 6px var(--s2);
+}
+
+.approval-detail-body .ledger tbody tr:hover td {
+  background: transparent;
+}
+
+.approval-detail-body h3 {
+  margin: var(--s3) 0 var(--s1);
+  font-size: var(--text-sm);
+}
+
+.approval-sub {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.approval-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  white-space: nowrap;
+}

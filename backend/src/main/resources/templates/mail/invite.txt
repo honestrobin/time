@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.invite.intro(${inviter}, ${account})})]
+
+[(${link})]
+
+[(#{mail.invite.ignore})]

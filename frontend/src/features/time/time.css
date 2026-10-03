@@ -1,0 +1,282 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* ---- Running timer: a straight red line across the top of the app --------- */
+.timer-strip {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s6);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.timer-line {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--signal);
+}
+
+.timer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--signal);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .timer-dot {
+    animation: timer-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes timer-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.timer-what {
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timer-clock {
+  margin-left: auto;
+  font-stretch: var(--stretch-condensed);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal);
+}
+
+/* ---- Time page header -------------------------------------------------- */
+.time-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented a {
+  padding: 6px var(--s3);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  text-decoration: none;
+  background: var(--surface);
+}
+
+.segmented a + a {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.segmented a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.time-date {
+  font-stretch: var(--stretch-semi);
+  font-weight: 650;
+  font-size: var(--text-lg);
+  min-width: 14ch;
+  text-align: center;
+}
+
+/* ---- Week strip (day view) --------------------------------------------- */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) max-content;
+  margin-bottom: var(--s5);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: none;
+  text-align: left;
+  color: var(--ink-soft);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.week-day:hover {
+  background: var(--surface);
+}
+
+.week-day[aria-current="date"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 -3px 0 var(--action);
+}
+
+.week-day .d-name {
+  font-size: var(--text-sm);
+}
+
+.week-day .d-total {
+  font-stretch: var(--stretch-semi);
+  font-weight: 650;
+  font-size: var(--text-lg);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-day .d-total.zero {
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.week-day .d-today {
+  font-size: var(--text-xs);
+  color: var(--action);
+  font-weight: 600;
+}
+
+.week-sum {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--s2) var(--s4);
+  text-align: right;
+}
+
+.week-sum .d-total {
+  font-stretch: var(--stretch-semi);
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+
+/* ---- Day entries -------------------------------------------------------- */
+.entry-what strong {
+  display: block;
+}
+
+.entry-what .entry-sub {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.entry-notes {
+  margin-top: 2px;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.entry-duration {
+  font-stretch: var(--stretch-semi);
+  font-weight: 650;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.entry-duration.running {
+  color: var(--signal);
+}
+
+.entry-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s1);
+  white-space: nowrap;
+}
+
+.day-total {
+  font-stretch: var(--stretch-semi);
+  font-size: var(--text-lg);
+}
+
+/* ---- Week grid ------------------------------------------------------------ */
+.week-grid td.cell {
+  padding: 4px;
+  width: 80px;
+}
+
+.week-grid .cell .input {
+  min-height: 32px;
+  padding: 0 var(--s2);
+  border-color: var(--rule);
+}
+
+.week-grid .cell .input:hover {
+  border-color: var(--rule-strong);
+}
+
+.week-grid .cell-static {
+  display: block;
+  padding: 0 var(--s2);
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.week-grid th.day {
+  text-align: right;
+  width: 80px;
+}
+
+.week-grid th.day.today {
+  color: var(--action);
+}
+
+.week-grid .row-label strong {
+  display: block;
+}
+
+.week-grid .row-label span {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.week-actions {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+@media (max-width: 800px) {
+  .timer-strip {
+    padding: var(--s2) var(--s4);
+  }
+
+  .week-strip {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .week-sum {
+    display: none;
+  }
+}
+
+.time-nav .nav-arrow {
+  min-width: 32px;
+  font-size: 1.25rem;
+  line-height: 1;
+}

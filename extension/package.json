@@ -1,0 +1,28 @@
+{
+  "name": "@honestrobin/extension",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:e2e": "node build.mjs --e2e",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@honestrobin/api-client": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.4",
+    "@types/node": "^22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "jsdom": "30.1.1",
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}

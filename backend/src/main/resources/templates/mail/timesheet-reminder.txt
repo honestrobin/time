@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.timesheet-reminder.intro(${account}, ${week})})]
+
+[(${link})]
+
+[(#{mail.timesheet-reminder.footer})]

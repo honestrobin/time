@@ -1,0 +1,5 @@
+[(${message})]
+
+[(#{mail.invoice.button})]: [(${link})]
+
+[(#{mail.invoice.footer(${seller})})]

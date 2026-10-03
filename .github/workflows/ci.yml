@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Every commit carries a DCO sign-off
+        run: |
+          missing=0
+          for sha in $(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+            if ! git show -s --format=%B "$sha" | grep -q '^Signed-off-by: '; then
+              echo "Commit $sha has no Signed-off-by line (use git commit -s)"; missing=1
+            fi
+          done
+          exit $missing
+
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: SPDX headers
+        run: scripts/check-license-headers.sh
+      - name: npm dependency licences
+        run: node scripts/check-npm-licenses.mjs
+      - name: JVM dependency licences
+        run: ./gradlew --no-daemon :backend:checkLicense
+
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [selfhost, cloud]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - name: Unit and integration tests (Testcontainers Postgres)
+        run: ./gradlew --no-daemon :backend:test
+        env:
+          HONESTROBIN_EDITION: ${{ matrix.edition }}
+      - name: OpenAPI document is up to date
+        if: matrix.edition == 'selfhost'
+        run: git diff --exit-code packages/api-client/openapi.json
+      - name: jOOQ classes match the migrations
+        if: matrix.edition == 'selfhost'
+        run: ./gradlew --no-daemon :backend:jooqCodegen && git diff --exit-code backend/src/generated
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: backend-test-report-${{ matrix.edition }}
+          path: backend/build/reports/tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Generated API client is up to date
+        run: pnpm --filter @honestrobin/api-client build && git diff --exit-code packages/api-client/src
+      - run: pnpm -r typecheck
+      # The e2e package needs a running instance and a browser; it has its own job below.
+      - run: pnpm --filter '!@honestrobin/e2e' -r --if-present test
+      - run: pnpm --filter @honestrobin/web build
+      - name: Browser extension (Chrome and Firefox builds)
+        run: pnpm --filter @honestrobin/extension build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-extension
+          path: extension/dist
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [selfhost, cloud]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: The HTTPS setup (Caddy) is valid compose
+        run: HONESTROBIN_DOMAIN=app.example.com docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.https.yml config -q
+      - name: docker compose up on a clean machine (AT-0.1)
+        run: docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
+        env:
+          HONESTROBIN_EDITION: ${{ matrix.edition }}
+      - name: Wait for the app
+        run: timeout 180 bash -c 'until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 2; done'
+      - run: pnpm --filter @honestrobin/e2e exec playwright install --with-deps chromium
+      - name: Browser extension, e2e build (allows http://localhost)
+        run: pnpm --filter @honestrobin/extension build:e2e
+      - run: pnpm --filter @honestrobin/e2e test
+        env:
+          CI: "true"
+          HONESTROBIN_E2E_BASE_URL: http://localhost:8080
+      - name: No errors in the app log
+        run: |
+          if docker compose -f deploy/docker-compose.yml logs app | grep -E " ERROR "; then
+            echo "The app logged errors during the end-to-end tests"; exit 1
+          fi
+      - name: App state (threads, database sessions)
+        if: failure()
+        run: |
+          curl -sS -m 5 http://localhost:8080/actuator/health || echo "health check did not answer"
+          docker compose -f deploy/docker-compose.yml exec -T db psql -U honestrobin -d honestrobin -c \
+            "select pid, state, wait_event_type, wait_event, now() - xact_start as in_tx, left(query, 160) as query from pg_stat_activity where datname = 'honestrobin' order by xact_start"
+          docker compose -f deploy/docker-compose.yml kill -s QUIT app || true
+          sleep 2
+      - name: App logs
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs app
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.edition }}
+          path: e2e/playwright-report

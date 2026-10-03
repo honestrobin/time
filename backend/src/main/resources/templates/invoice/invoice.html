@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+<meta charset="UTF-8"/>
+<title th:text="${doc.title + ' ' + (doc.number ?: '')}">Invoice</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm;
+    @bottom-center { content: element(footer); } }
+  body { font-family: 'Noto Sans', sans-serif; font-size: 9.5pt; color: #1d2621; line-height: 1.4; }
+  .footer { position: running(footer); font-size: 8pt; color: #5f6b64; text-align: center; white-space: pre-line; }
+  h1 { font-size: 22pt; font-weight: 700; margin: 0 0 2mm 0; letter-spacing: 0.02em; }
+  .muted { color: #5f6b64; }
+  .top { width: 100%; border-collapse: collapse; margin-bottom: 8mm; }
+  .top td { vertical-align: top; padding: 0; }
+  .meta { border-collapse: collapse; margin-left: auto; }
+  .meta td { padding: 0.6mm 0 0.6mm 6mm; }
+  .meta td.k { color: #5f6b64; text-align: right; }
+  .party-name { font-weight: 700; }
+  .stamp { display: inline-block; border: 1.5pt solid #1f5c45; color: #1f5c45; padding: 1mm 3mm; font-weight: 700; letter-spacing: 0.1em; margin-top: 2mm; }
+  .stamp.void { border-color: #c8322b; color: #c8322b; }
+  .subject { font-weight: 700; margin: 0 0 4mm 0; }
+  table.lines { width: 100%; border-collapse: collapse; }
+  table.lines th { text-align: left; font-weight: 700; border-bottom: 1pt solid #1d2621; padding: 1.5mm 2mm; font-size: 8.5pt; }
+  table.lines td { padding: 1.8mm 2mm; border-bottom: 0.5pt solid #c5d6ca; vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .desc { white-space: pre-line; }
+  table.totals { width: 85mm; margin: 4mm 0 0 auto; border-collapse: collapse; }
+  table.totals td { padding: 1.2mm 2mm; }
+  table.totals td.num { width: 32mm; }
+  table.totals tr.strong td { font-weight: 700; border-top: 1pt solid #1d2621; }
+  .due { margin: 3mm 0 0 auto; background: #e4efe8; padding: 3mm 4mm; width: 77mm; }
+  .due .amount { font-size: 15pt; font-weight: 700; }
+  .section { margin-top: 7mm; }
+  .section h2 { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; color: #5f6b64; margin: 0 0 1.5mm 0; }
+  .pre { white-space: pre-line; }
+  table.vat { border-collapse: collapse; margin-top: 2mm; }
+  table.vat th, table.vat td { padding: 1mm 3mm 1mm 0; text-align: left; font-size: 8.5pt; }
+  .legal { margin-top: 5mm; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="footer" th:if="${doc.footer}" th:text="${doc.footer}">footer</div>
+
+<table class="top">
+  <tr>
+    <td style="width: 55%;">
+      <h1 th:text="${doc.title}">Invoice</h1>
+      <div class="party-name" th:text="${doc.seller.name}">Seller</div>
+      <div th:each="line : ${doc.seller.lines}" th:text="${line}">line</div>
+      <div th:if="${doc.seller.taxId}" class="muted"><span th:text="#{invoice.taxId}">Tax ID</span>: <span th:text="${doc.seller.taxId}">id</span></div>
+      <div th:if="${doc.seller.companyRegNo}" class="muted"><span th:text="#{invoice.companyRegNo}">Reg. no.</span>: <span th:text="${doc.seller.companyRegNo}">no</span></div>
+      <div th:if="${doc.state == 'paid'}" class="stamp" th:text="#{invoice.stamp.paid}">PAID</div>
+      <div th:if="${doc.state == 'void'}" class="stamp void" th:text="#{invoice.stamp.void}">VOID</div>
+      <div th:if="${doc.state == 'draft'}" class="stamp" th:text="#{invoice.stamp.draft}">DRAFT</div>
+    </td>
+    <td>
+      <table class="meta">
+        <tr th:if="${doc.number}"><td class="k" th:text="#{invoice.number}">Number</td><td th:text="${doc.number}">1</td></tr>
+        <tr><td class="k" th:text="#{invoice.issueDate}">Issued</td><td th:text="${doc.issueDate}">date</td></tr>
+        <tr th:if="${doc.dueDate}"><td class="k" th:text="#{invoice.dueDate}">Due</td><td th:text="${doc.dueDate}">date</td></tr>
+        <tr th:if="${doc.period}"><td class="k" th:text="#{invoice.period}">Period</td><td th:text="${doc.period}">period</td></tr>
+        <tr th:if="${doc.purchaseOrder}"><td class="k" th:text="#{invoice.purchaseOrder}">PO</td><td th:text="${doc.purchaseOrder}">po</td></tr>
+        <tr th:if="${doc.buyerReference}"><td class="k" th:text="#{invoice.buyerReference}">Reference</td><td th:text="${doc.buyerReference}">ref</td></tr>
+      </table>
+      <div class="section" style="margin-top: 6mm;">
+        <h2 th:text="#{invoice.billTo}">Bill to</h2>
+        <div class="party-name" th:text="${doc.buyer.name}">Buyer</div>
+        <div th:each="line : ${doc.buyer.lines}" th:text="${line}">line</div>
+        <div th:if="${doc.buyer.taxId}" class="muted"><span th:text="#{invoice.taxId}">Tax ID</span>: <span th:text="${doc.buyer.taxId}">id</span></div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<p class="subject" th:if="${doc.subject}" th:text="${doc.subject}">Subject</p>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th th:text="#{invoice.description}">Description</th>
+      <th class="num" th:text="#{invoice.quantity}">Qty</th>
+      <th class="num" th:text="#{invoice.unitPrice}">Unit price</th>
+      <th class="num" th:if="${doc.showVatColumn}" th:text="#{invoice.vat}">VAT</th>
+      <th class="num" th:text="#{invoice.amount}">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr th:each="l : ${doc.lines}">
+      <td class="desc" th:text="${l.description}">desc</td>
+      <td class="num" th:text="${l.quantity}">1</td>
+      <td class="num" th:text="${l.unitPrice}">1</td>
+      <td class="num" th:if="${doc.showVatColumn}" th:text="${l.vat}">S</td>
+      <td class="num" th:text="${l.amount}">1</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="totals">
+  <tr th:each="row : ${doc.rows}" th:classappend="${row.strong} ? 'strong' : ''">
+    <td th:text="${row.label}">label</td>
+    <td class="num" th:text="${row.amount}">1</td>
+  </tr>
+</table>
+
+<div class="due" th:if="${doc.state != 'void' and doc.state != 'draft'}">
+  <div class="muted" th:text="#{invoice.amountDue}">Amount due</div>
+  <div class="amount" th:text="${doc.amountDue}">1</div>
+  <div class="muted" th:if="${doc.dueDate != null and doc.dueMinor > 0}" th:text="#{invoice.dueBy(${doc.dueDate})}">by</div>
+</div>
+
+<div class="section" th:if="${!doc.vatBreakdown.isEmpty()}">
+  <h2 th:text="#{invoice.vatBreakdown}">VAT breakdown</h2>
+  <table class="vat">
+    <tr><th th:text="#{invoice.vatCategory}">Category</th><th th:text="#{invoice.rate}">Rate</th><th th:text="#{invoice.taxable}">Taxable</th><th th:text="#{invoice.vat}">VAT</th></tr>
+    <tr th:each="g : ${doc.vatBreakdown}"><td th:text="${g[0]}">S</td><td th:text="${g[1]}">20</td><td th:text="${g[2]}">1</td><td th:text="${g[3]}">1</td></tr>
+  </table>
+</div>
+
+<p class="legal" th:if="${doc.legalNote}" th:text="${doc.legalNote}">Reverse charge</p>
+
+<div class="section" th:if="${doc.paymentInstructions}">
+  <h2 th:text="#{invoice.paymentInstructions}">How to pay</h2>
+  <div class="pre" th:text="${doc.paymentInstructions}">bank</div>
+</div>
+
+<div class="section" th:if="${doc.notes}">
+  <h2 th:text="#{invoice.notes}">Notes</h2>
+  <div class="pre" th:text="${doc.notes}">notes</div>
+</div>
+</body>
+</html>

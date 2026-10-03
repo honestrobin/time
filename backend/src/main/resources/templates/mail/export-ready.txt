@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.export-ready.intro(${account})})]
+
+[(${link})]
+
+[(#{mail.export-ready.footer(${expires})})]

@@ -1,0 +1,25 @@
+honestrobin:
+  signup-mode: open
+  mail:
+    limits:
+      # Every test signs up from 127.0.0.1.
+      signups-per-hour-per-ip: 0
+  billing:
+    # Tests invite freely; BillingTest sets the real free plan (one seat) itself.
+    free-plan:
+      seats: 1000
+  secrets:
+    key-file: ./build/test-secrets.key
+  storage:
+    local-path: ./build/test-files
+  harvest:
+    # The import runs in the request thread, against MockHarvest, without real waits.
+    run-inline: true
+    wait-scale: 0.001
+    page-size: 50
+db-scheduler:
+  polling-interval: 200ms
+logging:
+  level:
+    root: warn
+    com.honestrobin.time: info

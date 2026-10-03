@@ -1,0 +1,47 @@
+{
+  "tasks": {
+    "title": "Tasks",
+    "lead": "The kinds of work people track time on, e.g. Design or Meetings. You choose which tasks each project uses.",
+    "newTask": "New task",
+    "editTask": "Edit task",
+    "create": "Create task",
+    "created": "{{name}} created",
+    "edit": "Edit",
+    "archive": "Archive",
+    "restore": "Restore",
+    "delete": "Delete",
+    "archived": "{{name}} archived",
+    "restored": "{{name}} restored",
+    "deleted": "{{name}} deleted",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "The task is removed for good. A task that is used on projects can't be deleted; archive it instead.",
+    "empty": {
+      "title": "No tasks yet",
+      "body": "Create the tasks your team works on, then add them to projects.",
+      "action": "Create a task"
+    },
+    "list": {
+      "isDefault": "New projects",
+      "billable": "Billable",
+      "status": "Status",
+      "actions": "Actions",
+      "actionsFor": "Actions for {{name}}",
+      "addedToNew": "Added automatically",
+      "notAdded": "Not added",
+      "billableYes": "Billable",
+      "billableNo": "Non-billable",
+      "active": "Active",
+      "archivedBadge": "Archived"
+    },
+    "fields": {
+      "name": "Name",
+      "nameHint": "e.g. Design, Development or Project management.",
+      "isDefault": "Add to all new projects",
+      "isDefaultHint": "New projects start with this task selected. You can still remove it from a project.",
+      "defaultBillable": "Billable by default",
+      "defaultBillableHint": "Time on this task counts as billable unless a project says otherwise.",
+      "defaultRate": "Default hourly rate",
+      "defaultRateHint": "Used on projects billed by task. Leave empty for no rate."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.account-deletion.intro(${account}, ${by}, ${date})})]
+
+[(#{mail.account-deletion.export})]
+
+[(${link})]
+
+[(#{mail.account-deletion.footer(${account})})]

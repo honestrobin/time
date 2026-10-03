@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Every setting can be overridden with an environment variable (e.g. HONESTROBIN_BASE_URL, HONESTROBIN_EDITION).
+honestrobin:
+  edition: ${HONESTROBIN_EDITION:selfhost}
+  base-url: ${HONESTROBIN_BASE_URL:http://localhost:8080}
+  signup-mode: ${HONESTROBIN_SIGNUP_MODE:first_user_only}
+  mail:
+    from: ${HONESTROBIN_MAIL_FROM:Honest Robin <no-reply@localhost>}
+  secrets:
+    key-file: ${HONESTROBIN_SECRETS_KEY_FILE:./data/secrets.key}
+  storage:
+    driver: ${HONESTROBIN_STORAGE_DRIVER:local}
+    local-path: ${HONESTROBIN_STORAGE_PATH:./data/files}
+
+spring:
+  application:
+    name: honestrobin-time
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${HONESTROBIN_DB_URL:jdbc:postgresql://localhost:5432/honestrobin}
+    username: ${HONESTROBIN_DB_USER:honestrobin}
+    password: ${HONESTROBIN_DB_PASSWORD:honestrobin}
+    hikari:
+      maximum-pool-size: ${HONESTROBIN_DB_POOL_SIZE:20}
+      # JIT compilation costs ~100 ms per report query and never pays off at our query sizes.
+      connection-init-sql: "set jit = off"
+  flyway:
+    init-sqls: "set honestrobin.rls_bypass = 'on'"
+  jooq:
+    sql-dialect: postgres
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    mapper:
+      default-view-inclusion: true
+    default-property-inclusion: always
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+  messages:
+    basename: i18n/messages
+    fallback-to-system-locale: false
+  mail:
+    host: ${HONESTROBIN_SMTP_HOST:}
+    port: ${HONESTROBIN_SMTP_PORT:587}
+    username: ${HONESTROBIN_SMTP_USER:}
+    password: ${HONESTROBIN_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.starttls.enable: ${HONESTROBIN_SMTP_STARTTLS:true}
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+  thymeleaf:
+    check-template-location: false
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 365d
+  main:
+    banner-mode: off
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: ${HONESTROBIN_FORWARD_HEADERS:native}
+  shutdown: graceful
+  compression:
+    enabled: true
+  error:
+    whitelabel:
+      enabled: false
+
+springdoc:
+  api-docs:
+    # The API description is public on purpose (docs/api.md).
+    enabled: true
+    version: openapi_3_1
+    path: /v3/api-docs
+  packages-to-scan: com.honestrobin.time
+  paths-to-match: /api/v1/**
+  default-produces-media-type: application/json
+  writer-with-order-by-keys: true
+
+db-scheduler:
+  enabled: true
+  polling-interval: 5s
+  threads: 4
+  table-name: scheduled_tasks
+  immediate-execution-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${HONESTROBIN_TRACING_SAMPLING:0.0}
+  metrics:
+    tags:
+      application: honestrobin-time
+
+logging:
+  structured:
+    format:
+      console: ${HONESTROBIN_LOG_FORMAT:}
+  level:
+    org.jooq.Constants: warn

@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.timesheet-rejected.intro(${manager}, ${week})})]
+[# th:if="${comment}"]
+[(#{mail.timesheet-rejected.comment(${comment})})]
+[/]
+[(${link})]

@@ -1,0 +1,294 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Shared by the projects, clients and tasks pages. */
+
+/* ---- Forms split into ruled sections ------------------------------------ */
+.form-section + .form-section {
+  margin-top: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--rule);
+}
+
+.form-section > h2 {
+  margin-bottom: var(--s3);
+}
+
+.form-section > .lead {
+  margin: calc(-1 * var(--s2)) 0 var(--s3);
+}
+
+/* A select with a small action to its right, aligned to the input rather than the label. */
+.field-with-action {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+
+.field-with-action > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-with-action > .btn {
+  margin-top: calc(var(--text-sm) * 1.5 + var(--s1));
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+
+.inline-note {
+  max-width: 60ch;
+}
+
+/* ---- Two-way filter (active / archived) -------------------------------- */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg button {
+  padding: 6px var(--s3);
+  border: 0;
+  background: var(--surface);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.seg button:hover {
+  color: var(--ink);
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---- Ledger additions --------------------------------------------------- */
+/* Client name as a heading row above its projects. */
+.ledger tr.group-row th {
+  padding-top: var(--s4);
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  font-size: var(--text-md);
+  font-stretch: var(--stretch-semi);
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.ledger tbody tr.group-row:hover th {
+  background: var(--paper);
+}
+
+.ledger tr.is-archived td {
+  color: var(--ink-faint);
+}
+
+.ledger td.actions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ledger .col-narrow {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.ledger .input,
+.ledger .select-trigger {
+  min-height: 30px;
+}
+
+.ledger .cell-input {
+  width: 9.5rem;
+  margin-left: auto;
+}
+
+.ledger .cell-input .input {
+  min-width: 0;
+}
+
+.ledger .cell-select {
+  width: 11rem;
+}
+
+.ledger .checkbox-row {
+  justify-content: center;
+}
+
+/* A name that opens something: reads as text, behaves as a button. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover,
+.ledger a.row-link:hover {
+  color: var(--action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ledger a.row-link {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.code {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* ---- Checkbox lists (tasks and people on a new project) ---------------- */
+.check-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2) var(--s4);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.check-list-tools {
+  display: flex;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+
+@media (max-width: 720px) {
+  .check-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Project detail header ---------------------------------------------- */
+.project-title .client-name {
+  display: block;
+  margin-bottom: 2px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.project-title a.client-name:hover {
+  color: var(--action);
+}
+
+.project-title h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* ---- Budget ------------------------------------------------------------- */
+.budget-figures {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: var(--s6);
+  margin-bottom: var(--s3);
+}
+
+.budget-figures dt {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.budget-figures dd {
+  margin: 0;
+  font-stretch: var(--stretch-semi);
+  font-weight: 650;
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-figures dd.over {
+  color: var(--signal);
+}
+
+.budget-meter {
+  max-width: 640px;
+}
+
+.budget-meter .meter-caption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s1);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.ledger .meter {
+  min-width: 96px;
+}
+
+.list-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.list-budget .meter {
+  height: 6px;
+}
+
+.over-text {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s6);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.add-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  max-width: 560px;
+}
+
+.add-row > .field {
+  flex: 1;
+}
+
+/* ---- Contacts in the client dialog -------------------------------------- */
+.contact-form {
+  padding: var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}

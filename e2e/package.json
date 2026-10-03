@@ -1,0 +1,15 @@
+{
+  "name": "@honestrobin/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3"
+  }
+}

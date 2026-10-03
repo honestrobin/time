@@ -1,0 +1,276 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* ---- Wordmark ---------------------------------------------------------- */
+.wordmark {
+  font-stretch: var(--stretch-condensed);
+  font-weight: 800;
+  font-size: 1.375rem;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wordmark span {
+  font-weight: 400;
+  color: var(--action);
+}
+
+/* ---- Auth pages -------------------------------------------------------- */
+.auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-head {
+  padding: var(--s5) var(--s6) var(--s3);
+  border-bottom: 1px solid var(--ink);
+}
+
+.auth-main {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  padding: var(--s8) var(--s6);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-card h1 {
+  font-size: var(--text-2xl);
+  font-stretch: var(--stretch-condensed);
+  font-weight: 700;
+  margin-bottom: var(--s2);
+}
+
+.auth-card .lead {
+  color: var(--ink-soft);
+  margin-bottom: var(--s5);
+}
+
+.auth-links {
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 720px) {
+  .auth-head,
+  .auth-main {
+    padding-left: var(--s4);
+    padding-right: var(--s4);
+  }
+
+  .auth-main {
+    padding-top: var(--s6);
+  }
+}
+
+/* ---- App shell --------------------------------------------------------- */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  padding: var(--s5) var(--s3) var(--s4);
+  border-right: 1px solid var(--rule-strong);
+  background: var(--paper);
+  overflow-y: auto;
+}
+
+.sidebar .wordmark {
+  padding: 0 var(--s3);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-heading {
+  padding: var(--s3) var(--s3) var(--s1);
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+}
+
+.nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--s3);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.nav-link[data-status="active"],
+.nav-link.active {
+  color: var(--ink);
+  font-weight: 700;
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--action);
+}
+
+.nav-link .kbd {
+  font-weight: 500;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.account-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+}
+
+.account-button:hover {
+  border-color: var(--rule-strong);
+}
+
+.account-button strong {
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.account-button span {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 100;
+  padding: var(--s2) var(--s3);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.skip-link:focus {
+  left: 8px;
+}
+
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s3);
+    border-right: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-heading {
+    display: none;
+  }
+
+  .sidebar-foot {
+    margin-top: 0;
+    margin-left: auto;
+    flex-direction: row;
+  }
+}
+
+/* Read-only accounts (lapsed, or awaiting deletion) say so on every page. */
+.account-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+  padding: var(--s2) var(--s6);
+  background: var(--warn-tint);
+  border-bottom: 1px solid var(--warn);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.account-banner a {
+  color: inherit;
+}
+
+.danger-zone h2 {
+  color: var(--signal);
+}
+
+.section.stack > .btn {
+  align-self: flex-start;
+}
+
+.section.stack > h2,
+.section.stack > p {
+  margin: 0;
+}
+
+.account-banner .link-button {
+  text-decoration: underline;
+}
+
+.plan-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s4);
+}
+
+.plan-price {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}

@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{__${messageKey}__(${count})})]
+
+[(#{mail.security-notice.button})]: [(${link})]
+
+[(#{mail.security-notice.not-you})]

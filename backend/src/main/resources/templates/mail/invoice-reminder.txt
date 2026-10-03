@@ -1,0 +1,5 @@
+[(#{mail.invoice-reminder.body(${number}, ${seller}, ${days})})]
+
+[(#{mail.invoice.button})]: [(${link})]
+
+[(#{mail.invoice.reminderFooter})]

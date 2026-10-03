@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* A ruled list of checkboxes (team members, a person's teams). */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.checklist > .checkbox-row {
+  padding: 6px var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.checklist > .checkbox-row:last-child {
+  border-bottom: 0;
+}
+
+.checklist-legend {
+  margin-bottom: var(--s1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.person-back {
+  display: inline-block;
+  margin-bottom: var(--s2);
+  font-size: var(--text-sm);
+}
+
+.person-badges {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+/* Scoped to the person page: the project forms style .form-section themselves (catalog.css). */
+.person-page .form-section {
+  padding-top: var(--s5);
+  margin-top: var(--s5);
+  border-top: 1px solid var(--rule);
+}
+
+.person-page .form-section > h2 {
+  margin-bottom: var(--s1);
+}
+
+.person-page .form-section > .muted {
+  margin-bottom: var(--s4);
+}
+
+.invite-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s5);
+}

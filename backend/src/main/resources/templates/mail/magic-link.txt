@@ -1,0 +1,7 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.magic-link.intro})]
+
+[(${link})]
+
+[(#{mail.magic-link.ignore})]

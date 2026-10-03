@@ -1,0 +1,183 @@
+{
+  "reports": {
+    "title": "Reports",
+    "tabs": {
+      "time": "Time",
+      "detailed": "Detailed time",
+      "uninvoiced": "Uninvoiced",
+      "budget": "Budgets",
+      "expenses": "Expenses"
+    },
+    "period": {
+      "label": "Period",
+      "previous": "Previous period",
+      "next": "Next period",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "thisQuarter": "This quarter",
+      "thisYear": "This year",
+      "allTime": "All time",
+      "custom": "Custom dates…",
+      "customTitle": "Choose dates",
+      "from": "From",
+      "to": "To",
+      "apply": "Show",
+      "quarterLabel": "Q{{quarter}} {{year}}",
+      "back": {
+        "week": "This week",
+        "month": "This month",
+        "quarter": "This quarter",
+        "year": "This year"
+      }
+    },
+    "filters": {
+      "add": "Filter",
+      "client": "Client",
+      "project": "Project",
+      "task": "Task",
+      "person": "Person",
+      "team": "Team",
+      "category": "Category",
+      "billable": "Billable",
+      "billableChoice": {
+        "all": "All",
+        "yes": "Billable",
+        "no": "Non-billable"
+      },
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "remove": "Remove the {{filter}} filter",
+      "search": "Search",
+      "none": "Nothing matches.",
+      "clear": "Clear",
+      "apply": "Apply"
+    },
+    "export": {
+      "button": "Export",
+      "csv": "CSV",
+      "xlsx": "Excel (.xlsx)",
+      "detailedCsv": "Every entry, CSV",
+      "detailedXlsx": "Every entry, Excel",
+      "itemsCsv": "Every expense, CSV",
+      "itemsXlsx": "Every expense, Excel"
+    },
+    "groupBy": "Group by",
+    "groups": {
+      "client": "Client",
+      "project": "Project",
+      "task": "Task",
+      "person": "Person",
+      "category": "Category"
+    },
+    "drill": {
+      "client": "Show this client's projects",
+      "project": "Show this project's tasks",
+      "task": "Show who worked on this task",
+      "person": "Show this person's entries"
+    },
+    "rounded": "Each entry is rounded up to {{minutes}} minutes, as on invoices.",
+    "roundedNearest": "Each entry is rounded to the nearest {{minutes}} minutes, as on invoices.",
+    "billableShare": "{{percent}} billable",
+    "total": "Total",
+    "nonBillable": "Non-billable",
+    "summary": {
+      "hours": "Hours",
+      "billableHours": "Billable hours",
+      "billableAmount": "Billable amount",
+      "uninvoiced": "Not invoiced yet"
+    },
+    "col": {
+      "hours": "Hours",
+      "billableHours": "Billable",
+      "billableAmount": "Billable amount",
+      "uninvoiced": "Not invoiced",
+      "date": "Date",
+      "person": "Person",
+      "project": "Project",
+      "task": "Task",
+      "notes": "Notes",
+      "amount": "Amount",
+      "status": "Status",
+      "clientProject": "Client and project",
+      "expenses": "Expenses",
+      "total": "Total",
+      "oldest": "Oldest",
+      "budgetBy": "Budget",
+      "budget": "Budgeted",
+      "spent": "Spent",
+      "remaining": "Remaining",
+      "used": "Used",
+      "count": "Count",
+      "billable": "Billable"
+    },
+    "empty": {
+      "title": "No time in this period",
+      "body": "Try another period, or remove a filter."
+    },
+    "detailed": {
+      "summary_one": "{{count}} entry, {{hours}} in total.",
+      "summary_other": "{{count}} entries, {{hours}} in total."
+    },
+    "status": {
+      "invoiced": "Invoiced",
+      "running": "Running",
+      "approved": "Approved",
+      "submitted": "Submitted",
+      "locked": "Locked"
+    },
+    "bulk": {
+      "label": "Change selected entries",
+      "selectAll": "Select every entry that can change",
+      "select": "Select the entry of {{date}} on {{project}}",
+      "selected_one": "{{count}} entry selected",
+      "selected_other": "{{count}} entries selected",
+      "move": "Move to…",
+      "billable": "Make billable",
+      "nonBillable": "Make non-billable",
+      "clear": "Clear",
+      "moveTitle_one": "Move {{count}} entry",
+      "moveTitle_other": "Move {{count}} entries",
+      "moveHint": "Rates are taken from the new project. Entries of people who aren't on that project are skipped.",
+      "chooseProject": "Choose a project",
+      "chooseTask": "Choose a task",
+      "moveConfirm_one": "Move {{count}} entry",
+      "moveConfirm_other": "Move {{count}} entries",
+      "done_one": "{{count}} entry changed.",
+      "done_other": "{{count}} entries changed.",
+      "doneSkipped_one": "{{count}} entry changed, {{skipped}} skipped: invoiced, approved, locked or not on that project.",
+      "doneSkipped_other": "{{count}} entries changed, {{skipped}} skipped: invoiced, approved, locked or not on that project."
+    },
+    "uninvoiced": {
+      "lead": "Billable time and expenses that aren't on an invoice yet, as an invoice would pick them up. Running timers are left out until they stop.",
+      "waiting": "Waiting to be invoiced ({{currency}})",
+      "split": "{{hours}} of time, {{expenses}} of expenses",
+      "createInvoice": "Create invoice",
+      "empty": "Everything is invoiced",
+      "emptyBody": "No billable time or expenses are waiting in this period."
+    },
+    "budget": {
+      "includeArchived": "Include archived projects",
+      "overCount_one": "{{count}} project over budget",
+      "overCount_other": "{{count}} projects over budget",
+      "over": "{{amount}} over",
+      "monthly": "Resets monthly",
+      "empty": "No project budgets to show",
+      "emptyBody": "Set a budget on a project's settings to follow it here."
+    },
+    "budgetBy": {
+      "project": "Total project hours",
+      "project_cost": "Total project fees",
+      "task": "Hours per task",
+      "task_fees": "Fees per task",
+      "person": "Hours per person",
+      "none": "No budget"
+    },
+    "expenses": {
+      "total_one": "{{count}} expense",
+      "total_other": "{{count}} expenses",
+      "billable": "Billable",
+      "uninvoiced": "Billable, not invoiced",
+      "empty": "No expenses in this period"
+    }
+  }
+}

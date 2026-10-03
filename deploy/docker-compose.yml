@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Self-hosted Honest Robin: Time: Postgres is the only dependency.
+#   docker compose -f deploy/docker-compose.yml up -d
+# then open http://localhost:8080 — the first person to sign up becomes the admin.
+# Settings: copy deploy/.env.example to deploy/.env and adjust.
+name: honestrobin-time
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: honestrobin
+      POSTGRES_PASSWORD: ${HONESTROBIN_DB_PASSWORD:-honestrobin}
+      POSTGRES_DB: honestrobin
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U honestrobin -d honestrobin"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: ${HONESTROBIN_IMAGE:-honestrobin-time:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    # Java sizes itself from this (75%); without a cap it would take the whole machine's memory
+    # into account, which matters on a server shared with other projects.
+    mem_limit: ${HONESTROBIN_MEMORY:-1536m}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${HONESTROBIN_PORT:-8080}:8080"
+    environment:
+      HONESTROBIN_EDITION: ${HONESTROBIN_EDITION:-selfhost}
+      HONESTROBIN_BASE_URL: ${HONESTROBIN_BASE_URL:-http://localhost:8080}
+      HONESTROBIN_SIGNUP_MODE: ${HONESTROBIN_SIGNUP_MODE:-first_user_only}
+      HONESTROBIN_DB_URL: jdbc:postgresql://db:5432/honestrobin
+      HONESTROBIN_DB_USER: honestrobin
+      HONESTROBIN_DB_PASSWORD: ${HONESTROBIN_DB_PASSWORD:-honestrobin}
+      HONESTROBIN_MAIL_FROM: ${HONESTROBIN_MAIL_FROM:-Honest Robin <no-reply@localhost>}
+      HONESTROBIN_SMTP_HOST: ${HONESTROBIN_SMTP_HOST:-}
+      HONESTROBIN_SMTP_PORT: ${HONESTROBIN_SMTP_PORT:-587}
+      HONESTROBIN_SMTP_USER: ${HONESTROBIN_SMTP_USER:-}
+      HONESTROBIN_SMTP_PASSWORD: ${HONESTROBIN_SMTP_PASSWORD:-}
+    volumes:
+      - data:/data
+
+volumes:
+  db:
+  data:

@@ -1,0 +1,81 @@
+{
+  "$comment": "Where the Track time button goes on each site, and how an item is recognised. Instances serve this file at /extension/selectors.json; the extension uses whichever copy has the higher version, so a site redesign can be fixed without a store release. VERIFY each site against its live markup before release.",
+  "version": 1,
+  "sites": [
+    {
+      "source": "github",
+      "name": "GitHub",
+      "hosts": ["github.com"],
+      "match": [{ "path": "^/([^/]+)/([^/]+)/(?:issues|pull)/(\\d+)" }],
+      "id": "{1}/{2}#{3}",
+      "workspace": "{1}/{2}",
+      "title": ["[data-testid='issue-title']", "bdi.js-issue-title", ".js-issue-title", "h1.gh-header-title"],
+      "anchor": [
+        { "selector": "[data-testid='issue-header'] [data-component='PH_Actions']", "placement": "prepend" },
+        { "selector": ".gh-header-actions", "placement": "prepend" },
+        { "selector": "[data-testid='issue-title']", "placement": "after" },
+        { "selector": "h1.gh-header-title", "placement": "after" }
+      ]
+    },
+    {
+      "source": "jira",
+      "name": "Jira",
+      "hosts": ["*.atlassian.net"],
+      "match": [{ "path": "^/browse/([A-Z][A-Z0-9_]+-\\d+)" }, { "param": "selectedIssue" }],
+      "id": "{1}",
+      "workspace": "{host}",
+      "url": "https://{host}/browse/{1}",
+      "title": ["[data-testid='issue.views.issue-base.foundation.summary.heading']", "h1[data-testid$='summary.heading']"],
+      "anchor": [
+        { "selector": "[data-testid='issue.views.issue-base.foundation.quick-add.quick-add-container']", "placement": "append" },
+        { "selector": "[data-testid='issue.views.issue-base.foundation.summary.heading']", "placement": "after" }
+      ]
+    },
+    {
+      "source": "asana",
+      "name": "Asana",
+      "hosts": ["app.asana.com"],
+      "match": [
+        { "path": "^/\\d+/(\\d+)/project/\\d+/task/(\\d+)" },
+        { "path": "^/\\d+/(\\d+)/task/(\\d+)" },
+        { "path": "^/0/(\\d+)/(\\d+)" }
+      ],
+      "id": "{2}",
+      "workspace": "{1}",
+      "url": "https://app.asana.com/0/0/{2}",
+      "title": ["textarea.TaskName-input", "[aria-label='Task Name']", ".TaskPane textarea"],
+      "anchor": [
+        { "selector": ".TaskPaneToolbar", "placement": "prepend" },
+        { "selector": ".TaskPane-header", "placement": "append" }
+      ]
+    },
+    {
+      "source": "linear",
+      "name": "Linear",
+      "hosts": ["linear.app"],
+      "match": [{ "path": "^/([^/]+)/issue/([A-Z][A-Z0-9]*-\\d+)" }],
+      "id": "{2}",
+      "workspace": "{1}",
+      "title": ["[aria-label='Issue title']", "[data-testid='issue-title']"],
+      "anchor": [
+        { "selector": "[data-testid='issue-header-actions']", "placement": "prepend" },
+        { "selector": "[aria-label='Issue title']", "placement": "after" }
+      ]
+    },
+    {
+      "source": "trello",
+      "name": "Trello",
+      "hosts": ["trello.com"],
+      "match": [{ "path": "^/c/([A-Za-z0-9]+)" }],
+      "id": "{1}",
+      "workspace": "trello",
+      "workspaceFrom": { "selector": "a[href^='/b/']", "attribute": "href", "pattern": "^/b/([A-Za-z0-9]+)" },
+      "url": "https://trello.com/c/{1}",
+      "title": ["[data-testid='card-back-title-input']", "#js-dialog-title", "h2.card-detail-title-assist"],
+      "anchor": [
+        { "selector": "[data-testid='card-back-title-input']", "placement": "after" },
+        { "selector": "#js-dialog-title", "placement": "after" }
+      ]
+    }
+  ]
+}

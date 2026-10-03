@@ -1,0 +1,72 @@
+{
+  "approvals": {
+    "title": "Approvals",
+    "lead": "Weeks people have submitted. Approving a week locks its time and expenses so they can be invoiced.",
+    "tabWaiting": "Waiting for approval",
+    "tabApproved": "Approved",
+    "tabReturned": "Returned",
+    "offTitle": "Timesheet approval is turned off",
+    "offBodyAdmin": "Turn on \"Require weekly timesheet approval\" in Account settings to have people submit each week for a manager to approve.",
+    "offBody": "Time in this account doesn't need approval. An admin can turn it on in Account settings.",
+    "openSettings": "Open account settings",
+    "empty": {
+      "submitted": {
+        "title": "Nothing waiting for approval",
+        "body": "When people submit their week, it shows up here for you to approve or return."
+      },
+      "approved": {
+        "title": "No approved weeks yet",
+        "body": "Weeks you approve are listed here. Their time is locked until an admin reopens them."
+      },
+      "rejected": {
+        "title": "No returned weeks",
+        "body": "Weeks you return with a comment are listed here until the person submits them again."
+      }
+    },
+    "details": "Details",
+    "actions": "Actions",
+    "person": "Person",
+    "week": "Week",
+    "total": "Total hours",
+    "billable": "Billable hours",
+    "entries": "Entries",
+    "expenses": "Expenses",
+    "weekOf": "Week of {{date}}",
+    "weekCount_one": "{{count}} week",
+    "weekCount_other": "{{count}} weeks",
+    "showEntries": "Show entries for {{name}}, week of {{week}}",
+    "submittedOn": "Submitted {{date}}",
+    "approvedBy": "Approved by {{name}} on {{date}}",
+    "returnedBy": "Returned by {{name}} on {{date}}",
+    "reopenedBy": "Reopened by {{name}} on {{date}}",
+    "quoted": "“{{text}}”",
+    "someone": "someone",
+    "approve": "Approve week",
+    "approved": "Week approved",
+    "partlyApproved": "Approved the time on your projects. The rest waits for its project managers.",
+    "return": "Return",
+    "returnWeek": "Return week",
+    "returned": "Week returned",
+    "returnTitle": "Return this week to {{name}}",
+    "returnLead": "{{name}} can then fix their time and submit the week again.",
+    "comment": "Comment",
+    "commentHint": "Say what needs fixing. They get it by email.",
+    "reopen": "Reopen week",
+    "reopened": "Week reopened",
+    "reopenTitle": "Reopen {{name}}'s week",
+    "reopenLead": "Reopening unlocks this week's time and expenses so they can be changed and submitted again. Anything already invoiced stays locked.",
+    "reason": "Reason",
+    "reasonHint": "Recorded in the audit log with your name.",
+    "ownWeek": "Your own week",
+    "notYourProjects": "No time on your projects",
+    "partial": "You can approve the {{count}} of {{total}} entries on projects you manage. The rest waits for their project managers.",
+    "openTimesheet": "Open timesheet",
+    "noEntries": "No time tracked this week.",
+    "date": "Date",
+    "project": "Project",
+    "task": "Task",
+    "notes": "Notes",
+    "time": "Time",
+    "notBillable": "Not billable"
+  }
+}

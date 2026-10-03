@@ -1,0 +1,56 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.month-label {
+  min-width: 150px;
+  text-align: center;
+  font-weight: 650;
+  font-stretch: var(--stretch-semi);
+}
+
+.expense-notes {
+  max-width: 280px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.expense-sub {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.file-input {
+  width: 100%;
+  padding: 6px var(--s2);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+
+.file-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+
+.file-input::file-selector-button {
+  margin-right: var(--s3);
+  padding: 4px var(--s3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.computed-amount {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
