@@ -144,3 +144,52 @@ jobs:
         with:
           name: playwright-report-${{ matrix.edition }}
           path: e2e/playwright-report
+
+  # Publishes ghcr.io/honestrobin/time:main (and :sha-<commit>) once every check above passed, for
+  # test servers. Releases get :latest and version tags from release.yml. The jar is built once
+  # here; each architecture's image only adds it to the Java runtime, so nothing compiles under
+  # emulation.
+  image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [licences, backend, frontend, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --filter @honestrobin/web...
+      - run: pnpm --filter @honestrobin/web build
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - name: The jar, with the web app inside
+        run: ./gradlew --no-daemon :backend:bootJar -PhonestrobinVersion=main-${GITHUB_SHA::7} -x test
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=main
+            type=sha
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend/build/libs
+          file: deploy/Dockerfile
+          target: prebuilt
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}

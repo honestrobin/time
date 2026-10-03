@@ -27,13 +27,12 @@ RUN ./gradlew --no-daemon :backend:bootJar -PhonestrobinVersion=${HONESTROBIN_VE
 
 # Java 25 runs the Java 21 bytecode; since Java 24, virtual threads no longer pin their carrier
 # inside synchronized code, which on Java 21 could stall every request on a small machine.
-FROM docker.io/library/eclipse-temurin:25-jre
+FROM docker.io/library/eclipse-temurin:25-jre AS runtime
 RUN groupadd --system --gid 10001 honestrobin \
  && useradd --system --uid 10001 --gid honestrobin --home /data honestrobin \
  && mkdir -p /data \
  && chown honestrobin:honestrobin /data
 WORKDIR /app
-COPY --from=backend /src/backend/build/libs/honestrobin-time.jar /app/honestrobin-time.jar
 USER honestrobin
 ENV HONESTROBIN_SECRETS_KEY_FILE=/data/secrets.key \
     HONESTROBIN_STORAGE_PATH=/data/files \
@@ -44,3 +43,12 @@ LABEL org.opencontainers.image.title="Honest Robin: Time" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.source="https://github.com/honestrobin/time"
 ENTRYPOINT ["java", "--sun-misc-unsafe-memory-access=allow", "-jar", "/app/honestrobin-time.jar"]
+
+# CI only: a jar built once outside Docker, with backend/build/libs as the build context. The jar
+# runs on any architecture, so the arm64 image needs no compiling under emulation.
+FROM runtime AS prebuilt
+COPY honestrobin-time.jar /app/honestrobin-time.jar
+
+# The default: the jar built from source above.
+FROM runtime
+COPY --from=backend /src/backend/build/libs/honestrobin-time.jar /app/honestrobin-time.jar
