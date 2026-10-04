@@ -45,7 +45,8 @@ class BillingTest : IntegrationTest() {
         quantity: Int = 1,
         unitPrice: Long = 700,
         priceId: String = MockPaddle.ANNUAL_PRICE,
-        subscription: String = "sub_test_${account.toString().take(8)}",
+        // The whole id: UUIDv7s made within a minute or so share their first characters.
+        subscription: String = "sub_test_$account",
         signature: String? = null,
         occurredAt: Instant = Instant.now(),
     ) = """{"event_id":"evt_${UUID.randomUUID()}","event_type":"$type","occurred_at":"$occurredAt",
@@ -112,7 +113,7 @@ class BillingTest : IntegrationTest() {
         member.post("/api/v1/auth/invite/accept", mapOf("token" to mail.linkToken(email), "password" to "correct horse battery")).expect(200)
         MockPaddle.calls.clear()
         assertThat(billing().syncSeats()).isGreaterThanOrEqualTo(1)
-        val patch = MockPaddle.calls.single { it.method == "PATCH" && it.path == "/subscriptions/sub_test_${account.toString().take(8)}" }
+        val patch = MockPaddle.calls.single { it.method == "PATCH" && it.path == "/subscriptions/sub_test_$account" }
         assertThat(patch.body!!["items"][0]["price_id"].asText()).isEqualTo(MockPaddle.ANNUAL_PRICE)
         assertThat(patch.body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
 
