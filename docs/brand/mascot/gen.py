@@ -32,6 +32,7 @@ def body():
         f'<path d="{BODY}" fill="none" {S}/>'
     )
 
+# Drawn before the body, so the strands grow out from behind the outline.
 TUFT = f'<path d="M200,90 L197,64 M212,92 L222,70 M188,92 L178,72" fill="none" {S}/>'
 
 def face(brow="up"):
@@ -97,13 +98,13 @@ def svg(inner, title):
             f'<title>{title}</title>{inner}</svg>')
 
 POSES = {
-    "promise": svg(shadow() + TAIL + LEGS + body() + TUFT + WING_UP + WING_HEART + face("up"),
+    "promise": svg(shadow() + TAIL + LEGS + TUFT + body() + WING_UP + WING_HEART + face("up"),
                    "Honest Robin with one wing raised and one wing on its heart"),
-    "time": svg(shadow() + TAIL + LEGS + body() + TUFT + WING_L + WING_R + stopwatch() + face("up"),
+    "time": svg(shadow() + TAIL + LEGS + TUFT + body() + WING_L + WING_R + stopwatch() + face("up"),
                 "Honest Robin wearing a stopwatch"),
-    "notes": svg(shadow() + TAIL + LEGS + body() + PENCIL + TUFT + notebook() + face("focus"),
+    "notes": svg(shadow() + TAIL + LEGS + TUFT + body() + PENCIL + notebook() + face("focus"),
                  "Honest Robin holding a notebook, pencil tucked behind its head"),
-    "nest": svg(shadow(150) + body() + TUFT + WING_L + WING_R + nest() + face("up"),
+    "nest": svg(shadow(150) + TUFT + body() + WING_L + WING_R + nest() + face("up"),
                 "Honest Robin sitting in its own nest"),
 }
 
