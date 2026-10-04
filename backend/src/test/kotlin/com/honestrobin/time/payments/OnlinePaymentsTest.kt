@@ -20,11 +20,19 @@ class OnlinePaymentsTest : IntegrationTest() {
         return inv to sent["public_url"].asText().substringAfterLast("/")
     }
 
-    private fun event(invoice: UUID, amount: Long, currency: String = "eur", reference: String = "pi_${UUID.randomUUID()}", account: String? = null) = """
+    private fun event(invoice: UUID, amount: Long, currency: String = "eur", reference: String = "pi_${UUID.randomUUID()}", account: String? = null, accountId: UUID? = null) = """
         {"id":"evt_${UUID.randomUUID()}","type":"checkout.session.completed","created":${Instant.now().epochSecond}${account?.let { ",\"account\":\"$it\"" } ?: ""},
          "data":{"object":{"id":"cs_test_x","payment_status":"paid","amount_total":$amount,"currency":"$currency","payment_intent":"$reference",
-         "metadata":{"invoice_id":"$invoice"}}}}
+         "metadata":{"invoice_id":"$invoice"${accountId?.let { ",\"account_id\":\"$it\"" } ?: ""}}}}}
     """.trimIndent()
+
+    /** Connects [admin]'s account to the Stripe account [acct] through Stripe Connect. */
+    private fun connect(admin: TestClient, acct: String) {
+        val url = admin.post("/api/v1/payments/stripe/connect").expect(200)["url"].asText()
+        val state = Regex("state=([^&]+)").find(url)!!.groupValues[1]
+        MockStripe.connectedAccount = acct
+        assertThat(client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=connected")
+    }
 
     private fun signed(payload: String, secret: String): Map<String, String> {
         val t = Instant.now().epochSecond
@@ -104,6 +112,21 @@ class OnlinePaymentsTest : IntegrationTest() {
     }
 
     @Test
+    fun `one Stripe account connected to two workspaces still records each payment on the right one`() {
+        // Security review, 4 October 2026: the webhook looked up a single connection and failed
+        // when there were two, so payments silently stopped being recorded.
+        val acct = "acct_shared_${UUID.randomUUID().toString().take(8)}"
+        val first = signup(accountName = "First Co")
+        val second = signup(accountName = "Second Co")
+        connect(first, acct)
+        connect(second, acct)
+        val (invoice, _) = sentInvoice(second, unitPrice = 10_000)
+        val payload = event(invoice, 10_000, account = acct, accountId = second.accountId)
+        webhook("/webhooks/stripe", payload, signed(payload, MockStripe.PLATFORM_WEBHOOK_SECRET)).expect(200)
+        assertThat(second.get("/api/v1/invoices/$invoice")["state"].asText()).isEqualTo("paid")
+    }
+
+    @Test
     fun `without a connection the page offers no online payment`() {
         val admin = signup()
         val (_, token) = sentInvoice(admin)
@@ -115,8 +138,14 @@ class OnlinePaymentsTest : IntegrationTest() {
     fun `amounts convert to Stripe's units, including currencies Stripe treats differently`() {
         assertThat(StripeClient.toStripeAmount(12_345, "EUR")).isEqualTo(12_345)
         assertThat(StripeClient.toStripeAmount(5_000, "JPY")).isEqualTo(5_000)
-        assertThat(StripeClient.toStripeAmount(1_234_500, "HUF")).isEqualTo(12_345)
-        assertThat(StripeClient.fromStripeAmount(12_345, "HUF")).isEqualTo(1_234_500)
+        // docs.stripe.com/currencies, "Special cases": HUF and TWD are charged with two decimals;
+        // ISK and UGX have none, but Stripe takes them as amounts ending in 00 (5 ISK is 500).
+        assertThat(StripeClient.toStripeAmount(1_234_500, "HUF")).isEqualTo(1_234_500)
+        assertThat(StripeClient.fromStripeAmount(1_234_500, "HUF")).isEqualTo(1_234_500)
+        assertThat(StripeClient.toStripeAmount(80_045, "TWD")).isEqualTo(80_045)
+        assertThat(StripeClient.toStripeAmount(5, "ISK")).isEqualTo(500)
+        assertThat(StripeClient.fromStripeAmount(500, "ISK")).isEqualTo(5)
+        assertThat(StripeClient.toStripeAmount(50_000, "UGX")).isEqualTo(5_000_000)
         assertThat(StripeClient.toStripeAmount(12_340, "KWD")).isEqualTo(12_340)
         assertThat(StripeClient.verifySignature("{}", "t=${Instant.now().epochSecond - 3600},v1=${StripeClient.sign("s", Instant.now().epochSecond - 3600, "{}")}", "s")).isFalse()
     }

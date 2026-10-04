@@ -241,12 +241,14 @@ class OnlinePaymentService(
         }
         val event = runCatching { json.readTree(payload) }.getOrNull() ?: return false
         if (integration == null) {
-            // The platform's Connect endpoint: the event names the connected account.
-            val connected = event["account"]?.asText()?.let { acct ->
-                tx.system {
-                    dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(acct)).fetchOne()
-                }
-            } ?: return true
+            // The platform's Connect endpoint: the event names the connected account. One Stripe
+            // account can be connected to several workspaces; the checkout names the workspace.
+            val acct = event["account"]?.asText() ?: return true
+            val candidates = tx.system {
+                dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(acct)).fetch()
+            }
+            val named = event["data"]?.get("object")?.get("metadata")?.get("account_id")?.asText()?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            val connected = candidates.firstOrNull { it.accountId == named } ?: candidates.singleOrNull() ?: return true
             return record(connected, event)
         }
         return record(integration, event)

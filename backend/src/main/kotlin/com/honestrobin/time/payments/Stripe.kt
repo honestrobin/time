@@ -84,21 +84,24 @@ class StripeClient(private val settings: StripeSettings, private val json: Objec
     companion object {
         const val API_VERSION = "2024-06-20"
 
-        // Stripe's smallest unit differs from ISO 4217 for a few currencies (VERIFY):
-        // these are zero-decimal at Stripe even though ISO gives them two decimals.
-        private val STRIPE_ZERO_DECIMAL_OVERRIDES = setOf("ISK", "HUF", "TWD", "UGX")
+        // Where Stripe's amounts differ from ISO 4217 (docs.stripe.com/currencies, "Special
+        // cases", read on 4 October 2026): ISK and UGX have no decimals, but Stripe still takes
+        // them as two-decimal amounts ending in 00 ("to charge 5 ISK, provide 500"). HUF and TWD
+        // are charged with two decimals, as ISO says; only their payouts are whole units.
+        // An earlier version had this backwards and charged 1% of such invoices.
+        private val STRIPE_TWO_DECIMAL = setOf("ISK", "UGX")
+
+        private fun stripeDigits(currency: String, iso: Int) = if (currency.uppercase() in STRIPE_TWO_DECIMAL) 2 else iso
 
         /** Our minor units (ISO digits) to the amount Stripe expects. */
         fun toStripeAmount(minor: Long, currency: String): Long {
             val iso = Money.digits(currency)
-            val stripe = if (currency.uppercase() in STRIPE_ZERO_DECIMAL_OVERRIDES) 0 else iso
-            return shift(minor, iso, stripe)
+            return shift(minor, iso, stripeDigits(currency, iso))
         }
 
         fun fromStripeAmount(amount: Long, currency: String): Long {
             val iso = Money.digits(currency)
-            val stripe = if (currency.uppercase() in STRIPE_ZERO_DECIMAL_OVERRIDES) 0 else iso
-            return shift(amount, stripe, iso)
+            return shift(amount, stripeDigits(currency, iso), iso)
         }
 
         private fun shift(value: Long, from: Int, to: Int): Long {
