@@ -48,12 +48,16 @@ anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
 
 ## Our promises
 
-These are enforced in the code, not only in the terms of service:
+What we promise, and what holds us to it:
 
 1. **No usage-based pricing.** Nothing is metered for billing. Honest Robin Cloud limits seats only, and the self-hosted edition has no limits.
 2. **Export always works,** including on free and lapsed accounts.
 3. **The self-hosted edition is complete:** the same code with the same features. A test fails if the editions differ.
 4. **No dark patterns:** no hidden fees, no forced annual plans, and you cancel in the app.
+
+The first three are guarded by tests, so they can't break by accident. Code can't stop us breaking
+a promise on purpose, though, so all four will also go into the terms of service. And the last
+guarantee is yours: you can export everything and run the same software yourself.
 
 ## Run it yourself
 

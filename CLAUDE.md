@@ -18,10 +18,11 @@ decisions are recorded in `docs/decisions/`.
 - **Global by default.** No defaults, copy or compliance scoped to one country or region
   (decision record 0009). Country rules go in modules behind a neutral core.
 - **Plain English** in the UI, emails and docs: short sentences, no jargon.
-- **The trust charter** (README, "Our promises") is enforced in code: nothing is metered for
-  billing, export always works, and the editions have the same features. Edition-specific code
+- **The trust charter** (README, "Our promises") is guarded by tests in code: nothing is metered
+  for billing, export always works, and the editions have the same features. Tests stop a promise
+  breaking by accident, not on purpose, so never call a check a guarantee. Edition-specific code
   (cloud vs self-host) lives only in `billing`, `analytics` and `platform.edition`;
-  `EditionParityTest` enforces it.
+  `EditionParityTest` checks it.
 - **Nothing private in the repository:** it is public. No secrets, credentials or personal data,
   not even in tests (use stand-ins like `MockStripe`).
 - Commits follow Conventional Commits, with a body that says why. Record decisions someone might
