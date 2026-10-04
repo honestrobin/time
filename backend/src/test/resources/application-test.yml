@@ -6,6 +6,11 @@ honestrobin:
     limits:
       # Every test signs up from 127.0.0.1.
       signups-per-hour-per-ip: 0
+      # Sign-up is open in tests, which would bring Honest Robin Cloud's limits; tests that check
+      # the limits set them themselves.
+      invites-per-day: 0
+      invite-resend-cooldown: 0s
+      invoice-recipients-per-day: 0
   billing:
     # Tests invite freely; BillingTest sets the real free plan (one seat) itself.
     free-plan:

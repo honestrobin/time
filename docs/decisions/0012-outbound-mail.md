@@ -26,13 +26,13 @@ answer can't be "the cloud edition has limits".
    as well, and one where only invited people join doesn't need it.
 2. **Invitation limits are configuration.** `HONESTROBIN_MAIL_LIMITS_INVITES_PER_DAY` (invitations
    per account in 24 hours) and `HONESTROBIN_MAIL_LIMITS_INVITE_RESEND_COOLDOWN` (how soon the
-   same invitation can go out again). Both default to no limit. Honest Robin Cloud runs with
+   same invitation can go out again). Both default to no limit (but see 5). Honest Robin Cloud runs with
    **50 per day** and **10 minutes**: enough for a team moving over from Harvest in one go, too
    little to be worth abusing. Over the limit, the API answers `429` with `invite_limit` or
    `invite_cooldown` and a sentence a person can act on.
 3. **Invoice emails and sign-ups** (added after the security review of 3 October):
    `HONESTROBIN_MAIL_LIMITS_INVOICE_RECIPIENTS_PER_DAY` caps invoice email recipients per account
-   (default no limit; Cloud: 300), and `HONESTROBIN_MAIL_LIMITS_SIGNUPS_PER_HOUR_PER_IP` caps
+   (default no limit, but see 5; Cloud: 300), and `HONESTROBIN_MAIL_LIMITS_SIGNUPS_PER_HOUR_PER_IP` caps
    sign-ups per IP address where sign-up is open (default 10). Names that appear in emails
    (people, profiles, workspaces) can't contain web addresses. These counters are kept per
    server; with several servers, move them to the database.
@@ -40,10 +40,22 @@ answer can't be "the cloud edition has limits".
    the response never reveals whether an address has an account (unchanged). The confirmation
    email at sign-up and resending it count against the same limit. A new sign-in or reset link
    replaces the earlier ones.
+5. **The limits follow the sign-up mode, and count per person** (added after the security review
+   of 4 October 2026). Left unset, the invitation and invoice limits take Honest Robin Cloud's
+   numbers where sign-up is open (50 invitations, 10 minutes, 300 recipients) and stay off
+   elsewhere, so an instance that opens sign-up is never without them, whoever forgets to set
+   them. Invitations and invoice emails also count per person, across all their workspaces:
+   anyone can create workspaces where sign-up is open, and each new one used to bring a fresh
+   allowance. Reminders count against the account's invoice limit and wait when it's reached;
+   before, they weren't counted at all. A workspace's legal name, which heads every invoice
+   email's subject, can't contain a web address, like the other names. Whether a name belongs
+   to the business using it isn't checked: nothing in code can tell reliably. That rests on the
+   confirmed address and the limits.
 
 ## Consequences
 
 - A cloud customer who needs more invitations in a day writes to support; the limit is a setting,
   so raising it needs no release.
 - Tests run with open sign-up, so the test helper confirms each new user's address, which also
-  exercises the confirmation flow in every test.
+  exercises the confirmation flow in every test. Their configuration turns the invitation and
+  invoice limits off; the tests of the limits set them.

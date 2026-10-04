@@ -91,7 +91,7 @@ class InvoiceSender(
         if (to.isEmpty()) throw ValidationException("to", "Add at least one recipient, or mark a client contact as receiving invoices")
         to.firstOrNull { !EMAIL.matches(it) }?.let { throw ValidationException("to", "$it is not an email address") }
         if (to.size > 20) throw ValidationException("to", "Send to at most 20 recipients")
-        outbound.checkInvoiceSend(r.accountId, to.size)
+        outbound.checkInvoiceSend(r.accountId, m.userId, to.size)
 
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(r.accountId)).fetchOne()!!
         val sender = dsl.select(USERS.EMAIL).from(USERS).where(USERS.ID.eq(m.userId)).fetchOne()?.value1()
@@ -139,14 +139,18 @@ class InvoiceSender(
         return subject to message
     }
 
-    /** One reminder: called by [InvoiceReminderService] when a reminder is due. */
-    fun remind(r: InvoicesRecord, overdueDays: Long) {
+    /**
+     * One reminder: called by [InvoiceReminderService] when a reminder is due. False when it has
+     * to wait, because the account has reached its daily email limit.
+     */
+    fun remind(r: InvoicesRecord, overdueDays: Long): Boolean {
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(r.accountId)).fetchOne()!!
         val locale = Locale.forLanguageTag(account.locale)
         val seller = account.legalName?.ifBlank { null } ?: account.name
-        val link = invoices.publicUrl(r.publicToken) ?: return
+        val link = invoices.publicUrl(r.publicToken) ?: return true
         val to = r.sentTo?.toList()?.takeIf { it.isNotEmpty() } ?: recipients(r)
-        if (to.isEmpty()) return
+        if (to.isEmpty()) return true
+        if (!outbound.tryReminder(r.accountId, to.size)) return false
         val template = if (overdueDays > 0) "invoice-overdue" else "invoice-reminder"
         val (subject, text, html) = mailer.render(
             template, locale,
@@ -155,6 +159,7 @@ class InvoiceSender(
         )
         val attachments = listOf(MailAttachment(pdf.filename(r), "application/pdf", einvoices.invoicePdf(r)))
         mailer.dispatch(OutgoingMail(to, subject, text, html, emptyList(), null, attachments, template))
+        return true
     }
 }
 
@@ -200,7 +205,10 @@ class InvoiceReminderService(
                 // The latest scheduled reminder that is due now or was missed, if not sent yet.
                 val due = days.filter { it <= offset && it !in already }.maxOrNull() ?: return@forEach
                 if (offset - due > 14) return@forEach // too old to send now
-                sender.remind(r, offset)
+                if (!sender.remind(r, offset)) {
+                    log.info("Reminder for invoice {} waits: the account has reached its daily email limit", r.id)
+                    return@forEach
+                }
                 r.remindersSent = (already + days.filter { it <= due }).sorted().map { it }.toTypedArray()
                 r.lastReminderAt = Instant.now(clock)
                 r.store()

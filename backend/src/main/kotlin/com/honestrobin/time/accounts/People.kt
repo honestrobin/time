@@ -181,7 +181,7 @@ class PeopleService(
         val r = load(id)
         if (r.status == "active") throw ConflictException("already_active", "This person already has access")
         if (!r.isActive) throw ConflictException("inactive", "Reactivate this person before inviting them")
-        outbound.checkInvite(m.accountId, r)
+        outbound.checkInvite(m.accountId, m.userId, r)
         if (r.status != "invited") seats.requireSeat(m.accountId)
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!!
         val token = auth.issueToken(null, r.email, TokenPurpose.INVITE, membershipId = r.id)

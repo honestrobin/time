@@ -12,6 +12,8 @@ import java.time.Duration
 class OutboundMailTest : IntegrationTest() {
     @Autowired lateinit var limits: MailLimits
 
+    @Autowired lateinit var reminders: com.honestrobin.time.invoicing.InvoiceReminderService
+
     @Test
     fun `with open sign-up an account emails nobody until an admin confirms their address`() {
         val admin = signup(verifyEmail = false)
@@ -61,9 +63,58 @@ class OutboundMailTest : IntegrationTest() {
             // Other accounts have their own allowance.
             val other = signup()
             other.post("/api/v1/people", mapOf("name" to "Elsewhere", "email" to uniqueEmail("else"), "role" to "member")).expect(201)
+            // But not the same person's second workspace (security review, 4 October 2026).
+            val second = admin.post("/api/v1/accounts", mapOf("name" to "Second Studio", "timezone" to "Europe/Zagreb", "default_currency" to "EUR")).expect(201)["id"].asText()
+            admin.accountId = java.util.UUID.fromString(second)
+            admin.post("/api/v1/people", mapOf("name" to "Four", "email" to uniqueEmail("four"), "role" to "member")).expectError(429, "invite_limit")
         } finally {
             limits.invitesPerDay = 0
             limits.inviteResendCooldown = Duration.ZERO
         }
+    }
+
+    @Test
+    fun `invoice emails count per account and per person, reminders included`() {
+        val admin = signup()
+        limits.invoiceRecipientsPerDay = 3
+        try {
+            fun invoice(c: com.honestrobin.time.support.TestClient): java.util.UUID {
+                val client = createClient(c)
+                return c.post("/api/v1/invoices", mapOf("client_id" to client, "payment_terms_days" to 0, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000)))).expect(201).id()
+            }
+            admin.post("/api/v1/invoices/${invoice(admin)}/send", mapOf("to" to listOf("a@client.test", "b@client.test"))).expect(200)
+            // A second workspace of the same person doesn't bring a fresh allowance.
+            val second = admin.post("/api/v1/accounts", mapOf("name" to "Second Studio", "timezone" to "Europe/Zagreb", "default_currency" to "EUR")).expect(201)["id"].asText()
+            val first = admin.accountId!!
+            admin.accountId = java.util.UUID.fromString(second)
+            admin.post("/api/v1/invoices/${invoice(admin)}/send", mapOf("to" to listOf("c@client.test", "d@client.test"))).expectError(429, "invoice_email_limit")
+            admin.post("/api/v1/invoices/${invoice(admin)}/send", mapOf("to" to listOf("c@client.test"))).expect(200)
+
+            // A reminder is an invoice email too: over the account's limit, it waits.
+            admin.accountId = first
+            val due = invoice(admin)
+            admin.post("/api/v1/invoices/$due/send", mapOf("to" to listOf("e@client.test", "f@client.test"))).expectError(429, "invoice_email_limit")
+            admin.post("/api/v1/invoices/$due/mark_sent").expect(200)
+            tx.system { dsl.update(com.honestrobin.time.db.Tables.INVOICES).set(com.honestrobin.time.db.Tables.INVOICES.SENT_TO, arrayOf("e@client.test", "f@client.test")).where(com.honestrobin.time.db.Tables.INVOICES.ID.eq(due)).execute() }
+            fun remind() = tx.run { com.honestrobin.time.platform.db.DbContext.forAccount(first) { reminders.remindAccount(first, setOf(0)) } }
+            assertThat(remind()).isEqualTo(0)
+            assertThat(mail.to("e@client.test")).isEmpty()
+            limits.invoiceRecipientsPerDay = 10
+            assertThat(remind()).isEqualTo(1)
+            assertThat(mail.to("e@client.test")).hasSize(1)
+        } finally {
+            limits.invoiceRecipientsPerDay = 0
+        }
+    }
+
+    @Test
+    fun `where anyone can sign up, the limits default to Honest Robin Cloud's`() {
+        val open = MailLimits().effective(openSignup = true)
+        assertThat(open.invitesPerDay).isEqualTo(50)
+        assertThat(open.inviteResendCooldown).isEqualTo(Duration.ofMinutes(10))
+        assertThat(open.invoiceRecipientsPerDay).isEqualTo(300)
+        assertThat(MailLimits().effective(openSignup = false)).isEqualTo(MailLimits.Effective(0, Duration.ZERO, 0))
+        // A setting always wins, 0 included.
+        assertThat(MailLimits().apply { invoiceRecipientsPerDay = 0 }.effective(openSignup = true).invoiceRecipientsPerDay).isEqualTo(0)
     }
 }

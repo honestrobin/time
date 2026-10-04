@@ -179,6 +179,8 @@ class AccountService(private val dsl: DSLContext, private val recentAuth: Recent
     private fun validate(u: AccountUpdate): AccountUpdate {
         val errors = mutableMapOf<String, String>()
         u.name?.let { if (it.isBlank() || it.length > 200) errors["name"] = "Enter an account name (max 200 characters)" else com.honestrobin.time.platform.web.Names.problem(it, 200)?.let { e -> errors["name"] = e } }
+        // The legal name heads every invoice email's subject.
+        u.legalName?.let { com.honestrobin.time.platform.web.Names.problem(it, 200)?.let { e -> errors["legal_name"] = e } }
         u.timezone?.let { tz -> if (runCatching { ZoneId.of(tz) }.exceptionOrNull() is DateTimeException) errors["timezone"] = "Unknown time zone" }
         u.weekStart?.let { if (it !in 1..7) errors["week_start"] = "Week start must be 1 (Monday) to 7 (Sunday)" }
         u.defaultCurrency?.let { if (runCatching { Currency.getInstance(it) }.isFailure) errors["default_currency"] = "Unknown currency" }

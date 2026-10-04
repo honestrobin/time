@@ -20,23 +20,33 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Limits on invitation emails (decision record 0012). They are configuration, not edition: a
- * self-hosted instance sends as many as its owner likes (0 = no limit, the default), and Honest
- * Robin Cloud sets them so nobody can use our mail domain to flood inboxes.
+ * Limits on email to people outside an account (decision record 0012). They are configuration,
+ * not edition. Left unset, they follow the sign-up mode: where anyone can sign up, the numbers
+ * Honest Robin Cloud runs with, so a throwaway sign-up can't flood inboxes from the instance's
+ * mail domain; elsewhere none, because the owner chose who gets in. 0 means no limit.
  */
 @ConfigurationProperties(prefix = "honestrobin.mail.limits")
 class MailLimits {
-    /** Invitations one account may send in 24 hours; 0 means no limit. */
-    var invitesPerDay: Int = 0
+    /** Invitations one account, and one person across their accounts, may send in 24 hours. */
+    var invitesPerDay: Int? = null
 
     /** How soon the same invitation may be sent again. */
-    var inviteResendCooldown: Duration = Duration.ZERO
+    var inviteResendCooldown: Duration? = null
 
-    /** Invoice email recipients one account may send to in 24 hours; 0 means no limit. */
-    var invoiceRecipientsPerDay: Int = 0
+    /** Invoice email recipients (reminders included) per account, and per person sending, in 24 hours. */
+    var invoiceRecipientsPerDay: Int? = null
 
-    /** Sign-ups from one IP address in an hour, where anyone can sign up; 0 means no limit. */
+    /** Sign-ups from one IP address in an hour, where anyone can sign up. */
     var signupsPerHourPerIp: Int = 10
+
+    /** The limits in force: the configured ones, or the defaults for this sign-up mode. */
+    fun effective(openSignup: Boolean) = Effective(
+        invitesPerDay = invitesPerDay ?: if (openSignup) 50 else 0,
+        inviteResendCooldown = inviteResendCooldown ?: if (openSignup) Duration.ofMinutes(10) else Duration.ZERO,
+        invoiceRecipientsPerDay = invoiceRecipientsPerDay ?: if (openSignup) 300 else 0,
+    )
+
+    data class Effective(val invitesPerDay: Int, val inviteResendCooldown: Duration, val invoiceRecipientsPerDay: Int)
 }
 
 /**
@@ -66,14 +76,31 @@ class OutboundMail(
         }
     }
 
-    /** Counts [recipients] invoice emails against the account's daily limit. */
-    fun checkInvoiceSend(accountId: UUID, recipients: Int) {
+    private val effective get() = limits.effective(verificationRequired)
+
+    /**
+     * Counts [recipients] invoice emails sent by [userId] against the account's daily limit, and
+     * against the person's own across all their accounts, so more workspaces don't mean more mail.
+     */
+    fun checkInvoiceSend(accountId: UUID, userId: UUID, recipients: Int) {
         requireCanSend(accountId)
-        val limit = limits.invoiceRecipientsPerDay
+        val limit = effective.invoiceRecipientsPerDay
         if (limit <= 0) return
         if (!limiter.tryAcquire("invoice-mail:$accountId", limit, Duration.ofDays(1), Instant.now(clock), recipients)) {
             throw ApiException(HttpStatus.TOO_MANY_REQUESTS, "invoice_email_limit", "This account has emailed $limit invoice recipients today, the most allowed. Mark the invoice as sent and share its link, or try tomorrow.")
         }
+        if (!limiter.tryAcquire("invoice-mail-person:$userId", limit, Duration.ofDays(1), Instant.now(clock), recipients)) {
+            throw ApiException(HttpStatus.TOO_MANY_REQUESTS, "invoice_email_limit", "You have emailed $limit invoice recipients today, across your workspaces, the most allowed. Mark the invoice as sent and share its link, or try tomorrow.")
+        }
+    }
+
+    /**
+     * Counts a reminder's [recipients] against the account's daily limit. Reminders are invoice
+     * emails too: false means the limit is reached, and the reminder waits.
+     */
+    fun tryReminder(accountId: UUID, recipients: Int): Boolean {
+        val limit = effective.invoiceRecipientsPerDay
+        return limit <= 0 || limiter.tryAcquire("invoice-mail:$accountId", limit, Duration.ofDays(1), Instant.now(clock), recipients)
     }
 
     /** Limits sign-ups per IP address where anyone can sign up. */
@@ -85,9 +112,13 @@ class OutboundMail(
         }
     }
 
-    /** Checks an invitation to [person] against the confirmation rule, the resend cooldown and the daily limit. */
-    fun checkInvite(accountId: UUID, person: MembershipsRecord) {
+    /**
+     * Checks an invitation to [person], sent by [userId], against the confirmation rule, the resend
+     * cooldown and the daily limits: the account's, and the person's across all their accounts.
+     */
+    fun checkInvite(accountId: UUID, userId: UUID, person: MembershipsRecord) {
         requireCanSend(accountId)
+        val limits = effective
         val cooldown = limits.inviteResendCooldown
         if (!cooldown.isZero && person.invitedAt?.isAfter(Instant.now(clock).minus(cooldown)) == true) {
             throw ApiException(HttpStatus.TOO_MANY_REQUESTS, "invite_cooldown", "This invitation was sent a moment ago. Try again in a few minutes.")
@@ -102,6 +133,12 @@ class OutboundMail(
                 throw ApiException(
                     HttpStatus.TOO_MANY_REQUESTS, "invite_limit",
                     "This account has sent ${limits.invitesPerDay} invitations today, the most allowed. Try again tomorrow, or write to support if you need more.",
+                )
+            }
+            if (!limiter.tryAcquire("invite-mail-person:$userId", limits.invitesPerDay, Duration.ofDays(1), Instant.now(clock))) {
+                throw ApiException(
+                    HttpStatus.TOO_MANY_REQUESTS, "invite_limit",
+                    "You have sent ${limits.invitesPerDay} invitations today, across your workspaces, the most allowed. Try again tomorrow, or write to support if you need more.",
                 )
             }
         }
