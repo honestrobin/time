@@ -3,7 +3,7 @@
 Open-source time tracking and invoicing for freelancers and agencies. It works the way people who
 come from Harvest expect, moves your Harvest account over in minutes, and has e-invoicing built in.
 Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
-[Honest Robin](https://honestrobin.com) products: honest, a joy to use, and you come first.
+[Honest Robin](https://honestrobin.com) products: a joy to use, honest, and you come first.
 
 > **Not released yet.** Version 1 is feature-complete and being tried out before a first release.
 > See the [roadmap](ROADMAP.md) for what's built and what's still to check.
@@ -25,16 +25,20 @@ Nothing about that is hidden:
   since is in the history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
   with the reasoning and what was left open.
-- **Every claim is tested.** About 40,000 lines of Kotlin, TypeScript and SQL, covered by around 190
+- **The code is tested.** About 40,000 lines of Kotlin, TypeScript and SQL, covered by around 190
   backend tests in two editions, frontend and extension tests, and end-to-end tests that run the
   packaged app and the browser extension in a real browser. Import totals are checked against
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices against the official validation rules.
 
-No person has read the code yet, the maintainer included, and it hasn't had an independent
-security audit. Until someone has, 40,000 lines are a liability, not an achievement, so treat it as
-pre-release software. Reports of anything that looks wrong are very welcome; see
-[SECURITY.md](SECURITY.md).
+No person has read the code yet, and it hasn't had an independent security audit, so treat it as
+pre-release software: try it with made-up data, and don't run your business on it yet. 40,000
+lines of code is a liability and not an achievement.
+
+One person can't review every line, and we won't pretend otherwise. Before a release the
+maintainer, who knows the architecture, tests the product and reviews samples of the code. AI
+agents make most of the corrections and check our claims against the facts, and he signs off what
+he sampled. Reports of anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
 
 ## What it does
 
