@@ -16,19 +16,17 @@ Honest Robin: Time is the first Honest Robin product, and it shows how they're m
 given a clear brief and good habits. The code, tests and documentation were written by **Claude**
 (Anthropic's model, working in [Claude Code](https://claude.com/claude-code)). A human maintainer
 wrote the [product specification](docs/spec.md), made the product decisions and kept it on course.
-Version 1 took four days.
 
-Nothing about that is hidden:
+How it's made is in the open:
 
 - **Every commit Claude wrote** says so, in a co-author line. The only others are automatic
-  dependency updates. The first commit gathers the four days it took to build version 1; the work
-  since is in the history, change by change.
+  dependency updates. The first commit gathers the work on version 1; the work since is in the
+  history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
   with the reasoning.
-- **The code is tested.** About 43,000 lines of Kotlin, TypeScript and SQL (counted on 4 October
-  2026, after a fifth day of fixes), covered by around 190 backend tests in two editions, frontend
-  and extension tests, and end-to-end tests that run the packaged app and the browser extension in
-  a real browser. The Harvest import compares hours, billable amounts and invoice totals with
+- **The code is tested:** around 190 backend tests in two editions, frontend and extension tests,
+  and end-to-end tests that run the packaged app and the browser extension in a real browser. The
+  Harvest import compares hours, billable amounts and invoice totals with
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices are checked against the official validation rules.
 
