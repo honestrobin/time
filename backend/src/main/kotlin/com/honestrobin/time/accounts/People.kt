@@ -235,6 +235,8 @@ class PeopleService(
         i.isActive?.let {
             if (!it && r.role == "admin") requireAnotherAdmin(r.id)
             if (!it && r.id == m.membershipId) errors["is_active"] = "You can't deactivate yourself"
+            // Coming back with sign-in access (or an invitation) takes a seat again.
+            if (it && !creating && !r.isActive && r.status in setOf("active", "invited")) seats.requireSeat(m.accountId)
             r.isActive = it
             r.archivedAt = if (it) null else (r.archivedAt ?: Instant.now(clock))
         }

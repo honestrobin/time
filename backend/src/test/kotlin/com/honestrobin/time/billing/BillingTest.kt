@@ -26,9 +26,11 @@ class BillingTest : IntegrationTest() {
 
     private fun billing() = context.getBean(BillingService::class.java)
 
-    private fun <T> withFreePlanOfOne(block: () -> T): T {
+    private fun <T> withFreePlanOfOne(block: () -> T): T = withFreePlanOf(1, block)
+
+    private fun <T> withFreePlanOf(seats: Int, block: () -> T): T {
         val plan = context.getBean(FreePlan::class.java)
-        plan.seats = 1
+        plan.seats = seats
         try {
             return block()
         } finally {
@@ -131,6 +133,26 @@ class BillingTest : IntegrationTest() {
 
         val events = (1..100).asSequence().map { Thread.sleep(50); MockPostHog.forAccount(account) }.first { "subscription_started" in it }
         assertThat(events.count { it == "subscription_started" }).isEqualTo(1)
+    }
+
+    @Test
+    fun `bringing someone back with sign-in access takes a seat too`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Security review, 4 October 2026: reactivating a person skipped the seat check.
+        withFreePlanOf(2) {
+            val admin = signup(accountName = "Rimu Works")
+            val member = invite(admin)
+            admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to false)).expect(200)
+            val newcomer = admin.post("/api/v1/people", mapOf("name" to "Tama", "email" to uniqueEmail("tama"), "role" to "member")).expect(201).id()
+            admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to true)).expectError(402, "subscription_required")
+            // Someone without sign-in access is free, so they can come back.
+            val noAccess = admin.post("/api/v1/people", mapOf("name" to "Hemi", "email" to uniqueEmail("hemi"), "role" to "member", "send_invite" to false)).expect(201).id()
+            admin.patch("/api/v1/people/$noAccess", mapOf("is_active" to false)).expect(200)
+            admin.patch("/api/v1/people/$noAccess", mapOf("is_active" to true)).expect(200)
+            // Once the seat is free again, the member comes back.
+            admin.patch("/api/v1/people/$newcomer", mapOf("is_active" to false)).expect(200)
+            admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to true)).expect(200)
+        }
     }
 
     @Test
