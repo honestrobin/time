@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -450,12 +451,16 @@ function ExpenseDialog({
             </DialogActions>
           </>
         ) : !categories.isLoading && choices.length === 0 ? (
-          <>
-            <p className="notice">{perms.isAdmin ? t("expenses.noCategoriesAdmin") : t("expenses.noCategories")}</p>
-            <DialogActions>
-              <Button onClick={() => onOpenChange(false)}>{t("app.close")}</Button>
-            </DialogActions>
-          </>
+          perms.isAdmin ? (
+            <FirstCategory onClose={() => onOpenChange(false)} />
+          ) : (
+            <>
+              <p className="notice">{t("expenses.noCategories")}</p>
+              <DialogActions>
+                <Button onClick={() => onOpenChange(false)}>{t("app.close")}</Button>
+              </DialogActions>
+            </>
+          )
         ) : (
           <form className="stack" onSubmit={submit}>
             {receiptError && (
@@ -586,5 +591,48 @@ function ExpenseDialog({
         onConfirm={() => remove.mutate()}
       />
     </>
+  );
+}
+
+/**
+ * A new account has no expense categories. An admin adding the first expense names one here and
+ * goes on, as the time dialog lets you add a missing project, instead of stopping at Settings.
+ */
+function FirstCategory({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const add = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/v1/expense_categories", { body: { name: name.trim() } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: categoriesQuery.queryKey }),
+  });
+  const err = add.error ? errorInfo(add.error) : null;
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        add.mutate();
+      }}
+    >
+      <p>{t("expenses.firstCategory")}</p>
+      <TextField
+        label={t("expenses.categoryName")}
+        value={name}
+        onChange={setName}
+        error={err?.fields.name ?? (err && !Object.keys(err.fields).length ? err.message : undefined)}
+        required
+        autoFocus
+      />
+      <p className="muted small">
+        <Link to="/settings/expense-categories">{t("expenses.moreCategoryOptions")}</Link>
+      </p>
+      <DialogActions>
+        <Button onClick={onClose}>{t("app.cancel")}</Button>
+        <Button type="submit" variant="primary" busy={add.isPending} disabled={!name.trim()}>
+          {t("expenses.addCategory")}
+        </Button>
+      </DialogActions>
+    </form>
   );
 }
