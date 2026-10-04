@@ -30,11 +30,12 @@ How it's made is in the open:
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices are checked against the official validation rules.
 
-Before a release the maintainer will test the product, review the full architecture and read most
-of the code. AI agents make most of the corrections and check our claims against the facts. He
-approves only the parts he has checked. That review isn't done yet, and neither is an independent
-security audit, so treat Time as pre-release software: try it with made-up data, and don't run
-your business on it yet. Reports of anything that looks wrong are very welcome; see
+Before a release the maintainer will test the product, review the full architecture and read the
+code that matters most: invoices and payments, your data, and who can see what. AI agents make
+most of the corrections and check our claims against the facts. He approves only the parts he
+has checked. That review isn't done yet, and neither is an independent security audit, so treat
+Time as pre-release software: try it with made-up data, and don't run your business on it yet.
+Reports of anything that looks wrong are very welcome; see
 [SECURITY.md](SECURITY.md).
 
 ## What it does
