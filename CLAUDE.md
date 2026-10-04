@@ -12,6 +12,9 @@ decisions are recorded in `docs/decisions/`.
   openly). State limits and mistakes plainly, with numbers where there are numbers. Hold back
   only personal data, unfixed security issues and legal risk, and never in a way that leaves a
   false impression.
+- **A joy to use: professional, and playful.** Simple first, powerful when needed. The robin
+  keeps people company; words sound like a person. No tricks, nagging, corporate language or AI
+  for its own sake: treat any of those as a bug (`docs/design.md`).
 - **Global by default.** No defaults, copy or compliance scoped to one country or region
   (decision record 0009). Country rules go in modules behind a neutral core.
 - **Plain English** in the UI, emails and docs: short sentences, no jargon.
