@@ -49,7 +49,6 @@
     "resendInvitation": "Resend invitation",
     "addPerson": "Add person",
     "invitationSent": "Invitation sent",
-    "invitationInLog": "Invitation made. This instance can't send email yet, so the link is in the server's log.",
     "personAdded": "{{name}} added",
     "invitedOn": "Invited on {{date}}. They can sign in once they accept.",
     "notInvitedYet": "Not invited yet. They can't sign in until you send the invitation.",
@@ -122,6 +121,13 @@
     "noRate": "No rate",
     "notFound": "This person doesn't exist or you can't see them.",
     "twoFactorBadge": "2FA",
-    "twoFactorOn": "Uses two-factor sign-in"
+    "twoFactorOn": "Uses two-factor sign-in",
+    "sendInviteHintNoEmail": "This server can't send email yet, so you get a link to send them yourself.",
+    "getLink": "Get invitation link",
+    "linkTitle": "Invitation link for {{name}}",
+    "linkBody": "This server can't send email yet, so send this link to {{name}} yourself, for example in a chat. Anyone with the link can join as {{name}}, so send it only to them. It works until {{date}}.",
+    "linkLabel": "Invitation link",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied"
   }
 }

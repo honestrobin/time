@@ -19,6 +19,7 @@ import { ApiError, api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
+import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
 import { asRole, byName, personQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
 
@@ -137,14 +138,25 @@ function InvitationStrip({ person }: { person: Person }) {
   const qc = useQueryClient();
   const toast = useToast();
   const emailWorks = useAuthConfig()?.email_configured !== false;
+  const [link, setLink] = useState<InviteLink | null>(null);
   const invite = useMutation({
     mutationFn: () => unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id } } })),
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people", "all"] });
-      toast(t(emailWorks ? "team.invitationSent" : "team.invitationInLog"));
+      toast(t("team.invitationSent"));
     },
   });
+  // Without email the invitation can't be sent: the admin gets a new link to pass on instead.
+  const getLink = useMutation({
+    mutationFn: () => fetchInviteLink(person.id, person.name),
+    onSuccess: (l) => {
+      setLink(l);
+      void qc.invalidateQueries({ queryKey: personQuery(person.id).queryKey });
+      void qc.invalidateQueries({ queryKey: ["people", "all"] });
+    },
+  });
+  const action = emailWorks ? invite : getLink;
   if (person.status === "active" || !person.is_active) return null;
   return (
     <div className="notice invite-strip">
@@ -152,11 +164,12 @@ function InvitationStrip({ person }: { person: Person }) {
         {person.status === "invited" && person.invited_at
           ? t("team.invitedOn", { date: formatDate(person.invited_at) })
           : t("team.notInvitedYet")}
-        {invite.error && <span className="field-error" style={{ display: "block" }}>{errorInfo(invite.error).message}</span>}
+        {action.error && <span className="field-error" style={{ display: "block" }}>{errorInfo(action.error).message}</span>}
       </span>
-      <Button size="sm" busy={invite.isPending} onClick={() => invite.mutate()}>
-        {person.status === "invited" ? t("team.resendInvitation") : t("team.sendInvitation")}
+      <Button size="sm" busy={action.isPending} onClick={() => action.mutate()}>
+        {!emailWorks ? t("team.getLink") : person.status === "invited" ? t("team.resendInvitation") : t("team.sendInvitation")}
       </Button>
+      <InviteLinkDialog link={link} onClose={() => setLink(null)} />
     </div>
   );
 }

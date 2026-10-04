@@ -21,6 +21,7 @@ import {
 import { api, errorInfo, unwrap } from "../../lib/api";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
+import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
 import { asRole, byName, peopleQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
 
@@ -180,11 +181,14 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const toast = useToast();
   const emailWorks = useAuthConfig()?.email_configured !== false;
   const [form, setForm] = useState<InviteForm>(emptyInvite);
+  const [link, setLink] = useState<InviteLink | null>(null);
   const set = <K extends keyof InviteForm>(k: K) => (v: InviteForm[K]) => setForm((f) => ({ ...f, [k]: v }));
+  // Without email the invitation can't be sent, so the admin gets its link to pass on instead.
+  const handOver = form.sendInvite && !emailWorks;
 
   const create = useMutation({
-    mutationFn: () =>
-      unwrap(
+    mutationFn: async () => {
+      const person = await unwrap(
         api.POST("/api/v1/people", {
           body: {
             name: form.name,
@@ -192,16 +196,19 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
             role: form.role,
             weekly_capacity_seconds: form.capacity ?? 0,
             has_access_to_all_future_projects: form.futureProjects,
-            send_invite: form.sendInvite,
+            send_invite: form.sendInvite && emailWorks,
             ...(perms.canSeeRates
               ? { default_billable_rate: form.billableRate ?? undefined, cost_rate: form.costRate ?? undefined }
               : {}),
           },
         }),
-      ),
-    onSuccess: (p) => {
+      );
+      return { person, link: handOver ? await fetchInviteLink(person.id, person.name) : null };
+    },
+    onSuccess: ({ person, link }) => {
       void qc.invalidateQueries({ queryKey: ["people"] });
-      toast(form.sendInvite ? t(emailWorks ? "team.invitationSent" : "team.invitationInLog") : t("team.personAdded", { name: p.name }));
+      if (link) setLink(link);
+      else toast(form.sendInvite ? t("team.invitationSent") : t("team.personAdded", { name: person.name }));
       onOpenChange(false);
     },
   });
@@ -220,7 +227,8 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title={t("team.inviteTitle")}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange} title={t("team.inviteTitle")}>
       <form className="stack" onSubmit={submit}>
         {err && !Object.keys(err.fields).length && (
           <p className="notice notice-error" role="alert">
@@ -260,7 +268,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           )}
         </div>
         <Checkbox checked={form.futureProjects} onChange={set("futureProjects")} label={t("team.futureProjects")} hint={t("team.futureProjectsHint")} />
-        <Checkbox checked={form.sendInvite} onChange={set("sendInvite")} label={t("team.sendInvite")} hint={t("team.sendInviteHint")} />
+        <Checkbox checked={form.sendInvite} onChange={set("sendInvite")} label={t("team.sendInvite")} hint={t(emailWorks ? "team.sendInviteHint" : "team.sendInviteHintNoEmail")} />
         <DialogActions>
           <Button onClick={() => onOpenChange(false)}>{t("app.cancel")}</Button>
           <Button type="submit" variant="primary" busy={create.isPending}>
@@ -268,7 +276,9 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </Button>
         </DialogActions>
       </form>
-    </Dialog>
+      </Dialog>
+      <InviteLinkDialog link={link} onClose={() => setLink(null)} />
+    </>
   );
 }
 

@@ -3294,6 +3294,33 @@
         "tags" : [ "people" ]
       }
     },
+    "/api/v1/people/{id}/invite_link" : {
+      "post" : {
+        "operationId" : "people_invite_link",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InviteLinkView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "people" ]
+      }
+    },
     "/api/v1/projects" : {
       "get" : {
         "operationId" : "project_list",
@@ -7044,6 +7071,18 @@
           }
         },
         "required" : [ "account_name", "email", "name", "user_exists" ]
+      },
+      "InviteLinkView" : {
+        "properties" : {
+          "expires_at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "expires_at", "url" ]
       },
       "InvoiceDocument" : {
         "properties" : {
