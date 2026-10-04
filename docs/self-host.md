@@ -109,6 +109,13 @@ Back up two things together:
 1. The Postgres database: `docker compose exec db pg_dump -U honestrobin honestrobin > honestrobin.sql`
 2. The `data` volume. It contains `secrets.key` and uploaded files. Without `secrets.key`, stored integration credentials (Stripe, accounting, e-invoicing) cannot be decrypted and must be re-entered.
 
+To restore, load the database into an empty database before the app first starts on it, and
+create the app's role first: `CREATE ROLE honestrobin_app NOLOGIN;`. A dump holds the rights that
+role is given, including the row-level security that keeps accounts apart, but not the role
+itself (roles live outside any one database). Without it, those rights are skipped without
+stopping the restore. Then put back the `data` volume, start the app, and check that its startup
+log says row-level security is effective.
+
 Test a restore now and then.
 
 Backups keep deleted accounts until they rotate out: when an account is deleted for good (14 days after an admin asks), it stays in older backups for as long as you keep them. Pick a retention that matches what you promise your users.
