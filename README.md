@@ -12,11 +12,11 @@ Run it on your own server, or use Honest Robin Cloud (coming later). It's one of
 
 ## Built by an AI, in the open
 
-Honest Robin: Time is an experiment in what an AI can build when it's given a clear brief and good
-habits. The code, tests and documentation were written by **Claude** (Anthropic's model, working in
-[Claude Code](https://claude.com/claude-code)). A human maintainer wrote the
-[product specification](docs/spec.md), made the product decisions and kept it on course. Version 1
-took four days.
+Honest Robin: Time is the first Honest Robin product, and it shows how they're made: by an AI,
+given a clear brief and good habits. The code, tests and documentation were written by **Claude**
+(Anthropic's model, working in [Claude Code](https://claude.com/claude-code)). A human maintainer
+wrote the [product specification](docs/spec.md), made the product decisions and kept it on course.
+Version 1 took four days.
 
 Nothing about that is hidden:
 
