@@ -59,6 +59,8 @@
     "signupTitle": "Create your workspace",
     "setupTitle": "Set up Honest Robin",
     "setupLead": "You are the first person here, so you become the admin of this instance.",
+    "setupCode": "Setup code",
+    "setupCodeHint": "It's in the app's log on your server (docker compose logs app | grep \"setup code\"), so only whoever runs the server can set it up.",
     "name": "Your name",
     "workspaceName": "Workspace name",
     "workspaceHint": "Usually your company or studio name.",

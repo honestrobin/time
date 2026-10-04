@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Self-hosted Honest Robin: Time: Postgres is the only dependency.
 #   docker compose -f deploy/docker-compose.yml up -d
-# then open http://localhost:8080 — the first person to sign up becomes the admin.
+# then open http://localhost:8080. The first person to sign up becomes the admin, with the setup
+# code the app writes to its log: docker compose -f deploy/docker-compose.yml logs app | grep "setup code"
 # Settings: copy deploy/.env.example to deploy/.env and adjust.
 name: honestrobin-time
 
@@ -51,6 +52,7 @@ services:
       HONESTROBIN_EDITION: ${HONESTROBIN_EDITION:-selfhost}
       HONESTROBIN_BASE_URL: ${HONESTROBIN_BASE_URL:-http://localhost:8080}
       HONESTROBIN_SIGNUP_MODE: ${HONESTROBIN_SIGNUP_MODE:-first_user_only}
+      HONESTROBIN_SETUP_CODE: ${HONESTROBIN_SETUP_CODE:-}
       HONESTROBIN_DB_URL: jdbc:postgresql://db:5432/honestrobin
       HONESTROBIN_DB_USER: honestrobin
       HONESTROBIN_DB_PASSWORD: ${HONESTROBIN_DB_PASSWORD:-honestrobin}

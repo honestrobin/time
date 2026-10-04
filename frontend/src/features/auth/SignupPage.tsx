@@ -21,6 +21,7 @@ export function SignupPage() {
     account_name: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     default_currency: guessCurrency(navigator.language),
+    setup_code: "",
   });
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -65,7 +66,10 @@ export function SignupPage() {
             {err.message}
           </p>
         )}
-        <TextField label={t("auth.name")} autoComplete="name" value={form.name} onChange={set("name")} error={err?.fields.name} autoFocus />
+        {setup && (
+          <TextField label={t("auth.setupCode")} value={form.setup_code} onChange={set("setup_code")} hint={t("auth.setupCodeHint")} autoComplete="off" autoFocus />
+        )}
+        <TextField label={t("auth.name")} autoComplete="name" value={form.name} onChange={set("name")} error={err?.fields.name} autoFocus={!setup} />
         <TextField label={t("auth.email")} type="email" autoComplete="email" value={form.email} onChange={set("email")} error={err?.fields.email} />
         <TextField
           label={t("auth.password")}

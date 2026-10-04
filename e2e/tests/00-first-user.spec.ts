@@ -18,6 +18,8 @@ test("first user sets up the instance and becomes admin", async ({ page, request
   await expect(page.getByRole("heading", { name: "Set up Honest Robin" })).toBeVisible();
   await snap(page, "setup");
 
+  // Only someone who can read the server's log can set it up (CI sets the code).
+  await page.getByLabel("Setup code").fill(process.env.HONESTROBIN_SETUP_CODE ?? "");
   await page.getByLabel("Your name").fill("Marta Owner");
   await page.getByLabel("Email").fill("owner@example.test");
   await page.getByLabel("Password").fill(PASSWORD);

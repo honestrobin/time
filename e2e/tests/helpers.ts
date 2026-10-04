@@ -39,6 +39,7 @@ export async function freshWorkspace(page: Page, request: APIRequestContext, nam
   const config = await (await request.get("/api/v1/auth/config")).json();
   if (config.needs_setup || config.signup_allowed) {
     await page.goto("/signup");
+    if (config.needs_setup) await page.getByLabel("Setup code").fill(process.env.HONESTROBIN_SETUP_CODE ?? "");
     await page.getByLabel("Your name").fill("Marta Owner");
     await page.getByLabel("Email").fill(uniqueEmail("tour"));
     await page.getByLabel("Password").fill(PASSWORD);

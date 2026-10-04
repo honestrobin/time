@@ -47,6 +47,8 @@ data class SignupRequest(
     val locale: String? = null,
     /** 1 (Monday) to 7 (Sunday). */
     val weekStart: Int? = null,
+    /** Only for the very first sign-up of an instance: the setup code from the server's log. */
+    val setupCode: String? = null,
 )
 data class SignedInResponse(
     val userId: UUID,
@@ -82,7 +84,7 @@ class AuthController(
     @PostMapping("/signup")
     fun signup(@RequestBody body: SignupRequest, request: HttpServletRequest): ResponseEntity<SignedInResponse> {
         val result = auth.signup(
-            SignupInput(body.name, body.email, body.password, body.accountName, body.timezone, body.defaultCurrency, body.locale, body.weekStart),
+            SignupInput(body.name, body.email, body.password, body.accountName, body.timezone, body.defaultCurrency, body.locale, body.weekStart, body.setupCode),
             request.remoteAddr,
             request.getHeader(HttpHeaders.USER_AGENT),
         )

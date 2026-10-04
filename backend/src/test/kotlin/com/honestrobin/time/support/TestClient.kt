@@ -31,6 +31,9 @@ class TestResponse(val status: Int, val body: JsonNode, val raw: String, val hea
     fun id(): UUID = UUID.fromString(body["id"].asText())
 }
 
+/** The setup code the test profile configures (application-test.yml). */
+const val SETUP_CODE = "test-setup-code"
+
 /** A browser-like client: keeps cookies, sends the CSRF header and the account header. */
 class TestClient(private val mvc: MockMvc, private val mapper: ObjectMapper) {
     val cookies = mutableMapOf<String, Cookie>()
@@ -56,6 +59,10 @@ class TestClient(private val mvc: MockMvc, private val mapper: ObjectMapper) {
 
     fun request(method: HttpMethod, path: String, body: Any?, params: Map<String, Any?> = emptyMap(), headers: Map<String, String> = emptyMap()): TestResponse {
         if (method != HttpMethod.GET) ensureCsrf()
+        // Whichever test signs up first creates an instance's first user, which needs the setup
+        // code (application-test.yml). A test that sets "setup_code" itself, even to null, keeps it.
+        @Suppress("NAME_SHADOWING")
+        val body = if (path == "/api/v1/auth/signup" && body is Map<*, *> && "setup_code" !in body) body + ("setup_code" to SETUP_CODE) else body
         val builder = MockMvcRequestBuilders.request(method, path)
         params.forEach { (k, v) -> if (v != null) builder.param(k, v.toString()) }
         headers.forEach { (k, v) -> builder.header(k, v) }

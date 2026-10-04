@@ -18,6 +18,8 @@ data class HonestRobinProperties(
     val storage: Storage = Storage(),
     /** Bearer token for scraping /actuator/prometheus; blank keeps the endpoint closed. */
     val metricsToken: String = "",
+    /** The code the first sign-up needs. Blank: one is made at startup and written to the log. */
+    val setupCode: String = "",
 ) {
     enum class SignupMode {
         /** Anyone may create an account (Honest Robin Cloud). */

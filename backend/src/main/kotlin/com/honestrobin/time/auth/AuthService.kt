@@ -41,6 +41,8 @@ data class SignupInput(
     val defaultCurrency: String? = null,
     val locale: String? = null,
     val weekStart: Int? = null,
+    /** Needed only by the very first sign-up of an instance (see [FirstUserSetup]). */
+    val setupCode: String? = null,
 )
 
 /**
@@ -76,6 +78,7 @@ class AuthService(
     private val outbound: OutboundMail,
     private val recentAuth: RecentAuth,
     private val twoFactor: TwoFactorService,
+    private val setup: FirstUserSetup,
 ) {
     @Transactional(readOnly = true)
     fun hasAnyUser(): Boolean = dsl.fetchExists(USERS)
@@ -93,6 +96,12 @@ class AuthService(
         // Serialise signups so "first user" is decided exactly once.
         dsl.execute("select pg_advisory_xact_lock(7234001)")
         if (!signupAllowed()) throw ApiException(HttpStatus.FORBIDDEN, "signup_closed", "Sign-up is closed on this instance. Ask an admin for an invitation.")
+        if (!hasAnyUser() && !setup.matches(input.setupCode)) {
+            throw ApiException(
+                HttpStatus.FORBIDDEN, "setup_code_required",
+                "Enter the setup code from the server's log. Only whoever runs this instance can see it, so nobody else can set it up.",
+            )
+        }
         outbound.checkSignup(ip)
         val email = normaliseEmail(input.email)
         val errors = buildMap {

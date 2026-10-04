@@ -69,8 +69,9 @@ cd time
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
-Open http://localhost:8080. The first person to sign up becomes the admin; everyone else joins by
-invitation. To run it on your own domain with HTTPS, and for settings, backups and upgrades, see
+Open http://localhost:8080. The first person to sign up becomes the admin, with the setup code the
+app writes to its log (`docker compose -f deploy/docker-compose.yml logs app | grep "setup code"`),
+so nobody else can claim a new instance. Everyone else joins by invitation. To run it on your own domain with HTTPS, and for settings, backups and upgrades, see
 [docs/self-host.md](docs/self-host.md).
 
 ## Develop
