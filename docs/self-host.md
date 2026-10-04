@@ -110,11 +110,12 @@ Back up two things together:
 2. The `data` volume. It contains `secrets.key` and uploaded files. Without `secrets.key`, stored integration credentials (Stripe, accounting, e-invoicing) cannot be decrypted and must be re-entered.
 
 To restore, load the database into an empty database before the app first starts on it, and
-create the app's role first: `CREATE ROLE honestrobin_app NOLOGIN;`. A dump holds the rights that
-role is given, including the row-level security that keeps accounts apart, but not the role
-itself (roles live outside any one database). Without it, those rights are skipped without
-stopping the restore. Then put back the `data` volume, start the app, and check that its startup
-log says row-level security is effective.
+create the app's role first: `CREATE ROLE honestrobin_app NOLOGIN;`. A dump holds the rights given
+to that role, but not the role itself (roles live outside any one database), so without it those
+rights are skipped and the restore still finishes. The app then starts but can't switch to the
+role, and row-level security stops keeping accounts apart; only a warning in the log says so.
+Then put back the `data` volume, start the app, and check that its startup log says row-level
+security is active.
 
 Test a restore now and then.
 
