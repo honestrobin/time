@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.importers
 
+import com.honestrobin.time.importers.csv.CsvException
 import com.honestrobin.time.importers.csv.CsvFields
 import com.honestrobin.time.importers.csv.CsvKind
 import com.honestrobin.time.importers.csv.CsvTable
 import com.honestrobin.time.importers.csv.CsvValues
 import com.honestrobin.time.importers.csv.CsvValues.DateOrder
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -78,5 +80,17 @@ class CsvValuesTest {
         assertThat(CsvFields.detect(listOf("Client Name", "Client Address", "Client Currency"))).isEqualTo(CsvKind.CLIENTS)
         assertThat(CsvFields.detect(listOf("Client", "Title", "First Name", "Last Name", "Email", "Office Phone"))).isEqualTo(CsvKind.CONTACTS)
         assertThat(CsvFields.detect(listOf("Client", "Project", "Project Code", "Billable?", "Project Notes"))).isEqualTo(CsvKind.PROJECTS)
+    }
+
+    @Test
+    fun `files with absurdly many columns stop before parsing, so they can't use up memory`() {
+        // Measured on 4 October 2026: a 25 MB header of commas ran a 1152 MB heap out of memory.
+        assertThatThrownBy { CsvTable.read((",".repeat(5_000_000) + "\n").toByteArray()) }
+            .isInstanceOf(CsvException::class.java).hasMessageContaining("more than ${CsvTable.MAX_COLUMNS} columns")
+        assertThatThrownBy { CsvTable.read(("Date,Hours\n" + ",".repeat(5_000_000) + "\n").toByteArray()) }
+            .isInstanceOf(CsvException::class.java)
+        assertThatThrownBy { CsvTable.read(("Date,Hours\n2026-10-01," + ",".repeat(300) + "\n").toByteArray()) }
+            .isInstanceOf(CsvException::class.java).hasMessageContaining("Row 2 has more than")
+        assertThat(CsvTable.read("Date,Hours,Notes\n2026-10-01,1.5,\"a, b, c\"\n".toByteArray()).rows).hasSize(1)
     }
 }

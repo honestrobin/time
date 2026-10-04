@@ -23,6 +23,23 @@ class CsvTable(val columns: List<String>, val rows: List<List<String>>) {
 
     companion object {
         const val MAX_ROWS = 300_000
+        const val MAX_COLUMNS = 200
+
+        /** A notes column may hold commas, but never this many on one line. */
+        const val MAX_DELIMITERS_PER_LINE = 10_000
+
+        /** The most [delimiter]s on any one line of [text]. */
+        private fun longestRun(text: String, delimiter: Char): Int {
+            var longest = 0
+            var current = 0
+            for (c in text) {
+                when (c) {
+                    '\n' -> current = 0
+                    delimiter -> if (++current > longest) longest = current
+                }
+            }
+            return longest
+        }
 
         /**
          * Reads Harvest's exports and what spreadsheet apps save: UTF-8 (with or without a byte
@@ -32,6 +49,10 @@ class CsvTable(val columns: List<String>, val rows: List<List<String>>) {
             val text = decode(bytes)
             val firstLine = text.lineSequence().firstOrNull { it.isNotBlank() } ?: throw CsvException("The file is empty")
             val delimiter = listOf(',', ';', '\t').maxBy { d -> firstLine.count { it == d } }
+            // Spreadsheet exports have dozens of columns. Millions of empty ones (a 25 MB line of
+            // commas) would use up the server's memory, so such files stop here, before parsing.
+            if (firstLine.count { it == delimiter } >= MAX_COLUMNS) throw CsvException("The first row has more than $MAX_COLUMNS columns")
+            if (longestRun(text, delimiter) > MAX_DELIMITERS_PER_LINE) throw CsvException("A row has far more columns than a spreadsheet export would")
             val format = CSVFormat.RFC4180.builder().setDelimiter(delimiter).setIgnoreEmptyLines(true).setTrim(false).get()
             CSVParser.parse(StringReader(text), format).use { parser ->
                 val records = parser.iterator()
@@ -48,6 +69,7 @@ class CsvTable(val columns: List<String>, val rows: List<List<String>>) {
                 val rows = ArrayList<List<String>>()
                 for (r in records) {
                     if (rows.size >= MAX_ROWS) throw CsvException("The file has more than $MAX_ROWS rows; split it by date range")
+                    if (r.size() > MAX_COLUMNS) throw CsvException("Row ${r.recordNumber} has more than $MAX_COLUMNS columns")
                     val values = r.toList()
                     if (values.all { it.isBlank() }) continue
                     rows += values

@@ -38,6 +38,13 @@ class LiveEvents(private val dataSource: DataSourceProperties) : SmartLifecycle 
     fun subscribe(membershipId: UUID): SseEmitter {
         val emitter = SseEmitter(STREAM_LIFETIME.toMillis())
         val set = streams.computeIfAbsent(membershipId) { CopyOnWriteArraySet() }
+        // A person has a stream per visible tab and device; many more is a script holding
+        // connections open. The oldest go first: most likely ones whose browser left unnoticed.
+        while (set.size >= MAX_STREAMS_PER_MEMBERSHIP) {
+            val oldest = set.firstOrNull() ?: break
+            set.remove(oldest)
+            runCatching { oldest.complete() }
+        }
         set.add(emitter)
         val remove = { set.remove(emitter); Unit }
         emitter.onCompletion(remove)
@@ -50,6 +57,8 @@ class LiveEvents(private val dataSource: DataSourceProperties) : SmartLifecycle 
 
     /** Streams open on this server (for tests and metrics). */
     fun openStreams(): Int = streams.values.sumOf { it.size }
+
+    fun openStreams(membershipId: UUID): Int = streams[membershipId]?.size ?: 0
 
     private fun dispatch(membershipId: UUID) {
         streams[membershipId]?.forEach { send(it, SseEmitter.event().name("time_entries").data("{}")) }
@@ -117,6 +126,7 @@ class LiveEvents(private val dataSource: DataSourceProperties) : SmartLifecycle 
         const val CHANNEL = "honestrobin_time_entries"
         val HEARTBEAT: Duration = Duration.ofSeconds(25)
         val STREAM_LIFETIME: Duration = Duration.ofMinutes(30)
+        const val MAX_STREAMS_PER_MEMBERSHIP = 10
     }
 }
 

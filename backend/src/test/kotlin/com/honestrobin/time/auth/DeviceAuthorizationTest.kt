@@ -62,6 +62,13 @@ class DeviceAuthorizationTest : IntegrationTest() {
     }
 
     @Test
+    fun `one person can hold only a few live streams at once`() {
+        val membership = java.util.UUID.randomUUID()
+        repeat(LiveEvents.MAX_STREAMS_PER_MEMBERSHIP + 3) { live.subscribe(membership) }
+        assertThat(live.openStreams(membership)).isEqualTo(LiveEvents.MAX_STREAMS_PER_MEMBERSHIP)
+    }
+
+    @Test
     fun `open streams hear about a timer started elsewhere within a moment (AT-4_1)`() {
         val admin = signup()
         val task = createTask(admin)
