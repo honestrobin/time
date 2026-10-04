@@ -156,6 +156,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # Said on the image itself, where everyone who pulls it sees it.
+      IMAGE_NOTES: |
+        org.opencontainers.image.title=Honest Robin: Time (development build)
+        org.opencontainers.image.description=Development build of the main branch: the newest code that passed every test. Not a release: it can break, and it comes with no promises. For real work, use a release.
+        org.opencontainers.image.licenses=AGPL-3.0-only
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -181,6 +187,8 @@ jobs:
           tags: |
             type=raw,value=main
             type=sha
+          labels: ${{ env.IMAGE_NOTES }}
+          annotations: ${{ env.IMAGE_NOTES }}
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
       - uses: docker/build-push-action@v6
@@ -193,3 +201,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
+          # A list of everything inside, with licences where known (docs/self-host.md).
+          sbom: true

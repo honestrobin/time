@@ -57,6 +57,52 @@ If the service can't be reached, the password is accepted.
 
 Caddy gets the certificate by itself. Without SMTP settings, emails (sign-in links, invitations) are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
 
+## Prebuilt images
+
+You don't have to build the app yourself: images are published at `ghcr.io/honestrobin/time`.
+
+- `:main` is a **development build**: the newest code that passed every test, for x86 (amd64)
+  and Arm (arm64) servers. It is not a release. It can break, and it comes with no promises. It's
+  what we run on our own test server; don't use it for real work.
+- Version tags (`:1.2.3`, and `:latest` for the newest) come with releases. There are none yet,
+  and release images are x86 only for now.
+
+To run an image instead of building, add it to `deploy/.env` and start without building:
+
+```sh
+echo 'HONESTROBIN_IMAGE=ghcr.io/honestrobin/time:main' >> deploy/.env
+docker compose -f deploy/docker-compose.yml up -d --no-build
+```
+
+### What's inside
+
+Each image carries two records made by the build: where it came from (the commit and the CI run
+that built it, called provenance) and a list of everything inside, with licences where they are
+known (a software bill of materials, or SBOM). To read them:
+
+```sh
+docker buildx imagetools inspect ghcr.io/honestrobin/time:main --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/honestrobin/time:main --format '{{ json .SBOM }}'
+```
+
+The image is our code (AGPL-3.0-only, the source is this repository) on top of the
+[Eclipse Temurin](https://adoptium.net) Java runtime image: OpenJDK 25 on Ubuntu (26.04 at the
+time of writing; the SBOM has the exact versions). Those parts keep their own licences, many of
+them in the GPL family. Where to get their source:
+
+- **OpenJDK:** every Temurin release publishes its source next to the binaries, at
+  [adoptium/temurin25-binaries](https://github.com/adoptium/temurin25-binaries/releases)
+  (`OpenJDK25U-jdk-sources_<version>.tar.gz`). Its licence notices are in the image under
+  `/opt/java/openjdk/legal`.
+- **Ubuntu packages:** from Ubuntu's archive, for example with `apt-get source <package>` on
+  Ubuntu, or at [launchpad.net/ubuntu](https://launchpad.net/ubuntu). The package list:
+  `docker run --rm --entrypoint dpkg ghcr.io/honestrobin/time:main -l`.
+- **Java libraries** sit inside the app's jar unchanged, as their own jars, with whatever licence
+  files they ship with (not all of them include one). CI refuses any whose licence doesn't fit
+  the AGPL (`./gradlew :backend:checkLicense`, against `config/allowed-licenses.json`).
+
+Postgres and Caddy are not part of our image: Compose pulls them from their own publishers.
+
 ## Reverse proxy and TLS
 
 Put Caddy, Traefik or nginx in front, terminate TLS there, and forward to port 8080. Set `HONESTROBIN_BASE_URL` to the public `https://` address.

@@ -39,6 +39,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: HONESTROBIN_VERSION=${{ github.ref_name }}
+          # A list of everything inside, with licences where known (docs/self-host.md).
+          sbom: true
       - name: Changelog from conventional commits
         uses: orhun/git-cliff-action@v4
         with:
