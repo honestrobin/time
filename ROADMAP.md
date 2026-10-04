@@ -3,7 +3,7 @@
 **Status: feature-complete for version 1, not yet released.** Everything in the
 [specification](docs/spec.md) is built and tested (milestones M0–M6). Before a first release, it
 needs trying out by real teams, and the integrations below need checking against the real
-services. So far only the maintainer has used it.
+services.
 
 ## What's in version 1
 
@@ -48,8 +48,8 @@ services. So far only the maintainer has used it.
   differences in the meantime.
 - Sign in to Harvest with OAuth, which needs a registered Harvest app (today: a personal access
   token).
-- Honest Robin Cloud: cancel a subscription inside the app. Today the billing page opens Paddle's
-  page for it, and the README promises "you cancel in the app".
+- Honest Robin Cloud: cancel a subscription inside the app (today the billing page opens
+  Paddle's page for it).
 - Decide whether a timer that ran past midnight should end "the next day".
 - Publish the extension in the Chrome Web Store and Firefox Add-ons.
 
