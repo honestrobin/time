@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, SelectField, TextField, useToast } from "../../design";
 import { api, errorInfo, unwrap, type Schemas } from "../../lib/api";
-import { CURRENCIES, TIME_ZONES } from "../../lib/reference";
+import { CURRENCIES, TIME_ZONES, dateStyleOptions } from "../../lib/reference";
 import { usePermissions } from "../../lib/session";
 import { AccountDataSection } from "./AccountData";
 
@@ -103,6 +103,14 @@ export function AccountSettingsPage() {
               value={form.week_start}
               onChange={set("week_start")}
               options={["1", "6", "7"].map((d) => ({ value: d, label: t(`weekday.${d}`) }))}
+              disabled={!perms.isAdmin}
+            />
+            <SelectField
+              label={t("settings.dateStyle")}
+              hint={t("settings.dateStyleHint")}
+              value={form.locale}
+              onChange={set("locale")}
+              options={dateStyleOptions(form.locale)}
               disabled={!perms.isAdmin}
             />
             <SelectField
