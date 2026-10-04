@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatDuration, minorToInput, parseDuration, parseMoney, type DurationStyle } from "../lib/format";
 import { Field } from "./Field";
 
@@ -71,12 +71,26 @@ interface MoneyInputProps {
   "aria-describedby"?: string;
 }
 
-/** Amount field in major units (12.50), stored as minor units (1250). Shows the currency code. */
+/**
+ * Amount field in major units (12.50), stored as minor units (1250). Shows the currency code.
+ * Reports the amount as it's typed, so a form knows it changed before the field loses focus (a
+ * rate typed and saved with Enter used to be lost). It tidies the text ("85" → "85.00") on blur.
+ */
 export function MoneyInput({ value, onChange, currency, ...rest }: MoneyInputProps) {
   const [text, setText] = useState(minorToInput(value, currency));
+  // What this field last reported, so the form's echo of it doesn't rewrite the text mid-typing.
+  const reported = useRef<{ value: number | null; currency: string } | null>(null);
   useEffect(() => {
+    const own = reported.current;
+    if (own && own.value === value && own.currency === currency) return;
     setText(minorToInput(value, currency));
   }, [value, currency]);
+  const report = (next: string) => {
+    const parsed = parseMoney(next, currency);
+    reported.current = { value: parsed, currency };
+    if (parsed !== value) onChange(parsed);
+    return parsed;
+  };
   return (
     <div className="input-affix">
       <input
@@ -84,10 +98,13 @@ export function MoneyInput({ value, onChange, currency, ...rest }: MoneyInputPro
         className="input input-num"
         inputMode="decimal"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          report(e.target.value);
+        }}
         onBlur={() => {
-          const parsed = parseMoney(text, currency);
-          onChange(parsed);
+          const parsed = report(text);
+          reported.current = null;
           setText(minorToInput(parsed, currency));
         }}
       />
