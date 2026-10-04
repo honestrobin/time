@@ -23,4 +23,25 @@ class RateUpdateTest : IntegrationTest() {
         assertThat(admin.get("/api/v1/time_entries/${entry.id()}").expect(200)["billable_rate"].asLong()).isEqualTo(12_000)
         assertThat(admin.get("/api/v1/rates/stale", mapOf("project_id" to projectId)).expect(200)["entries"].asInt()).isEqualTo(0)
     }
+
+    @Test
+    fun `saving an entry keeps the rate it was tracked at unless billable changes`() {
+        val admin = signup()
+        val task = createTask(admin)
+        val project = createProject(admin, taskIds = listOf(task), extra = mapOf("bill_by" to "project", "hourly_rate" to 10_000))
+        val projectId = project.id()
+        val entry = admin.post("/api/v1/time_entries", mapOf("project_id" to projectId, "task_id" to task, "spent_date" to "2026-09-15", "duration_seconds" to 3600)).expect(201)
+        val rate = { admin.get("/api/v1/time_entries/${entry.id()}").expect(200)["billable_rate"].asLong() }
+        admin.patch("/api/v1/projects/$projectId", mapOf("hourly_rate" to 12_000)).expect(200)
+
+        // The time dialog sends billable with every save, unchanged: editing the notes keeps the rate.
+        admin.patch("/api/v1/time_entries/${entry.id()}", mapOf("notes" to "Wireframes", "billable" to true)).expect(200)
+        assertThat(rate()).isEqualTo(10_000)
+
+        // Turning billable off and on again does take today's rate.
+        admin.patch("/api/v1/time_entries/${entry.id()}", mapOf("billable" to false)).expect(200)
+        assertThat(rate()).isEqualTo(0)
+        admin.patch("/api/v1/time_entries/${entry.id()}", mapOf("billable" to true)).expect(200)
+        assertThat(rate()).isEqualTo(12_000)
+    }
 }
