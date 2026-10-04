@@ -17,7 +17,7 @@ import {
 } from "../../design";
 import { ApiError, api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
-import { useMe, usePermissions } from "../../lib/session";
+import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { asRole, byName, personQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
@@ -136,12 +136,13 @@ function InvitationStrip({ person }: { person: Person }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const toast = useToast();
+  const emailWorks = useAuthConfig()?.email_configured !== false;
   const invite = useMutation({
     mutationFn: () => unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id } } })),
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people", "all"] });
-      toast(t("team.invitationSent"));
+      toast(t(emailWorks ? "team.invitationSent" : "team.invitationInLog"));
     },
   });
   if (person.status === "active" || !person.is_active) return null;

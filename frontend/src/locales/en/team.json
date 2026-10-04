@@ -49,6 +49,7 @@
     "resendInvitation": "Resend invitation",
     "addPerson": "Add person",
     "invitationSent": "Invitation sent",
+    "invitationInLog": "Invitation made. This instance can't send email yet, so the link is in the server's log.",
     "personAdded": "{{name}} added",
     "invitedOn": "Invited on {{date}}. They can sign in once they accept.",
     "notInvitedYet": "Not invited yet. They can't sign in until you send the invitation.",

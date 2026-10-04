@@ -25,6 +25,8 @@ data class AuthConfig(
     val signupAllowed: Boolean,
     val needsSetup: Boolean,
     val magicLinks: Boolean,
+    /** Whether this instance sends email. Without it, sign-in links and invitations are in the server's log. */
+    val emailConfigured: Boolean,
     val oauthProviders: List<String>,
     val marketingUrl: String?,
     /** Where the web app sends page views; null when it sends none (always, on self-hosted instances). */
@@ -68,6 +70,7 @@ class AuthController(
     private val props: HonestRobinProperties,
     private val edition: EditionInfo,
     private val analytics: ClientAnalytics,
+    private val mailer: com.honestrobin.time.platform.mail.Mailer,
 ) {
     @GetMapping("/config")
     fun config() = AuthConfig(
@@ -76,6 +79,7 @@ class AuthController(
         signupAllowed = auth.signupAllowed(),
         needsSetup = !auth.hasAnyUser(),
         magicLinks = true,
+        emailConfigured = mailer.canDeliver,
         oauthProviders = emptyList(),
         marketingUrl = edition.marketingUrl,
         analytics = analytics.config(),

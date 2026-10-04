@@ -2246,6 +2246,7 @@ export interface components {
         AuthConfig: {
             analytics?: components["schemas"]["ClientAnalyticsConfig"];
             edition: string;
+            email_configured: boolean;
             magic_links: boolean;
             marketing_url?: string;
             needs_setup: boolean;

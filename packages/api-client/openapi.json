@@ -5753,6 +5753,9 @@
           "edition" : {
             "type" : "string"
           },
+          "email_configured" : {
+            "type" : "boolean"
+          },
           "magic_links" : {
             "type" : "boolean"
           },
@@ -5775,7 +5778,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "edition", "magic_links", "needs_setup", "oauth_providers", "signup_allowed", "version" ]
+        "required" : [ "edition", "email_configured", "magic_links", "needs_setup", "oauth_providers", "signup_allowed", "version" ]
       },
       "BudgetLine" : {
         "properties" : {

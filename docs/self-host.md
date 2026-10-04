@@ -29,7 +29,7 @@ All settings are environment variables.
 | `HONESTROBIN_SIGNUP_MODE` | `first_user_only` | `first_user_only`, `open` or `invite_only` |
 | `HONESTROBIN_SETUP_CODE` | made at startup | The code the first sign-up needs. Unset, the app makes one each time it starts and writes it to its log. Set it when several app servers run, so they agree. |
 | `HONESTROBIN_DB_URL` / `_USER` / `_PASSWORD` | local `honestrobin` database | JDBC connection to Postgres |
-| `HONESTROBIN_SMTP_HOST` / `_PORT` / `_USER` / `_PASSWORD` | unset | Outgoing mail. Without SMTP, emails (including sign-in links) go to the application log. |
+| `HONESTROBIN_SMTP_HOST` / `_PORT` / `_USER` / `_PASSWORD` | unset | Outgoing mail. Without SMTP, nothing is emailed: unless sign-up is open, sign-in links, password resets, invitations and email confirmations go to the application log, so you can still get in; invoices can't be sent by email (mark them as sent instead), reminders wait, and other emails are only noted as not sent, with no addresses or text. |
 | `HONESTROBIN_MAIL_FROM` | `Honest Robin <no-reply@localhost>` | Sender address |
 | `HONESTROBIN_SECRETS_KEY_FILE` | `/data/secrets.key` | Key that encrypts stored integration credentials. Generated on first start. |
 | `HONESTROBIN_SECRETS_KEY` | unset | The same key as base64, if you prefer an environment variable to a file |
@@ -56,7 +56,7 @@ If the service can't be reached, the password is accepted.
 3. `HONESTROBIN_DOMAIN=time.example.com docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.https.yml up -d --build`
 4. Open `https://time.example.com`. The first person to sign up becomes the admin, with the setup code from the app's log; everyone else joins by invitation.
 
-Caddy gets the certificate by itself. Without SMTP settings, emails (sign-in links, invitations) are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
+Caddy gets the certificate by itself. Without SMTP settings, sign-in links and invitations are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
 
 ## Prebuilt images
 

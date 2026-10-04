@@ -19,7 +19,7 @@ import {
   useToast,
 } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
-import { useMe, usePermissions } from "../../lib/session";
+import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { asRole, byName, peopleQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
@@ -178,6 +178,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const account = useAccountSettings();
   const qc = useQueryClient();
   const toast = useToast();
+  const emailWorks = useAuthConfig()?.email_configured !== false;
   const [form, setForm] = useState<InviteForm>(emptyInvite);
   const set = <K extends keyof InviteForm>(k: K) => (v: InviteForm[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -200,7 +201,7 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
       ),
     onSuccess: (p) => {
       void qc.invalidateQueries({ queryKey: ["people"] });
-      toast(form.sendInvite ? t("team.invitationSent") : t("team.personAdded", { name: p.name }));
+      toast(form.sendInvite ? t(emailWorks ? "team.invitationSent" : "team.invitationInLog") : t("team.personAdded", { name: p.name }));
       onOpenChange(false);
     },
   });

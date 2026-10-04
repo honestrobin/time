@@ -52,6 +52,7 @@
     "signIn": "Sign in",
     "emailLink": "Email me a sign-in link",
     "emailLinkSent": "Check {{email}} for a sign-in link. It works once and expires in 15 minutes.",
+    "emailLinkInLog": "This instance can't send email yet, so a sign-in link for {{email}} went to the server's log instead. Ask whoever runs it.",
     "forgot": "Forgot your password?",
     "noAccount": "New here?",
     "createAccount": "Create an account",

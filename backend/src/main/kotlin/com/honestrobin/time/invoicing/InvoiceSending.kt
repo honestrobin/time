@@ -81,6 +81,12 @@ class InvoiceSender(
         val r = invoices.load(id)
         if (r.isReadOnly) throw ConflictException("read_only", "Imported invoices can't be sent from here")
         if (r.state in setOf("paid", "void")) throw ConflictException("closed", "A ${r.state} invoice can't be sent")
+        if (!mailer.canDeliver) {
+            throw ConflictException(
+                "email_not_set_up",
+                "This instance can't send email yet: its admin needs to set up a mail server (SMTP). Until then, mark the invoice as sent and send the PDF yourself.",
+            )
+        }
         val to = (input.to ?: recipients(r)).map(String::trim).filter(String::isNotEmpty).distinct()
         if (to.isEmpty()) throw ValidationException("to", "Add at least one recipient, or mark a client contact as receiving invoices")
         to.firstOrNull { !EMAIL.matches(it) }?.let { throw ValidationException("to", "$it is not an email address") }
@@ -112,6 +118,9 @@ class InvoiceSender(
         mailer.dispatch(OutgoingMail(to, subjectText ?: defaultSubject, text, html, bcc, sender, attachments, "invoice"))
         return invoices.view(invoices.load(id))
     }
+
+    /** Reminders go out only when email does; otherwise they'd be recorded as sent but never arrive. */
+    fun canEmail() = mailer.canDeliver
 
     fun recipients(r: InvoicesRecord): List<String> =
         dsl.select(CLIENT_CONTACTS.EMAIL).from(CLIENT_CONTACTS)
@@ -179,7 +188,7 @@ class InvoiceReminderService(
     }
 
     fun remindAccount(accountId: UUID, days: Set<Int>): Int {
-        if (!outbound.canSend(accountId)) return 0
+        if (!outbound.canSend(accountId) || !sender.canEmail()) return 0
         val today = settings.get(accountId).today(clock)
         var sent = 0
         dsl.selectFrom(INVOICES)

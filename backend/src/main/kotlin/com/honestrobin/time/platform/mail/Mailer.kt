@@ -115,7 +115,13 @@ class Mailer(
         }
     }
 
-    private fun transport(): MailTransport = transports.getIfAvailable() ?: javaMailSender.getIfAvailable()?.takeIf { smtpHost.isNotBlank() }?.let { SmtpTransport(it, props.mail.from) }
+    /** Whether email actually goes out: false without SMTP, when mail is only written to the log. */
+    val canDeliver: Boolean get() = deliveringTransport() != null
+
+    private fun deliveringTransport(): MailTransport? =
+        transports.getIfAvailable() ?: javaMailSender.getIfAvailable()?.takeIf { smtpHost.isNotBlank() }?.let { SmtpTransport(it, props.mail.from) }
+
+    private fun transport(): MailTransport = deliveringTransport()
         ?: if (props.signupMode == HonestRobinProperties.SignupMode.OPEN) LoggingTransport.withoutBody else LoggingTransport.withBody
 
     private class SmtpTransport(private val sender: JavaMailSender, private val from: String) : MailTransport {
@@ -134,15 +140,21 @@ class Mailer(
     }
 
     /**
-     * Used when no SMTP server is configured. On a private instance the whole mail goes to the log,
-     * so its owner can still sign in; where anyone can sign up, the log never holds sign-in links.
+     * Used when no SMTP server is configured. On a private instance, the mails that get people
+     * into it (sign-in links, password resets, invitations, email confirmations) go to the log
+     * whole, so its owner can still sign in and invite. Everything else, invoices to clients above
+     * all, is only noted as not sent: no addresses, no text. Where anyone can sign up, nothing
+     * goes to the log whole.
      */
-    private class LoggingTransport(private val body: Boolean) : MailTransport {
+    private class LoggingTransport(private val signInBodies: Boolean) : MailTransport {
         private val log = LoggerFactory.getLogger("com.honestrobin.time.mail")
 
         override fun send(mail: OutgoingMail) {
-            if (body) log.info("No SMTP configured; mail to {}:\nSubject: {}\n\n{}", mail.to, mail.subject, mail.text)
-            else log.warn("No SMTP configured; mail to {} not sent: {}", mail.to, mail.subject)
+            if (logsWhole(mail.template, signInBodies)) {
+                log.info("No SMTP configured; mail to {}:\nSubject: {}\n\n{}", mail.to, mail.subject, mail.text)
+            } else {
+                log.warn("No SMTP configured; a '{}' email to {} recipient(s) was not sent", mail.template, mail.to.size + mail.bcc.size)
+            }
         }
 
         companion object {
@@ -151,3 +163,9 @@ class Mailer(
         }
     }
 }
+
+/** The mails that get people into an instance: without SMTP its owner needs them from the log. */
+internal val SIGN_IN_TEMPLATES = setOf("magic-link", "password-reset", "invite", "verify-email")
+
+/** Whether a mail goes to the log whole when there's no SMTP (see LoggingTransport). */
+internal fun logsWhole(template: String?, signInBodies: Boolean) = signInBodies && template in SIGN_IN_TEMPLATES

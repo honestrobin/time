@@ -54,7 +54,7 @@ export function LoginPage() {
       <p className="lead">{t("auth.signInLead")}</p>
       {linkSentTo ? (
         <p className="notice notice-ok" role="status">
-          {t("auth.emailLinkSent", { email: linkSentTo })}
+          {t(config?.email_configured === false ? "auth.emailLinkInLog" : "auth.emailLinkSent", { email: linkSentTo })}
         </p>
       ) : (
         <form className="stack" onSubmit={submit} noValidate>
