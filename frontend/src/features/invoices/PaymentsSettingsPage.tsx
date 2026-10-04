@@ -70,6 +70,7 @@ export function PaymentsSettingsPage() {
             {t("payments.status", { name: s.account_name ?? s.external_account_id })}
             {s.mode === "connect" ? ` ${t("payments.viaConnect")}` : ` ${t("payments.viaKey")}`}
           </p>
+          {s.test_mode && <p className="notice notice-warn">{t("payments.testMode")}</p>}
           {s.webhook_url && (
             <div className="field">
               <span className="field-label">{t("payments.webhookUrl")}</span>

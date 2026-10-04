@@ -296,6 +296,7 @@
     "status": "Connected to Stripe account {{name}}.",
     "viaConnect": "Authorised through Stripe Connect.",
     "viaKey": "Connected with your own key.",
+    "testMode": "Test mode: Stripe takes only its test cards, so no money moves. Connect with a live key to take real payments.",
     "webhookUrl": "Webhook address",
     "webhookUrlHint": "In Stripe, the webhook endpoint for checkout.session.completed must point here.",
     "lastError": "Stripe reported a problem the last time a client tried to pay: {{error}}",

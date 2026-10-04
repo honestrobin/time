@@ -3106,6 +3106,7 @@ export interface components {
             external_account_id?: string;
             last_error?: string;
             mode?: string;
+            test_mode: boolean;
             webhook_url?: string;
         };
         PeppolConnectInput: {

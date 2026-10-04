@@ -46,7 +46,7 @@ class FunnelEventsTest : IntegrationTest() {
             admin.post("/api/v1/invoices/$id/mark_sent").expect(200)
             id
         }
-        val payload = """{"id":"evt_${UUID.randomUUID()}","type":"checkout.session.completed","created":${Instant.now().epochSecond},
+        val payload = """{"id":"evt_${UUID.randomUUID()}","type":"checkout.session.completed","created":${Instant.now().epochSecond},"livemode":false,
             "data":{"object":{"payment_status":"paid","amount_total":50000,"currency":"nzd","payment_intent":"pi_funnel","metadata":{"invoice_id":"${invoices[0]}"}}}}"""
         val t = Instant.now().epochSecond
         client().request(HttpMethod.POST, "/webhooks/stripe/$account", payload, headers = mapOf("Stripe-Signature" to "t=$t,v1=${StripeClient.sign("whsec_funnel", t, payload)}")).expect(200)

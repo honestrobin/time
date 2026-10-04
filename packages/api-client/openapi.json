@@ -8077,11 +8077,14 @@
           "mode" : {
             "type" : "string"
           },
+          "test_mode" : {
+            "type" : "boolean"
+          },
           "webhook_url" : {
             "type" : "string"
           }
         },
-        "required" : [ "connect_available", "connected" ]
+        "required" : [ "connect_available", "connected", "test_mode" ]
       },
       "PeppolConnectInput" : {
         "properties" : {

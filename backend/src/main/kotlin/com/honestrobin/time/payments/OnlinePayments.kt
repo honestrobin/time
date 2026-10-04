@@ -54,6 +54,8 @@ data class PaymentsStatus(
     /** Where Stripe must send events when connected with your own key. */
     val webhookUrl: String?,
     val lastError: String?,
+    /** Connected with Stripe's test keys: only test cards work, and no money moves. */
+    val testMode: Boolean,
 )
 
 data class StripeKeyInput(val secretKey: String = "", val webhookSecret: String = "")
@@ -82,6 +84,12 @@ class OnlinePaymentService(
     private fun credentials(r: IntegrationsRecord): Map<String, String> =
         r.credentialsEncrypted?.let { json.readValue(secrets.decrypt(it), Map::class.java).entries.associate { (k, v) -> k.toString() to v.toString() } }.orEmpty()
 
+    /** Whether the connection takes real money; Stripe's test keys (sk_test_, rk_test_) take only test cards. */
+    private fun livemode(r: IntegrationsRecord): Boolean {
+        val key = if (r.mode == "connect") settings.platformSecretKey else credentials(r)["secret_key"].orEmpty()
+        return !key.startsWith("sk_test_") && !key.startsWith("rk_test_")
+    }
+
     fun status(m: Member): PaymentsStatus {
         invoices.requireAccess(m)
         return tx.run {
@@ -91,6 +99,7 @@ class OnlinePaymentService(
                 connectAvailable = settings.connectEnabled,
                 webhookUrl = if (r?.mode == "api_key") "${props.baseUrl}/webhooks/stripe/${m.accountId}" else null,
                 lastError = r?.lastError,
+                testMode = r?.status == "connected" && !livemode(r),
             )
         }
     }
@@ -304,6 +313,12 @@ class OnlinePaymentService(
         if (type !in setOf("checkout.session.completed", "checkout.session.async_payment_succeeded")) return true
         val session = event["data"]["object"]
         if (session["payment_status"]?.asText() != "paid") return true
+        // A payment with Stripe's test cards never settles a live connection's invoice, nor the
+        // other way round: the event must be in the connection's own mode.
+        if (event["livemode"]?.takeIf { it.isBoolean }?.asBoolean() != livemode(integration)) {
+            log.warn("Stripe event {} is {}, the connection of account {} isn't; not recorded", event["id"]?.asText(), if (event["livemode"]?.asBoolean() == true) "live" else "in test mode", integration.accountId)
+            return true
+        }
         val invoiceId = session["metadata"]?.get("invoice_id")?.asText()?.let { runCatching { UUID.fromString(it) }.getOrNull() } ?: return true
         DbContext.forAccount(integration.accountId) {
             tx.run {

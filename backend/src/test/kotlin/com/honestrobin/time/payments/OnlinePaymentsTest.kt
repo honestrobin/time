@@ -20,8 +20,9 @@ class OnlinePaymentsTest : IntegrationTest() {
         return inv to sent["public_url"].asText().substringAfterLast("/")
     }
 
-    private fun event(invoice: UUID, amount: Long, currency: String = "eur", reference: String = "pi_${UUID.randomUUID()}", account: String? = null, accountId: UUID? = null) = """
-        {"id":"evt_${UUID.randomUUID()}","type":"checkout.session.completed","created":${Instant.now().epochSecond}${account?.let { ",\"account\":\"$it\"" } ?: ""},
+    // MockStripe's keys are test keys, so its events are in test mode.
+    private fun event(invoice: UUID, amount: Long, currency: String = "eur", reference: String = "pi_${UUID.randomUUID()}", account: String? = null, accountId: UUID? = null, livemode: Boolean = false) = """
+        {"id":"evt_${UUID.randomUUID()}","type":"checkout.session.completed","created":${Instant.now().epochSecond},"livemode":$livemode${account?.let { ",\"account\":\"$it\"" } ?: ""},
          "data":{"object":{"id":"cs_test_x","payment_status":"paid","amount_total":$amount,"currency":"$currency","payment_intent":"$reference",
          "metadata":{"invoice_id":"$invoice"${accountId?.let { ",\"account_id\":\"$it\"" } ?: ""}}}}}
     """.trimIndent()
@@ -66,6 +67,13 @@ class OnlinePaymentsTest : IntegrationTest() {
         assertThat(call.form["line_items[0][price_data][currency]"]).isEqualTo("eur")
         assertThat(call.form["metadata[invoice_id]"]).isEqualTo(invoice.toString())
         assertThat(call.form.keys).noneMatch { it.contains("application_fee") }
+
+        // Test keys take only Stripe's test cards, and the page says so.
+        assertThat(status["test_mode"].asBoolean()).isTrue()
+        // A live payment can't be a test connection's: it isn't recorded (security review, 4 October 2026).
+        val live = event(invoice, 125_000, reference = "pi_live_1", livemode = true)
+        webhook("/webhooks/stripe/${admin.accountId}", live, signed(live, "whsec_own")).expect(200)
+        assertThat(admin.get("/api/v1/invoices/$invoice")["payments"]).isEmpty()
 
         val payload = event(invoice, 125_000, reference = "pi_paid_1")
         webhook("/webhooks/stripe/${admin.accountId}", payload, mapOf("Stripe-Signature" to "t=1,v1=bad")).expect(400)
