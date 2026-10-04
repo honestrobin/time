@@ -45,9 +45,10 @@ Much of the joy is in what we leave out. Each of these is a bug:
 
 ## Honest
 
-Honesty is the first project rule (`CLAUDE.md`): never mislead, and disclose by default. The
-design shows prices, limits and mistakes plainly, with numbers where there are numbers. Copy makes
-no claim we couldn't be held to: it says what Time does, not what's guaranteed to happen.
+Honesty is the first project rule (`CLAUDE.md`): no lies, nothing shady, and a straight answer
+to a straight question. The design shows prices and limits plainly, with numbers where there are
+numbers, and tells people about anything that affects them without being asked. Copy makes no
+claim we couldn't be held to: it says what Time does, not what's guaranteed to happen.
 
 ## You come first
 

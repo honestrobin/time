@@ -7,11 +7,13 @@ decisions are recorded in `docs/decisions/`.
 
 ## Project rules
 
-- **Honest, in everything.** It's the core value: never mislead, and disclose by default, in the
-  UI, emails, docs, pricing, billing, uptime and in how the product is made (by Claude, said
-  openly). State limits and mistakes plainly, with numbers where there are numbers. Hold back
-  only personal data, unfixed security issues and legal risk, and never in a way that leaves a
-  false impression.
+- **Honest, in everything.** It's the core value, in the UI, emails, docs, pricing, billing,
+  uptime and in how the product is made (by Claude, said openly). Honest means no lies, nothing
+  shady, and a straight answer to a straight question, also when it doesn't flatter us. It does
+  not mean listing our weak spots unasked: say what a reader needs in order to decide, once and
+  plainly, and never leave a false impression. What affects a customer (prices, limits, outages,
+  a mistake that touches their data or money) they hear without asking. The rule in full is "We
+  tell you the truth" in the Robin's Code (honestrobin.com/code).
 - **A joy to use: professional, and playful.** Simple first, powerful when needed. The robin
   keeps people company; words sound like a person. No tricks, nagging, corporate language or AI
   for its own sake: treat any of those as a bug (`docs/design.md`).
