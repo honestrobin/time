@@ -7,7 +7,7 @@ import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** A stand-in for the parts of the Paddle Billing API the app calls: seat changes and the customer portal. */
+/** A stand-in for the parts of the Paddle Billing API the app calls: seat changes, cancelling and the customer portal. */
 object MockPaddle {
     const val API_KEY = "pdl_test_key"
     const val WEBHOOK_SECRET = "pdl_ntfset_test"
@@ -28,6 +28,8 @@ object MockPaddle {
                 val (status, response) = when {
                     ex.requestHeaders.getFirst("Authorization") != "Bearer $API_KEY" -> 403 to mapOf("error" to mapOf("detail" to "Invalid API key"))
                     ex.requestMethod == "PATCH" && ex.requestURI.path.startsWith("/subscriptions/") -> 200 to mapOf("data" to mapOf("id" to ex.requestURI.path.substringAfterLast('/')))
+                    ex.requestMethod == "POST" && ex.requestURI.path.matches(Regex("/subscriptions/[^/]+/cancel")) ->
+                        200 to mapOf("data" to mapOf("id" to ex.requestURI.path.split('/')[2], "status" to "canceled"))
                     ex.requestURI.path.endsWith("/portal-sessions") ->
                         200 to mapOf("data" to mapOf("urls" to mapOf("general" to mapOf("overview" to "https://customer-portal.paddle.test/overview"))))
                     else -> 404 to mapOf("error" to mapOf("detail" to "Not found"))

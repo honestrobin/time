@@ -157,7 +157,11 @@ class BillingService(
         if (!type.startsWith("subscription.")) return true
         val data = event["data"]
         val externalId = data["id"].asText()
+        val occurred = event["occurred_at"]?.asText()?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        var duplicate: String? = null
         tx.system {
+            // One event per subscription at a time, so a retry can't race a newer event.
+            dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 7234004))", "paddle:$externalId")
             val existing = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.EXTERNAL_ID.eq(externalId)).fetchOne()
             val accountId = existing?.accountId ?: claimedAccount(data)
             if (accountId == null || !dsl.fetchExists(ACCOUNTS, ACCOUNTS.ID.eq(accountId))) {
@@ -171,7 +175,10 @@ class BillingService(
             }
             val other = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).and(SUBSCRIPTIONS.EXTERNAL_ID.ne(externalId)).fetchOne()
             if (other != null && isPaying(other)) {
-                log.error("Paddle subscription {} is for account {}, which already pays through {}; ignored", externalId, accountId, other.externalId)
+                // Two checkouts at once (two tabs, say) make a second subscription. It's cancelled so
+                // it never renews; its first payment needs a refund by a person.
+                if (data["status"]?.asText() in setOf("trialing", "active", "past_due")) duplicate = externalId
+                log.error("Paddle subscription {} is for account {}, which already pays through {}; cancelling it, refund its first payment", externalId, accountId, other.externalId)
                 return@system
             }
             other?.delete()
@@ -179,7 +186,20 @@ class BillingService(
             val fresh = dsl.insertInto(BILLING_EVENTS).set(BILLING_EVENTS.EVENT_ID, event["event_id"].asText()).set(BILLING_EVENTS.EVENT_TYPE, type)
                 .set(BILLING_EVENTS.ACCOUNT_ID, accountId).onConflictDoNothing().execute()
             if (fresh == 0) return@system
-            DbContext.forAccount(accountId) { apply(accountId, existing, data) }
+            // Paddle doesn't promise order: an event older than the one last applied is only recorded.
+            val last = existing?.lastEventAt
+            if (last != null && (occurred == null || occurred.isBefore(last))) {
+                log.info("Paddle event {} for subscription {} happened before the one already applied; not applied", event["event_id"]?.asText(), externalId)
+                return@system
+            }
+            DbContext.forAccount(accountId) { apply(accountId, existing, data, occurred) }
+        }
+        duplicate?.let { id ->
+            try {
+                paddle.cancel(id)
+            } catch (e: PaddleException) {
+                log.error("Cancelling duplicate Paddle subscription {} failed: {}", id, e.message)
+            }
         }
         return true
     }
@@ -194,7 +214,7 @@ class BillingService(
 
     private fun accountSignature(accountId: UUID): String = PaddleClient.sign(settings.webhookSecret, 0, "account:$accountId")
 
-    private fun apply(accountId: UUID, existing: SubscriptionsRecord?, data: JsonNode) {
+    private fun apply(accountId: UUID, existing: SubscriptionsRecord?, data: JsonNode, occurred: Instant?) {
         val item = data["items"]?.firstOrNull() ?: return
         val unitPrice = item["price"]["unit_price"]["amount"].asText().toLong()
         val r = existing ?: dsl.newRecord(SUBSCRIPTIONS).apply {
@@ -218,6 +238,7 @@ class BillingService(
         r.currentPeriodEnd = data["current_billing_period"]?.get("ends_at")?.asText()?.let(Instant::parse)
         r.cancelAt = data["scheduled_change"]?.takeIf { it["action"]?.asText() == "cancel" }?.get("effective_at")?.asText()?.let(Instant::parse)
         r.canceledAt = data["canceled_at"]?.takeIf { !it.isNull }?.asText()?.let(Instant::parse)
+        r.lastEventAt = occurred ?: r.lastEventAt
         r.store()
         if (isNew) funnel.event(accountId, Funnel.SUBSCRIPTION_STARTED, mapOf("interval" to r.billingInterval, "seats" to r.seats))
         if (isPaying(r)) reactivate(accountId) else lapseIfOverFree(accountId)

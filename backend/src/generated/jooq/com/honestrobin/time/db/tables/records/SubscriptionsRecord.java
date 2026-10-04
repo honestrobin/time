@@ -276,6 +276,21 @@ public class SubscriptionsRecord extends UpdatableRecordImpl<SubscriptionsRecord
         return (Instant) get(16);
     }
 
+    /**
+     * Setter for <code>public.subscriptions.last_event_at</code>.
+     */
+    public SubscriptionsRecord setLastEventAt(Instant value) {
+        set(17, value);
+        return this;
+    }
+
+    /**
+     * Getter for <code>public.subscriptions.last_event_at</code>.
+     */
+    public Instant getLastEventAt() {
+        return (Instant) get(17);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -299,7 +314,7 @@ public class SubscriptionsRecord extends UpdatableRecordImpl<SubscriptionsRecord
     /**
      * Create a detached, initialised SubscriptionsRecord
      */
-    public SubscriptionsRecord(UUID id, UUID accountId, String provider, String externalId, String externalCustomerId, String externalPriceId, String plan, String billingInterval, String status, Integer seats, String currency, Long lockedUnitPriceMinor, Instant currentPeriodEnd, Instant cancelAt, Instant canceledAt, Instant createdAt, Instant updatedAt) {
+    public SubscriptionsRecord(UUID id, UUID accountId, String provider, String externalId, String externalCustomerId, String externalPriceId, String plan, String billingInterval, String status, Integer seats, String currency, Long lockedUnitPriceMinor, Instant currentPeriodEnd, Instant cancelAt, Instant canceledAt, Instant createdAt, Instant updatedAt, Instant lastEventAt) {
         super(Subscriptions.SUBSCRIPTIONS);
 
         setId(id);
@@ -319,6 +334,7 @@ public class SubscriptionsRecord extends UpdatableRecordImpl<SubscriptionsRecord
         setCanceledAt(canceledAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
+        setLastEventAt(lastEventAt);
         resetTouchedOnNotNull();
     }
 }

@@ -63,6 +63,9 @@ class PaddleClient(private val settings: PaddleSettings, private val json: Objec
             mapOf("items" to listOf(mapOf("price_id" to priceId, "quantity" to quantity)), "proration_billing_mode" to "prorated_immediately"),
         )
 
+    /** Cancels a subscription now, so it never renews. */
+    fun cancel(subscriptionId: String): JsonNode = call("POST", "/subscriptions/$subscriptionId/cancel", mapOf("effective_from" to "immediately"))
+
     /** A link to Paddle's customer portal: payment method, invoices, cancelling. */
     fun portalUrl(customerId: String, subscriptionId: String?): String {
         val body = call("POST", "/customers/$customerId/portal-sessions", mapOf("subscription_ids" to listOfNotNull(subscriptionId)))

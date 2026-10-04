@@ -145,6 +145,11 @@ public class Subscriptions extends TableImpl<SubscriptionsRecord> {
      */
     public final TableField<SubscriptionsRecord, Instant> UPDATED_AT = createField(DSL.name("updated_at"), SQLDataType.INSTANT.nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.INSTANT)), this, "");
 
+    /**
+     * The column <code>public.subscriptions.last_event_at</code>.
+     */
+    public final TableField<SubscriptionsRecord, Instant> LAST_EVENT_AT = createField(DSL.name("last_event_at"), SQLDataType.INSTANT, this, "");
+
     private Subscriptions(Name alias, Table<SubscriptionsRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

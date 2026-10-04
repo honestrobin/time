@@ -47,7 +47,8 @@ class BillingTest : IntegrationTest() {
         priceId: String = MockPaddle.ANNUAL_PRICE,
         subscription: String = "sub_test_${account.toString().take(8)}",
         signature: String? = null,
-    ) = """{"event_id":"evt_${UUID.randomUUID()}","event_type":"$type","occurred_at":"${Instant.now()}",
+        occurredAt: Instant = Instant.now(),
+    ) = """{"event_id":"evt_${UUID.randomUUID()}","event_type":"$type","occurred_at":"$occurredAt",
         "data":{"id":"$subscription","status":"$status","customer_id":"ctm_${account.toString().take(8)}","currency_code":"EUR",
         "billing_cycle":{"interval":"year","frequency":1},
         "current_billing_period":{"starts_at":"2026-10-01T00:00:00Z","ends_at":"2027-10-01T00:00:00Z"},
@@ -153,6 +154,32 @@ class BillingTest : IntegrationTest() {
             admin.patch("/api/v1/people/$newcomer", mapOf("is_active" to false)).expect(200)
             admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to true)).expect(200)
         }
+    }
+
+    @Test
+    fun `events apply in the order they happened, and a second subscription is cancelled at Paddle`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Security review, 4 October 2026: Paddle retries events for days and in any order, so a
+        // late retry of an old event could bring a cancelled subscription back.
+        val admin = signup(accountName = "Kowhai Ltd")
+        val account = admin.accountId!!
+        val start = Instant.now().minusSeconds(3600)
+        assertThat(deliver(subscriptionEvent(account, occurredAt = start))).isEqualTo(200)
+        assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", occurredAt = start.plusSeconds(600)))).isEqualTo(200)
+        assertThat(deliver(subscriptionEvent(account, type = "subscription.updated", status = "active", occurredAt = start.plusSeconds(300)))).isEqualTo(200)
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["status"].asText()).isEqualTo("canceled")
+        // A newer event still applies.
+        assertThat(deliver(subscriptionEvent(account, type = "subscription.resumed", status = "active", occurredAt = start.plusSeconds(900)))).isEqualTo(200)
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["status"].asText()).isEqualTo("active")
+
+        // Two checkouts at once make two subscriptions: the second is cancelled so it never renews.
+        val other = signup(accountName = "Totara Ltd")
+        val second = "sub_second_${UUID.randomUUID().toString().take(8)}"
+        assertThat(deliver(subscriptionEvent(other.accountId!!, subscription = "sub_first_${UUID.randomUUID().toString().take(8)}"))).isEqualTo(200)
+        MockPaddle.calls.clear()
+        assertThat(deliver(subscriptionEvent(other.accountId!!, subscription = second))).isEqualTo(200)
+        assertThat(MockPaddle.calls.single { it.path == "/subscriptions/$second/cancel" }.body!!["effective_from"].asText()).isEqualTo("immediately")
+        assertThat(other.get("/api/v1/billing/subscription").expect(200)["plan"].asText()).isEqualTo("team")
     }
 
     @Test
