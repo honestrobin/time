@@ -61,6 +61,21 @@ class SecurityRegressionTest : IntegrationTest() {
     }
 
     @Test
+    fun `opening a public invoice signed in leaves no trace of the visitor in the seller's audit log`() {
+        // Security review, 4 October 2026: the view counter was written with the visitor's name and IP.
+        val seller = signup(accountName = "Seller Co")
+        val client = createClient(seller)
+        val inv = seller.post("/api/v1/invoices", mapOf("client_id" to client, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000)))).expect(201).id()
+        val token = seller.post("/api/v1/invoices/$inv/mark_sent").expect(200)["public_url"].asText().substringAfterLast("/")
+        val visitor = signup(accountName = "Visitor Co")
+        val res = visitor.get("/api/v1/public/invoices/$token").expect(200)
+        // Search engines are told to stay out.
+        assertThat(res.headers["X-Robots-Tag"]).contains("noindex, nofollow")
+        val entries = seller.get("/api/v1/audit_log", mapOf("entity_type" to "invoices")).expect(200)["entries"]
+        assertThat(entries.values().map { it["actor_user_id"].asText() }).doesNotContain(visitor.userId.toString())
+    }
+
+    @Test
     fun `receipts are stored as what their bytes are and only images and PDFs are shown in the browser`() {
         val admin = signup()
         val task = createTask(admin)

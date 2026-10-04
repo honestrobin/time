@@ -86,6 +86,11 @@ class SecurityConfig(private val objectMapper: ObjectMapper) {
                 h.frameOptions { it.deny() }
                 h.referrerPolicy { it.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN) }
                 h.permissionsPolicyHeader { it.policy("camera=(), microphone=(), geolocation=()") }
+                // Public invoice links are for the client they were sent to, not for search engines.
+                h.addHeaderWriter { request, response ->
+                    val path = request.requestURI
+                    if (path.startsWith("/i/") || path.startsWith("/api/v1/public/invoices/")) response.setHeader("X-Robots-Tag", "noindex, nofollow")
+                }
             }
             .addFilterBefore(authFilter, AnonymousAuthenticationFilter::class.java)
         return http.build()

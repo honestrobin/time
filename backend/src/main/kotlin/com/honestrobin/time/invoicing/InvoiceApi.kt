@@ -286,7 +286,7 @@ class PublicInvoiceController(
     @GetMapping("/{token}")
     fun get(@PathVariable token: String): PublicInvoiceView {
         val r = find(token)
-        return DbContext.forAccount(r.accountId) {
+        return DbContext.anonymouslyForAccount(r.accountId) {
             tx.run {
                 dsl.update(INVOICES).set(INVOICES.VIEW_COUNT, INVOICES.VIEW_COUNT.plus(1)).set(INVOICES.LAST_VIEWED_AT, java.time.Instant.now())
                     .where(INVOICES.ID.eq(r.id)).execute()

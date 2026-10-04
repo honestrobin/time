@@ -219,7 +219,8 @@ class PeppolService(
             PeppolStatus(
                 connected = r != null, mode = r?.mode, legalEntityId = r?.externalAccountId, platformAvailable = settings.platformEnabled,
                 webhookUrl = if (r?.mode == "api_key") "${props.baseUrl}/webhooks/storecove/${m.accountId}" else null,
-                webhookSecret = if (r?.mode == "api_key") r.let { credentials(it)["webhook_secret"] } else null,
+                // Whoever has it can forge delivery reports, so only admins see it.
+                webhookSecret = if (r?.mode == "api_key" && m.isAdmin) r.let { credentials(it)["webhook_secret"] } else null,
             )
         }
     }

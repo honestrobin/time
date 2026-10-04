@@ -186,7 +186,7 @@ class OnlinePaymentService(
     fun startCheckout(token: String): CheckoutStart {
         val invoice = tx.system { dsl.selectFrom(INVOICES).where(INVOICES.PUBLIC_TOKEN.eq(token)).and(INVOICES.STATE.ne("draft")).fetchOne() }
             ?: throw NotFoundException("Invoice")
-        return DbContext.forAccount(invoice.accountId) {
+        return DbContext.anonymouslyForAccount(invoice.accountId) {
             tx.run {
                 if (invoice.state !in setOf("sent", "open", "partially_paid") || invoice.dueMinor <= 0) throw ConflictException("not_payable", "This invoice has nothing left to pay")
                 val r = integration()?.takeIf { it.status == "connected" } ?: throw ConflictException("no_online_payments", "This invoice can't be paid online")

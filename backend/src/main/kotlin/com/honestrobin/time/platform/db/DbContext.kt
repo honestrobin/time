@@ -49,5 +49,12 @@ data class DbContext(
 
         fun <T> forAccount(accountId: UUID, block: () -> T): T =
             with(current().copy(accountId = accountId, bypassRls = false), block)
+
+        /**
+         * For what an anonymous visitor causes in an account (a client opening a public invoice):
+         * no actor and no IP, so a visitor who happens to be signed in to their own account isn't
+         * written into this account's audit log by name.
+         */
+        fun <T> anonymouslyForAccount(accountId: UUID, block: () -> T): T = with(DbContext(accountId = accountId), block)
     }
 }
