@@ -48,11 +48,16 @@ export function ForgotPasswordPage() {
   );
 }
 
+/**
+ * Signs in only when the person presses the button, not when the page loads: a link a mail
+ * scanner opens isn't used up, and a page that sends someone here can't sign them in to an
+ * account that isn't theirs without them noticing.
+ */
 export function MagicLinkPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const started = useRef(false);
+  const [token] = useState(tokenFromHash);
   const [challenge, setChallenge] = useState<string | null>(null);
   const finish = async () => {
     await qc.invalidateQueries();
@@ -65,12 +70,6 @@ export function MagicLinkPage() {
       return res.two_factor_required && res.challenge ? setChallenge(res.challenge) : finish();
     },
   });
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    consume.mutate(tokenFromHash());
-  }, [consume]);
-
   if (challenge) {
     return (
       <AuthLayout>
@@ -82,6 +81,14 @@ export function MagicLinkPage() {
   return (
     <AuthLayout>
       <h1>{t("auth.magicTitle")}</h1>
+      {!consume.isError && (
+        <>
+          <p className="lead">{t("auth.magicLead")}</p>
+          <Button variant="primary" block busy={consume.isPending} onClick={() => consume.mutate(token)}>
+            {t("auth.magicContinue")}
+          </Button>
+        </>
+      )}
       {consume.isError && (
         <>
           <p className="notice notice-error" role="alert">
@@ -192,7 +199,8 @@ export function VerifyEmailPage() {
             {t("auth.verifySignIn")}
           </p>
           <div className="auth-links">
-            <Link to="/login" search={{ next: location.pathname + location.hash }}>
+            {/* Not back here with the token: in the query it would reach logs. */}
+            <Link to="/login">
               {t("auth.verifySignInLink")}
             </Link>
           </div>
