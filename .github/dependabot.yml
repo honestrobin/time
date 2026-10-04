@@ -24,3 +24,11 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+    ignore:
+      # openapi-typescript builds the API client with TypeScript's compiler API, which TypeScript 7
+      # doesn't offer yet (decision record 0007). Lift this when openapi-typescript supports it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Node's types follow the Node version we run (24, the LTS line).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]

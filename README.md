@@ -75,7 +75,7 @@ invitation. To run it on your own domain with HTTPS, and for settings, backups a
 
 ## Develop
 
-You need JDK 21 (Gradle can download it), Node 22 with pnpm, and Docker or Podman for the test database.
+You need JDK 21 (Gradle can download it), Node 24 with pnpm, and Docker or Podman for the test database.
 
 ```sh
 pnpm install

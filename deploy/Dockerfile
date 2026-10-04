@@ -2,7 +2,7 @@
 # Single image: the Spring Boot backend serves the built SPA. Build from the repository root:
 #   docker build -f deploy/Dockerfile -t honestrobin-time .
 
-FROM docker.io/library/node:22-alpine AS web
+FROM docker.io/library/node:24-alpine AS web
 WORKDIR /src
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
