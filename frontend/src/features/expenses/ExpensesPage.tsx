@@ -306,7 +306,12 @@ function ExpenseDialog({
   const me = useMe();
   const account = useAccountSettings();
   const assignments = useAssignments();
+  const refetchAssignments = assignments.refetch;
   const categories = useQuery(categoriesQuery);
+  // Projects may have changed since the list was loaded: a new one, or a manager added you.
+  useEffect(() => {
+    if (open) void refetchAssignments();
+  }, [open, refetchAssignments]);
   // After a failed receipt upload the expense exists: keep editing it instead of creating another.
   const [current, setCurrent] = useState<Expense | null>(expense);
   const [form, setForm] = useState<Form>({ date: defaultDate, projectId: undefined, categoryId: undefined, amount: null, units: "", notes: "", billable: true });
@@ -437,7 +442,7 @@ function ExpenseDialog({
   return (
     <>
       <Dialog open={open && !confirmDelete} onOpenChange={onOpenChange} title={current ? t("expenses.editTitle") : t("expenses.addTitle")}>
-        {!assignments.isLoading && projects.length === 0 && !current ? (
+        {!assignments.isFetching && projects.length === 0 && !current ? (
           <>
             <p className="notice">{t("expenses.noAssignments")}</p>
             <DialogActions>

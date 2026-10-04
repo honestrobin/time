@@ -24,12 +24,19 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
   const { t } = useTranslation();
   const toast = useToast();
   const invalidate = useInvalidateTime();
-  const assignments = useAssignments().data ?? [];
+  const assignmentsQuery = useAssignments();
+  const assignments = assignmentsQuery.data ?? [];
+  const refetchAssignments = assignmentsQuery.refetch;
   const [projectId, setProjectId] = useState<string | undefined>();
   const [taskId, setTaskId] = useState<string | undefined>();
   const [notes, setNotes] = useState("");
   const [duration, setDuration] = useState<number | null>(null);
   const [billable, setBillable] = useState(true);
+
+  // Projects may have changed since the list was loaded: a new one, or a manager added you.
+  useEffect(() => {
+    if (open) void refetchAssignments();
+  }, [open, refetchAssignments]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +96,9 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
       title={entry ? t("time.editEntry") : t("time.newEntry")}
       description={formatDate(date, "long")}
     >
-      {assignments.length === 0 ? (
+      {assignments.length === 0 && assignmentsQuery.isFetching ? (
+        <p className="muted">{t("app.loading")}</p>
+      ) : assignments.length === 0 ? (
         <p className="notice">{t("time.noAssignments")}</p>
       ) : (
         <form className="stack" onSubmit={submit}>
