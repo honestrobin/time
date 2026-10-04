@@ -14,3 +14,4 @@ e2e/test-results/
 e2e/playwright-report/
 extension/.output/
 .kotlin/
+docs/brand/mascot/sheet.*

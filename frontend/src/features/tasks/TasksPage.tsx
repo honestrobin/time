@@ -64,6 +64,7 @@ export function TasksPage() {
         </p>
       ) : !q.isLoading && tasks.length === 0 ? (
         <EmptyState
+          robin="notes"
           title={t("tasks.empty.title")}
           body={t("tasks.empty.body")}
           action={

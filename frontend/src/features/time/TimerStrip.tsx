@@ -2,14 +2,15 @@
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Button } from "../../design";
+import { Button, Robin } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { formatClock } from "../../lib/format";
 import { liveSeconds, useInvalidateTime, useNow, useRunningTimer } from "./hooks";
 
 /**
  * The running timer, shown on every page: a thin red line across the top of the app and
- * a strip with the live clock. Red is reserved for this (and totals and over-budget).
+ * a strip with the live clock. Red is reserved for this (and totals and over-budget). The robin,
+ * stopwatch on, hops once when a timer starts and then sits still.
  */
 export function TimerStrip() {
   const { t } = useTranslation();
@@ -25,6 +26,7 @@ export function TimerStrip() {
   return (
     <div className="timer-strip" role="status" aria-live="off">
       <span className="timer-line" aria-hidden />
+      <Robin key={entry.id} pose="time" width={30} className="timer-robin" />
       <span className="timer-dot" aria-hidden />
       <Link to="/day/$date" params={{ date: entry.spent_date }} className="timer-what">
         <strong>{entry.project.name}</strong>

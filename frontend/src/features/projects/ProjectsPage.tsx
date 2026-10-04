@@ -97,6 +97,7 @@ export function ProjectsPage() {
       ) : !list.isLoading && projects.length === 0 ? (
         filter === "active" ? (
           <EmptyState
+            robin="notes"
             title={t("projects.empty.title")}
             body={perms.canManageProjects ? t("projects.empty.body") : t("projects.empty.bodyManager")}
             action={

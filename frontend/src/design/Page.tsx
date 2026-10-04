@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
 import { Dialog, DialogActions } from "./Dialog";
+import { Robin, type RobinPose } from "./Robin";
 
 export function PageHeader({ title, lead, actions, children }: { title: ReactNode; lead?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
   return (
@@ -18,10 +19,14 @@ export function PageHeader({ title, lead, actions, children }: { title: ReactNod
   );
 }
 
-/** An empty screen is an invitation to act: say what goes here and offer the first action. */
-export function EmptyState({ title, body, action }: { title: ReactNode; body?: ReactNode; action?: ReactNode }) {
+/**
+ * An empty screen is an invitation to act: say what goes here and offer the first action. The
+ * robin keeps people company in the ones they meet first, never in money, data or errors.
+ */
+export function EmptyState({ title, body, action, robin }: { title: ReactNode; body?: ReactNode; action?: ReactNode; robin?: RobinPose }) {
   return (
     <div className="ledger-empty">
+      {robin && <Robin pose={robin} width={112} />}
       <h2>{title}</h2>
       {body && <p style={{ marginTop: 4 }}>{body}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}

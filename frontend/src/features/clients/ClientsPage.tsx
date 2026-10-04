@@ -64,6 +64,7 @@ export function ClientsPage() {
         </p>
       ) : !q.isLoading && clients.length === 0 ? (
         <EmptyState
+          robin="notes"
           title={t("clients.empty.title")}
           body={t("clients.empty.body")}
           action={

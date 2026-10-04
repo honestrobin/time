@@ -413,6 +413,16 @@
   color: var(--ink-soft);
 }
 
+.ledger-empty .robin {
+  margin: 0 auto var(--s4);
+}
+
+/* ---- The robin ---------------------------------------------------------- */
+.robin {
+  display: block;
+  flex: none;
+}
+
 /* ---- Page layout ------------------------------------------------------- */
 .page {
   width: 100%;

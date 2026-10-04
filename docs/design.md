@@ -44,6 +44,7 @@ design shows prices, limits and mistakes plainly, with numbers where there are n
 
 - The palette is in `frontend/src/design/tokens.css`: sage paper, forest-green actions, dark ink.
   The robin's orange (`#F26A2E`) is a sparing accent for live moments, never for text.
-- The robin mascots are in `docs/brand/mascot/`.
+- The robin mascots are in `docs/brand/mascot/`. Its `gen.py` also writes the web app's copies
+  (`frontend/src/design/robin/`) and the favicon; a test checks that they match.
 - Accessible by default: real buttons, links and labels; text contrast of at least 4.5:1; nothing
   told apart by colour alone; everything usable from the keyboard.

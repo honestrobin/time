@@ -91,7 +91,7 @@ export function DayView({ date }: { date: string }) {
       </div>
 
       {dayEntries.length === 0 && !q.isLoading ? (
-        <EmptyState title={t("time.nothingTracked", { date: formatDate(date, "long") })} body={t("time.nothingTrackedBody")} />
+        <EmptyState robin="nest" title={t("time.nothingTracked", { date: formatDate(date, "long") })} body={t("time.nothingTrackedBody")} />
       ) : (
         <table className="ledger">
           <tbody>

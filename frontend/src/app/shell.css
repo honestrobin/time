@@ -2,6 +2,9 @@
 
 /* ---- Wordmark ---------------------------------------------------------- */
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
   font-stretch: var(--stretch-condensed);
   font-weight: 800;
   font-size: 1.375rem;
@@ -38,6 +41,10 @@
 .auth-card {
   width: 100%;
   max-width: 400px;
+}
+
+.auth-robin {
+  margin-bottom: var(--s4);
 }
 
 .auth-card h1 {
@@ -94,8 +101,10 @@
   overflow-y: auto;
 }
 
+/* A little smaller than on the sign-in pages, so the robin and the name fit the sidebar. */
 .sidebar .wordmark {
-  padding: 0 var(--s3);
+  padding: 0 0 0 var(--s2);
+  font-size: 1.25rem;
 }
 
 .nav {

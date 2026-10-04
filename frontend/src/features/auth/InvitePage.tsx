@@ -64,7 +64,7 @@ export function InvitePage() {
   }
   const invite = lookup.data;
   return (
-    <AuthLayout>
+    <AuthLayout robin="promise">
       <h1>{invite ? t("auth.joinAccount", { account: invite.account_name }) : t("auth.inviteTitle")}</h1>
       {invite && (
         <>

@@ -40,6 +40,36 @@
   }
 }
 
+/* One hop when a timer starts: a little squash, up, and a soft landing, all in one smooth arc. */
+.timer-robin {
+  margin: -4px 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .timer-robin {
+    transform-origin: 50% 100%;
+    animation: timer-robin-hop 900ms ease-in-out both;
+  }
+}
+
+@keyframes timer-robin-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  18% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  48% {
+    transform: translateY(-7px) rotate(-6deg) scale(0.96, 1.05);
+  }
+  76% {
+    transform: translateY(0) rotate(0) scale(1.05, 0.95);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
 .timer-what {
   display: flex;
   gap: var(--s2);

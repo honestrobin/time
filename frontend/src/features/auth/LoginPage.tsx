@@ -49,7 +49,7 @@ export function LoginPage() {
     );
   }
   return (
-    <AuthLayout>
+    <AuthLayout robin="promise">
       <h1>{t("auth.signInTitle")}</h1>
       <p className="lead">{t("auth.signInLead")}</p>
       {linkSentTo ? (

@@ -57,7 +57,7 @@ export function SignupPage() {
   const setup = config?.needs_setup;
   const zones = TIME_ZONES.includes(form.timezone) ? TIME_ZONES : [form.timezone, ...TIME_ZONES];
   return (
-    <AuthLayout>
+    <AuthLayout robin="promise">
       <h1>{setup ? t("auth.setupTitle") : t("auth.signupTitle")}</h1>
       {setup && <p className="lead">{t("auth.setupLead")}</p>}
       <form className="stack" onSubmit={submit} noValidate style={setup ? undefined : { marginTop: 24 }}>

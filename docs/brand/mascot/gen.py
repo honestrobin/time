@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Honest Robin mascot: one bird, four poses, built from shared parts."""
+import shutil
 import subprocess
+from pathlib import Path
 
 OUT, BROWN, DARK = "#2A1A12", "#A0714F", "#7B4F36"
 ORANGE, CREAM, BEAK = "#F26A2E", "#FBEEDB", "#F7B733"
@@ -108,8 +110,25 @@ POSES = {
                 "Honest Robin sitting in its own nest"),
 }
 
-for name, s in POSES.items():
-    open(f"robin-{name}.svg", "w").write(s)
+# The head alone, for small sizes (the favicon, the wordmark): drawn on its own 64-unit grid,
+# with a thicker outline and no highlights, so it still reads at 16 pixels.
+F_BODY = "M32,6 C47,6 57,20 57,36 C57,51 46,59 32,59 C18,59 7,51 7,36 C7,20 17,6 32,6 Z"
+FACE = (
+    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Honest Robin</title>'
+    f'<clipPath id="c"><path d="{F_BODY}"/></clipPath><path d="{F_BODY}" fill="{BROWN}"/>'
+    f'<g clip-path="url(#c)"><circle cx="32" cy="34" r="19" fill="{ORANGE}"/><ellipse cx="32" cy="62" rx="21" ry="14" fill="{CREAM}"/></g>'
+    f'<path d="{F_BODY}" fill="none" stroke="{OUT}" stroke-width="3.5"/>'
+    f'<circle cx="24.5" cy="28" r="3.6" fill="{OUT}"/><circle cx="39.5" cy="28" r="3.6" fill="{OUT}"/>'
+    f'<path d="M27,33 Q32,31 37,33 L32,41 Z" fill="{BEAK}" stroke="{OUT}" stroke-width="2.4" stroke-linejoin="round"/></svg>')
+
+# Written here, and into the web app, which can't reach docs/ when it's built.
+HERE = Path(__file__).resolve().parent
+APP = HERE.parents[2] / "frontend/src/design/robin"
+APP.mkdir(exist_ok=True)
+for name, s in [*POSES.items(), ("face", FACE)]:
+    for folder in (HERE, APP):
+        (folder / f"robin-{name}.svg").write_text(s)
+(HERE.parents[2] / "frontend/public/favicon.svg").write_text(FACE)
 
 # contact sheet for checking: light stage and dark stage
 cells = "".join(
@@ -120,6 +139,7 @@ sheet = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 880">'
 # clip ids must be unique inside one document
 for i in range(8):
     sheet = sheet.replace('id="b"', f'id="b{i}"', 1).replace('url(#b)', f'url(#b{i})', 1)
-open("sheet.svg", "w").write(sheet)
-subprocess.run(["rsvg-convert", "-w", "1600", "sheet.svg", "-o", "sheet.png"], check=True)
+(HERE / "sheet.svg").write_text(sheet)
+if shutil.which("rsvg-convert"):
+    subprocess.run(["rsvg-convert", "-w", "1600", HERE / "sheet.svg", "-o", HERE / "sheet.png"], check=True)
 print("ok", {k: len(v) for k, v in POSES.items()})
