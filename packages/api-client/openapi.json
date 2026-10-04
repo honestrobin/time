@@ -8937,7 +8937,8 @@
             "format" : "int32"
           },
           "end_time" : {
-            "type" : "string"
+            "type" : "string",
+            "format" : "time-local"
           },
           "external_reference" : {
             "$ref" : "#/components/schemas/ExternalReference"
@@ -8958,7 +8959,8 @@
             "format" : "date"
           },
           "start_time" : {
-            "type" : "string"
+            "type" : "string",
+            "format" : "time-local"
           },
           "task_id" : {
             "type" : "string",
@@ -9005,7 +9007,8 @@
             "format" : "int64"
           },
           "end_time" : {
-            "type" : "string"
+            "type" : "string",
+            "format" : "time-local"
           },
           "external_reference" : {
             "$ref" : "#/components/schemas/ExternalReference"
@@ -9045,7 +9048,8 @@
             "format" : "date"
           },
           "start_time" : {
-            "type" : "string"
+            "type" : "string",
+            "format" : "time-local"
           },
           "task" : {
             "$ref" : "#/components/schemas/Ref"

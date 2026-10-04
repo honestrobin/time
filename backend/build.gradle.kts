@@ -67,6 +67,9 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
+    // swagger-core, which springdoc uses for the API description, still reads models with Jackson 2.
+    // With its Kotlin module it sees non-null properties as required and keeps `is_…` names.
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.

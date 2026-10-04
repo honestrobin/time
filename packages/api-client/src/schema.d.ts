@@ -3446,6 +3446,7 @@ export interface components {
             billable?: boolean;
             /** Format: int32 */
             duration_seconds?: number;
+            /** Format: time-local */
             end_time?: string;
             external_reference?: components["schemas"]["ExternalReference"];
             /** Format: uuid */
@@ -3455,6 +3456,7 @@ export interface components {
             project_id?: string;
             /** Format: date */
             spent_date?: string;
+            /** Format: time-local */
             start_time?: string;
             /** Format: uuid */
             task_id?: string;
@@ -3476,6 +3478,7 @@ export interface components {
             currency: string;
             /** Format: int64 */
             duration_seconds: number;
+            /** Format: time-local */
             end_time?: string;
             external_reference?: components["schemas"]["ExternalReference"];
             /** Format: uuid */
@@ -3492,6 +3495,7 @@ export interface components {
             rounded_seconds: number;
             /** Format: date */
             spent_date: string;
+            /** Format: time-local */
             start_time?: string;
             task: components["schemas"]["Ref"];
             /** Format: date-time */
