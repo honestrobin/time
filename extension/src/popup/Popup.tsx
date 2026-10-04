@@ -92,8 +92,8 @@ function SignIn({ state, onState }: { state: State; onState: (s: State) => void 
     let origin: string;
     try {
       origin = normaliseInstanceUrl(url || CLOUD_URL);
-    } catch {
-      setError("That address doesn't look right.");
+    } catch (err) {
+      setError(err instanceof Error && err.message.startsWith("Use https") ? err.message : "That address doesn't look right.");
       return;
     }
     setBusy(true);

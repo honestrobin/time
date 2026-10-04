@@ -74,6 +74,8 @@ function fill(template: string, groups: string[], host: string): string {
 
 function text(el: Element | null): string {
   if (!el) return "";
+  // Never what the page hides: a config naming a hidden or password field gets nothing from it.
+  if (el instanceof HTMLInputElement && (el.type === "hidden" || el.type === "password")) return "";
   const value = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : el.textContent;
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
@@ -108,8 +110,72 @@ export function anchorIn(site: SiteConfig, doc: Document): { element: Element; p
   return null;
 }
 
-/** The newer of two configs; a broken one (no sites) never wins. */
-export function newer(a: SelectorConfig, b: SelectorConfig | null | undefined): SelectorConfig {
-  if (!b || !Array.isArray(b.sites) || b.sites.length === 0 || typeof b.version !== "number") return a;
-  return b.version > a.version ? b : a;
+/** How far ahead of the bundled config an instance's config may say it is. */
+const MAX_VERSION_STEP = 1000;
+
+/**
+ * The instance's config when it is newer than the bundled one and safe to run in other sites'
+ * pages; otherwise the bundled one. An instance (or anyone between it and the browser) chooses
+ * this config, so it may only adjust what the bundled config already does: the same sites and
+ * hosts, short selectors, links rather than other attributes, and regexes that can't take
+ * seconds to run.
+ */
+export function newer(bundled: SelectorConfig, candidate: SelectorConfig | null | undefined): SelectorConfig {
+  return candidate && acceptable(bundled, candidate) ? candidate : bundled;
+}
+
+function acceptable(bundled: SelectorConfig, c: SelectorConfig): boolean {
+  if (typeof c !== "object" || !Array.isArray(c.sites) || c.sites.length === 0) return false;
+  if (!Number.isInteger(c.version) || c.version <= bundled.version || c.version > bundled.version + MAX_VERSION_STEP) return false;
+  return c.sites.every((site) => siteAcceptable(bundled, site));
+}
+
+function siteAcceptable(bundled: SelectorConfig, s: SiteConfig): boolean {
+  const known = bundled.sites.find((b) => b.source === s.source);
+  if (!known || !Array.isArray(s.hosts) || !s.hosts.every((h) => known.hosts.includes(h))) return false;
+  if (!Array.isArray(s.match) || !s.match.every((m) => ("path" in m ? safePattern(m.path) : short(m.param)))) return false;
+  if (!Array.isArray(s.title) || !Array.isArray(s.anchor)) return false;
+  if (s.workspaceFrom && (s.workspaceFrom.attribute !== "href" || !safePattern(s.workspaceFrom.pattern) || !short(s.workspaceFrom.selector))) return false;
+  return [s.id, s.workspace, s.url ?? "", ...s.title, ...s.anchor.map((a) => a.selector)].every(short);
+}
+
+function short(x: unknown): boolean {
+  return typeof x === "string" && x.length <= 300;
+}
+
+/**
+ * A short regex with no nested groups, no backreferences, and no repeated group that holds a
+ * repeat or a choice: the shapes that make matching take exponential time.
+ */
+export function safePattern(pattern: unknown): boolean {
+  if (typeof pattern !== "string" || pattern.length > 200) return false;
+  try {
+    new RegExp(pattern);
+  } catch {
+    return false;
+  }
+  let depth = 0;
+  let inClass = false;
+  let risky = false; // the open group holds a quantifier or an alternation
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "\\") {
+      if (/[1-9k]/.test(pattern[i + 1] ?? "")) return false; // backreference
+      i++;
+      continue;
+    }
+    if (inClass) {
+      if (c === "]") inClass = false;
+      continue;
+    }
+    if (c === "[") inClass = true;
+    else if (c === "(") {
+      if (++depth > 1) return false;
+      risky = false;
+    } else if (c === ")") {
+      depth--;
+      if (risky && /[*+?{]/.test(pattern[i + 1] ?? "")) return false;
+    } else if (depth > 0 && /[*+?{|]/.test(c) && !(c === "?" && pattern[i - 1] === "(")) risky = true;
+  }
+  return true;
 }

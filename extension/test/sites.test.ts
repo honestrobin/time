@@ -2,7 +2,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import selectors from "../src/selectors.json";
-import { anchorIn, itemAt, newer, siteFor, type SelectorConfig } from "../src/lib/sites";
+import { anchorIn, itemAt, newer, safePattern, siteFor, type SelectorConfig } from "../src/lib/sites";
+import { normaliseInstanceUrl } from "../src/lib/storage";
 
 const config = selectors as SelectorConfig;
 
@@ -51,5 +52,56 @@ describe("selector configs", () => {
     expect(newer(newerOne, config)).toBe(newerOne);
     expect(newer(config, { version: 99, sites: [] })).toBe(config);
     expect(newer(config, null)).toBe(config);
+  });
+});
+
+describe("configs from an instance (security review, 4 October 2026)", () => {
+  const next = (change: (c: SelectorConfig) => void) => {
+    const c = structuredClone(config);
+    c.version = config.version + 1;
+    change(c);
+    return c;
+  };
+
+  it("can't pin itself for ever with a huge version", () => {
+    expect(newer(config, { ...config, version: 1e308 })).toBe(config);
+    expect(newer(config, { ...config, version: config.version + 1.5 })).toBe(config);
+  });
+
+  it("can only adjust the bundled sites and hosts", () => {
+    expect(newer(config, next((c) => c.sites[0].hosts.push("evil.example")))).toBe(config);
+    expect(newer(config, next((c) => (c.sites[0].source = "elsewhere")))).toBe(config);
+    const fine = next((c) => (c.sites[0].title = ["h1.title"]));
+    expect(newer(config, fine)).toBe(fine);
+  });
+
+  it("can't read attributes other than links", () => {
+    const trello = config.sites.findIndex((s) => s.workspaceFrom);
+    expect(newer(config, next((c) => (c.sites[trello].workspaceFrom!.attribute = "value")))).toBe(config);
+  });
+
+  it("refuses regexes that can take seconds to match", () => {
+    for (const site of config.sites) {
+      for (const m of site.match) if ("path" in m) expect(safePattern(m.path)).toBe(true);
+    }
+    expect(safePattern("^(\\/?[a-z0-9]*)*x$")).toBe(false);
+    expect(safePattern("^(a|aa)+$")).toBe(false);
+    expect(safePattern("^((a+))$")).toBe(false);
+    expect(safePattern("^(a)\\1$")).toBe(false);
+    expect(safePattern("x".repeat(201))).toBe(false);
+    expect(newer(config, next((c) => (c.sites[0].match = [{ path: "^(\\/?[a-z0-9]*)*x$" }])))).toBe(config);
+  });
+
+  it("never reads hidden or password fields as a title", () => {
+    document.body.innerHTML = '<input type="hidden" class="t" value="csrf-token">';
+    const site = { ...config.sites[0], match: [{ path: "^/" }], title: ["input.t"] };
+    expect(itemAt(site, { host: "github.com", pathname: "/x", search: "", origin: "https://github.com" }, document)).toBeNull();
+  });
+
+  it("signs in over plain http only on this computer or a private network", () => {
+    expect(normaliseInstanceUrl("http://localhost:8080")).toBe("http://localhost:8080");
+    expect(normaliseInstanceUrl("http://192.168.1.20")).toBe("http://192.168.1.20");
+    expect(() => normaliseInstanceUrl("http://time.example.com")).toThrow(/https/);
+    expect(normaliseInstanceUrl("time.example.com")).toBe("https://time.example.com");
   });
 });

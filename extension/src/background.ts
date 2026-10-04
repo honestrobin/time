@@ -36,6 +36,8 @@ async function signIn(instanceInput: string, clientName: string) {
     { client_name: clientName },
   );
   if (status !== 200) throw new Error(json.message ?? `${instanceUrl} doesn't look like Honest Robin (answered ${status}).`);
+  // The page to approve the code must be on the instance itself, never somewhere it points to.
+  if (new URL(json.verification_uri_complete).origin !== instanceUrl) throw new Error(`${instanceUrl} sent a sign-in page somewhere else; not opening it.`);
   await storage.setPending({
     instanceUrl,
     deviceCode: json.device_code,
@@ -83,6 +85,9 @@ async function finishSignIn(session: Session) {
   const me = await unwrap(clientFor(session).GET("/api/v1/me"));
   await storage.setSession({ ...session, membershipId: me.current_membership_id ?? undefined, email: session.email || me.email });
   await storage.clearPending();
+  // A config from an instance applies only while signed in to it.
+  await storage.clearSelectors();
+  void refreshSelectors();
   await state();
 }
 
@@ -164,6 +169,7 @@ async function handle(request: Request): Promise<unknown> {
       return state();
     case "signOut":
       await storage.clearSession();
+      await storage.clearSelectors();
       await chrome.action.setBadgeText({ text: "" });
       return state();
   }
@@ -175,7 +181,17 @@ async function signedIn() {
   return session;
 }
 
-chrome.runtime.onMessage.addListener((request: Request, _sender, respond: (r: Reply<unknown>) => void) => {
+/** What a script in a web page (the "Track time" button) may ask for; the rest is for the popup. */
+const FROM_PAGES = new Set<Request["type"]>(["state", "refresh", "assignments", "remembered", "start", "stop"]);
+
+chrome.runtime.onMessage.addListener((request: Request, sender, respond: (r: Reply<unknown>) => void) => {
+  if (sender.id !== chrome.runtime.id) return false;
+  // Content scripts run inside other sites' pages; a page that took over its renderer could send
+  // anything they can. So signing in, out or with a token, and the recent list, need the popup.
+  if (sender.tab && !FROM_PAGES.has(request.type)) {
+    respond({ ok: false, error: "Use the Honest Robin button in your browser's toolbar for this." });
+    return false;
+  }
   handle(request).then(
     (value) => respond({ ok: true, value }),
     async (e: unknown) => {
@@ -187,19 +203,23 @@ chrome.runtime.onMessage.addListener((request: Request, _sender, respond: (r: Re
   return true; // answers asynchronously
 });
 
-/** Newer selector configs from the instance (or Honest Robin Cloud), so site changes can be fixed without a store release. */
+/**
+ * A newer selector config from the instance the person signed in to, so changes to a site can be
+ * fixed without a store release. Nothing is fetched before signing in. A config that isn't newer
+ * than the bundled one, or not safe to use (sites.ts, `newer`), is dropped.
+ */
 async function refreshSelectors() {
   const session = await storage.session();
-  const base = session?.instanceUrl ?? (await storage.instanceUrl());
+  if (!session) return;
   try {
-    const res = await fetch(`${base}/extension/selectors.json`, { credentials: "omit" });
+    const res = await fetch(`${session.instanceUrl}/extension/selectors.json`, { credentials: "omit" });
     if (!res.ok) return;
     const remote = (await res.json()) as SelectorConfig;
-    const current = newer(bundled as SelectorConfig, await storage.selectors());
-    const best = newer(current, remote);
-    if (best !== current) await storage.setSelectors(best);
+    const accepted = newer(bundled as SelectorConfig, remote);
+    if (accepted === bundled) await storage.clearSelectors();
+    else await storage.setSelectors(accepted);
   } catch {
-    // Offline or an older instance: the bundled config stays.
+    // Offline or an older instance: what's stored stays.
   }
 }
 

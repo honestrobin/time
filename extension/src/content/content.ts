@@ -9,6 +9,9 @@ import { anchorIn, itemAt, newer, siteFor, type Item, type SelectorConfig, type 
 import { storage } from "../lib/storage";
 import { STYLES } from "./styles";
 
+/** "closed" in release builds, "open" in the end-to-end build (build.mjs). */
+declare const __SHADOW_MODE__: ShadowRootMode;
+
 const TAG = "honestrobin-track";
 
 async function main() {
@@ -59,7 +62,7 @@ function matches(entry: TimeEntry | null, item: Item) {
 class TrackButton {
   readonly host = document.createElement(TAG);
   readonly key: string;
-  private root = this.host.attachShadow({ mode: "open" });
+  private root = this.host.attachShadow({ mode: __SHADOW_MODE__ });
   private running: TimeEntry | null = null;
   private panel: HTMLElement | null = null;
   private outside = (e: MouseEvent) => {
@@ -68,7 +71,6 @@ class TrackButton {
 
   constructor(public item: Item) {
     this.key = key(item);
-    this.host.dataset.key = this.key;
   }
 
   connect() {

@@ -28,7 +28,17 @@ function manifest(browser) {
     optional_host_permissions: ["https://*/*", "http://*/*"],
     content_scripts: [{ matches: sitePatterns, js: ["content.js"], run_at: "document_idle" }],
     ...(browser === "firefox"
-      ? { browser_specific_settings: { gecko: { id: "time@honestrobin.com", strict_min_version: "128.0" } } }
+      ? {
+          browser_specific_settings: {
+            gecko: {
+              id: "time@honestrobin.com",
+              // What leaves the browser, for Firefox Add-ons (required since November 2025): the
+              // sign-in token, and an item's title and address when the person starts a timer.
+              data_collection_permissions: { required: ["authenticationInfo", "websiteContent", "browsingActivity"] },
+              strict_min_version: "140.0",
+            },
+          },
+        }
       : { minimum_chrome_version: "120" }),
   };
 }
@@ -42,10 +52,15 @@ for (const browser of ["chrome", "firefox"]) {
     outdir: out,
     bundle: true,
     format: "iife",
-    target: ["chrome120", "firefox128"],
+    target: ["chrome120", "firefox140"],
     minify: !e2e,
     sourcemap: e2e ? "inline" : false,
-    define: { "process.env.NODE_ENV": JSON.stringify(e2e ? "development" : "production") },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(e2e ? "development" : "production"),
+      // Closed, so the host page's scripts can't read the panel (client and project names) or
+      // press its buttons. The end-to-end tests need to reach in, so their build keeps it open.
+      __SHADOW_MODE__: JSON.stringify(e2e ? "open" : "closed"),
+    },
     loader: { ".woff2": "file" },
     logLevel: "warning",
   });

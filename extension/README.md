@@ -31,9 +31,13 @@ Firefox → `about:debugging` → This Firefox → Load Temporary Add-on → `di
   started in the web app shows at once, and the web app hears about timers started here.
 - **The Track time button** comes from `src/selectors.json`: per site, the URL patterns that make
   a page an item, where the title is, and where the button goes (several fallbacks each). The
-  instance serves the same file at `/extension/selectors.json`; the extension checks daily and
-  uses whichever copy has the higher `version`. When a site changes its markup, bump `version`,
-  fix the selectors, and release the server: extensions pick it up without a store review.
+  instance serves the same file at `/extension/selectors.json`; once signed in, the extension
+  checks it daily and uses it when its `version` is higher (by at most 1000) and it passes the
+  checks in `sites.ts` (`newer`): the bundled sites and hosts only, short selectors, links as the
+  only attribute read, and regexes that can't take seconds to run. Signing out, or in to another
+  instance, drops it. When a site changes its markup, bump `version`, fix the selectors, and
+  release the server: extensions pick it up without a new extension release. It is data the
+  extension reads, never code it runs.
 - **Remembering**: the project and task last used for a workspace (a repository, a Jira site, an
   Asana workspace, a Linear team, a Trello board) are preselected next time.
 
@@ -53,7 +57,7 @@ Firefox → `about:debugging` → This Firefox → Load Temporary Add-on → `di
 | Permission | Why |
 |---|---|
 | `storage` | The sign-in token, the instance address, remembered projects per workspace, the newest selector config. |
-| `alarms` | Refresh the toolbar badge every minute and the selector config daily. |
+| `alarms` | Refresh the toolbar badge every minute (it asks the instance for the running timer) and the selector config daily, both only while signed in. |
 | Host `time.honestrobin.com` | Talk to Honest Robin Cloud. |
 | Optional hosts (asked for at sign-in) | Talk to a self-hosted instance, only the address the person enters. |
-| Content scripts on github.com, *.atlassian.net, app.asana.com, linear.app, trello.com | Show the Track time button. The scripts read the item's title and address, nothing else, and send nothing anywhere except the person's own Honest Robin when they start a timer. |
+| Content scripts on github.com, *.atlassian.net, app.asana.com, linear.app, trello.com | Show the Track time button. The scripts read the item's title and address (never hidden or password fields). The title and address go to the person's own Honest Robin only when they start a timer; on an item page the script also asks it whether a timer runs for that item, which sends nothing from the page. The button is in a closed shadow root, so the site's own scripts can't read the person's projects through it. |
