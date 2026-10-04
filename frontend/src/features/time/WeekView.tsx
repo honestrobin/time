@@ -111,97 +111,99 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
           {error}
         </p>
       )}
-      <table className="ledger week-grid">
-        <thead>
-          <tr>
-            <th>{t("time.project")}</th>
-            {week.days.map((d) => (
-              <th key={d} className={d === today ? "day today" : "day"}>
-                <Link to="/day/$date" params={{ date: d }} style={{ color: "inherit", textDecoration: "none" }}>
-                  {formatWeekday(d)} {Number(d.slice(8))}
-                </Link>
-              </th>
-            ))}
-            <th className="num">{t("time.total")}</th>
-            <th aria-label={t("time.removeRow")} />
-          </tr>
-        </thead>
-        <tbody>
-          {week.rows.map((row) => (
-            <tr key={`${row.project.id}:${row.task.id}`}>
-              <td className="row-label">
-                <strong>
-                  {row.project.code ? `[${row.project.code}] ` : ""}
-                  {row.project.name}
-                </strong>
-                <span>
-                  {row.client.name}, {row.task.name}
-                </span>
-              </td>
-              {week.days.map((d, i) => {
-                const count = row.entry_counts[i];
-                const editable = !readOnly && !row.is_locked && count <= 1 && !week.entries.some((e) => e.is_running && e.spent_date === d && e.project.id === row.project.id && e.task.id === row.task.id);
-                const seconds = entrySeconds(row.project.id, row.task.id, d);
-                return (
-                  <td key={d} className="cell">
-                    {editable ? (
-                      <DurationInput
-                        value={seconds || null}
-                        style={style}
-                        aria-label={`${row.project.name}, ${row.task.name}, ${formatDate(d)}`}
-                        onChange={(v) => {
-                          const next = v ?? 0;
-                          if (next !== seconds) setCell.mutate({ row, day: d, seconds: next });
-                        }}
-                      />
-                    ) : (
-                      <Link
-                        to="/day/$date"
-                        params={{ date: d }}
-                        className="cell-static"
-                        title={count > 1 ? t("time.multipleEntries", { count }) : undefined}
-                      >
-                        {seconds ? formatDuration(seconds, style) : ""}
-                      </Link>
-                    )}
-                  </td>
-                );
-              })}
-              <td className="num" style={{ fontWeight: 650 }}>
-                {formatDuration(week.days.reduce((sum, d) => sum + entrySeconds(row.project.id, row.task.id, d), 0), style)}
-              </td>
-              <td className="num">
-                {!readOnly && !row.is_locked && (
-                  <Button size="sm" variant="ghost" aria-label={t("time.removeRow")} onClick={() => askRemove(() => removeRow.mutate(row))}>
-                    ✕
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
-          {week.rows.length === 0 && (
+      <div className="table-scroll">
+        <table className="ledger week-grid">
+          <thead>
             <tr>
-              <td colSpan={10} className="ledger-empty">
-                {t("time.nothingTrackedBody")}
-              </td>
+              <th>{t("time.project")}</th>
+              {week.days.map((d) => (
+                <th key={d} className={d === today ? "day today" : "day"}>
+                  <Link to="/day/$date" params={{ date: d }} style={{ color: "inherit", textDecoration: "none" }}>
+                    {formatWeekday(d)} {Number(d.slice(8))}
+                  </Link>
+                </th>
+              ))}
+              <th className="num">{t("time.total")}</th>
+              <th aria-label={t("time.removeRow")} />
             </tr>
-          )}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td className="muted">
-              {t("time.capacity", { tracked: formatDuration(total, style), capacity: formatDuration(week.capacity_seconds, style) })}
-            </td>
-            {week.days.map((d) => (
-              <td key={d} className="num total">
-                {formatDuration(dayTotal(d), style)}
-              </td>
+          </thead>
+          <tbody>
+            {week.rows.map((row) => (
+              <tr key={`${row.project.id}:${row.task.id}`}>
+                <td className="row-label">
+                  <strong>
+                    {row.project.code ? `[${row.project.code}] ` : ""}
+                    {row.project.name}
+                  </strong>
+                  <span>
+                    {row.client.name}, {row.task.name}
+                  </span>
+                </td>
+                {week.days.map((d, i) => {
+                  const count = row.entry_counts[i];
+                  const editable = !readOnly && !row.is_locked && count <= 1 && !week.entries.some((e) => e.is_running && e.spent_date === d && e.project.id === row.project.id && e.task.id === row.task.id);
+                  const seconds = entrySeconds(row.project.id, row.task.id, d);
+                  return (
+                    <td key={d} className="cell">
+                      {editable ? (
+                        <DurationInput
+                          value={seconds || null}
+                          style={style}
+                          aria-label={`${row.project.name}, ${row.task.name}, ${formatDate(d)}`}
+                          onChange={(v) => {
+                            const next = v ?? 0;
+                            if (next !== seconds) setCell.mutate({ row, day: d, seconds: next });
+                          }}
+                        />
+                      ) : (
+                        <Link
+                          to="/day/$date"
+                          params={{ date: d }}
+                          className="cell-static"
+                          title={count > 1 ? t("time.multipleEntries", { count }) : undefined}
+                        >
+                          {seconds ? formatDuration(seconds, style) : ""}
+                        </Link>
+                      )}
+                    </td>
+                  );
+                })}
+                <td className="num" style={{ fontWeight: 650 }}>
+                  {formatDuration(week.days.reduce((sum, d) => sum + entrySeconds(row.project.id, row.task.id, d), 0), style)}
+                </td>
+                <td className="num">
+                  {!readOnly && !row.is_locked && (
+                    <Button size="sm" variant="ghost" aria-label={t("time.removeRow")} onClick={() => askRemove(() => removeRow.mutate(row))}>
+                      ✕
+                    </Button>
+                  )}
+                </td>
+              </tr>
             ))}
-            <td className="num total">{formatDuration(total, style)}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+            {week.rows.length === 0 && (
+              <tr>
+                <td colSpan={10} className="ledger-empty">
+                  {t("time.nothingTrackedBody")}
+                </td>
+              </tr>
+            )}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td className="muted">
+                {t("time.capacity", { tracked: formatDuration(total, style), capacity: formatDuration(week.capacity_seconds, style) })}
+              </td>
+              {week.days.map((d) => (
+                <td key={d} className="num total">
+                  {formatDuration(dayTotal(d), style)}
+                </td>
+              ))}
+              <td className="num total">{formatDuration(total, style)}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
       {!readOnly && (
         <div className="week-actions">

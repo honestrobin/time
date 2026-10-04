@@ -93,65 +93,67 @@ export function DayView({ date }: { date: string }) {
       {dayEntries.length === 0 && !q.isLoading ? (
         <EmptyState robin="nest" title={t("time.nothingTracked", { date: formatDate(date, "long") })} body={t("time.nothingTrackedBody")} />
       ) : (
-        <table className="ledger">
-          <tbody>
-            {dayEntries.map((e) => {
-              const seconds = secondsOf(e);
-              return (
-                <tr key={e.id}>
-                  <td className="entry-what">
-                    <strong>
-                      {e.project.code ? `[${e.project.code}] ` : ""}
-                      {e.project.name} <span className="muted" style={{ fontWeight: 400 }}>({e.client.name})</span>
-                    </strong>
-                    <span className="entry-sub">
-                      {e.task.name}
-                      {!e.billable && (
-                        <span className="badge" style={{ marginLeft: 8 }}>
-                          {t("time.nonBillable")}
-                        </span>
+        <div className="table-scroll">
+          <table className="ledger day-grid">
+            <tbody>
+              {dayEntries.map((e) => {
+                const seconds = secondsOf(e);
+                return (
+                  <tr key={e.id}>
+                    <td className="entry-what">
+                      <strong>
+                        {e.project.code ? `[${e.project.code}] ` : ""}
+                        {e.project.name} <span className="muted" style={{ fontWeight: 400 }}>({e.client.name})</span>
+                      </strong>
+                      <span className="entry-sub">
+                        {e.task.name}
+                        {!e.billable && (
+                          <span className="badge" style={{ marginLeft: 8 }}>
+                            {t("time.nonBillable")}
+                          </span>
+                        )}
+                      </span>
+                      {e.notes && <div className="entry-notes">{e.notes}</div>}
+                      {e.external_reference?.url && (
+                        <a href={e.external_reference.url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)" }}>
+                          {e.external_reference.title || t("time.external")}
+                        </a>
                       )}
-                    </span>
-                    {e.notes && <div className="entry-notes">{e.notes}</div>}
-                    {e.external_reference?.url && (
-                      <a href={e.external_reference.url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)" }}>
-                        {e.external_reference.title || t("time.external")}
-                      </a>
-                    )}
-                    {seconds > LONG_ENTRY && <div className="field-error">{t("time.longEntry")}</div>}
-                  </td>
-                  <td style={{ width: 120 }}>
-                    <StateBadge entry={e} />
-                  </td>
-                  <td className={e.is_running ? "entry-duration running" : "entry-duration"} style={{ width: 110 }}>
-                    {formatDuration(seconds, style)}
-                  </td>
-                  <td style={{ width: 180 }}>
-                    <div className="entry-actions">
-                      {!e.is_locked && e.approval_state !== "submitted" && (
-                        <Button size="sm" variant={e.is_running ? "danger" : "secondary"} onClick={() => toggle.mutate(e)} busy={toggle.isPending && toggle.variables?.id === e.id}>
-                          {e.is_running ? t("time.stop") : t("time.start")}
+                      {seconds > LONG_ENTRY && <div className="field-error">{t("time.longEntry")}</div>}
+                    </td>
+                    <td style={{ width: 120 }}>
+                      <StateBadge entry={e} />
+                    </td>
+                    <td className={e.is_running ? "entry-duration running" : "entry-duration"} style={{ width: 110 }}>
+                      {formatDuration(seconds, style)}
+                    </td>
+                    <td style={{ width: 180 }}>
+                      <div className="entry-actions">
+                        {!e.is_locked && e.approval_state !== "submitted" && (
+                          <Button size="sm" variant={e.is_running ? "danger" : "secondary"} onClick={() => toggle.mutate(e)} busy={toggle.isPending && toggle.variables?.id === e.id}>
+                            {e.is_running ? t("time.stop") : t("time.start")}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => setDialog({ open: true, entry: e })} disabled={e.is_locked}>
+                          {t("app.edit")}
                         </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => setDialog({ open: true, entry: e })} disabled={e.is_locked}>
-                        {t("app.edit")}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={2} className="num muted">
-                {t("time.total")}
-              </td>
-              <td className="num total day-total">{formatDuration(dayTotal, style)}</td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2} className="num muted">
+                  {t("time.total")}
+                </td>
+                <td className="num total day-total">{formatDuration(dayTotal, style)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
 
       <EntryDialog

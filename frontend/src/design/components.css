@@ -287,6 +287,11 @@
   background: var(--surface);
 }
 
+/* A table wider than a phone scrolls inside this box, not the whole page. */
+.table-scroll {
+  overflow-x: auto;
+}
+
 /* ---- Notices ----------------------------------------------------------- */
 .notice {
   padding: var(--s3) var(--s4);
@@ -445,6 +450,7 @@
 
 .page-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--s4);
   margin-bottom: var(--s5);

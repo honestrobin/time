@@ -96,6 +96,16 @@
   }
 }
 
+@media (max-width: 600px) {
+  .invoice-header-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .invoice-header-grid .span-2 {
+    grid-column: auto;
+  }
+}
+
 .invoice-lines td {
   vertical-align: top;
 }

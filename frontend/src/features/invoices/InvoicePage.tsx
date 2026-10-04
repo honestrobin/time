@@ -300,90 +300,92 @@ function InvoiceEditor({ invoice }: { invoice: Invoice }) {
         </section>
 
         <section>
-          <table className="ledger invoice-lines">
-            <thead>
-              <tr>
-                <th>{t("invoices.col.description")}</th>
-                <th className="num qty">{t("invoices.col.quantity")}</th>
-                <th className="num price">{t("invoices.col.unitPrice")}</th>
-                {vat ? (
-                  <th className="vat">{t("invoices.col.vat")}</th>
-                ) : (
-                  <>
-                    {draft.tax1Percent && <th className="tax">{draft.tax1Name || t("invoices.tax")}</th>}
-                    {draft.tax2Percent && <th className="tax">{draft.tax2Name || t("invoices.tax2")}</th>}
-                  </>
-                )}
-                <th className="num">{t("invoices.col.amount")}</th>
-                {editable && <th className="col-narrow"><span className="sr-only">{t("invoices.col.actions")}</span></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {draft.lines.length === 0 && (
+          <div className="table-scroll">
+            <table className="ledger invoice-lines">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="muted">
-                    {t("invoices.noLines")}
-                  </td>
-                </tr>
-              )}
-              {draft.lines.map((l, i) => (
-                <tr key={l.key}>
-                  <td>
-                    <label className="sr-only" htmlFor={`desc-${l.key}`}>{t("invoices.col.description")}</label>
-                    <textarea id={`desc-${l.key}`} className="input" rows={Math.min(4, Math.max(1, l.description.split("\n").length))} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={!editable} />
-                    {(l.timeEntryCount > 0 || l.expenseCount > 0) && (
-                      <div className="muted small">
-                        {l.timeEntryCount > 0 && t("invoices.linkedTime", { count: l.timeEntryCount })}
-                        {l.timeEntryCount > 0 && l.expenseCount > 0 && " · "}
-                        {l.expenseCount > 0 && t("invoices.linkedExpenses", { count: l.expenseCount })}
-                      </div>
-                    )}
-                  </td>
-                  <td className="num qty">
-                    <input className="input input-num" inputMode="decimal" aria-label={t("invoices.col.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} disabled={!editable} />
-                  </td>
-                  <td className="num price">
-                    <MoneyInput value={l.unitPrice} currency={currency} onChange={(v) => setLine(l.key, { unitPrice: v })} disabled={!editable} aria-describedby={undefined} />
-                  </td>
+                  <th>{t("invoices.col.description")}</th>
+                  <th className="num qty">{t("invoices.col.quantity")}</th>
+                  <th className="num price">{t("invoices.col.unitPrice")}</th>
                   {vat ? (
-                    <td className="vat">
-                      <div className="row">
-                        <select className="input" aria-label={t("invoices.col.vatCategory")} value={l.vatCategory} onChange={(e) => setLine(l.key, { vatCategory: e.target.value })} disabled={!editable}>
-                          {VAT_CATEGORIES.map((c) => (
-                            <option key={c} value={c}>{t(`invoices.vatCategory.${c}`)}</option>
-                          ))}
-                        </select>
-                        {l.vatCategory === "S" && (
-                          <input className="input input-num rate" inputMode="decimal" aria-label={t("invoices.col.vatRate")} value={l.vatPercent} onChange={(e) => setLine(l.key, { vatPercent: e.target.value })} disabled={!editable} />
-                        )}
-                      </div>
-                    </td>
+                    <th className="vat">{t("invoices.col.vat")}</th>
                   ) : (
                     <>
-                      {draft.tax1Percent && (
-                        <td className="tax">
-                          <input type="checkbox" aria-label={draft.tax1Name || t("invoices.tax")} checked={l.tax1} onChange={(e) => setLine(l.key, { tax1: e.target.checked })} disabled={!editable} />
-                        </td>
-                      )}
-                      {draft.tax2Percent && (
-                        <td className="tax">
-                          <input type="checkbox" aria-label={draft.tax2Name || t("invoices.tax2")} checked={l.tax2} onChange={(e) => setLine(l.key, { tax2: e.target.checked })} disabled={!editable} />
-                        </td>
-                      )}
+                      {draft.tax1Percent && <th className="tax">{draft.tax1Name || t("invoices.tax")}</th>}
+                      {draft.tax2Percent && <th className="tax">{draft.tax2Name || t("invoices.tax2")}</th>}
                     </>
                   )}
-                  <td className="num">{money(totals.lineTotals[i])}</td>
-                  {editable && (
-                    <td>
-                      <Button size="sm" variant="ghost" aria-label={t("invoices.removeLine")} title={l.timeEntryCount > 0 ? t("invoices.removeLineHint") : undefined} onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((x) => x.key !== l.key) }))}>
-                        ×
-                      </Button>
-                    </td>
-                  )}
+                  <th className="num">{t("invoices.col.amount")}</th>
+                  {editable && <th className="col-narrow"><span className="sr-only">{t("invoices.col.actions")}</span></th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {draft.lines.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="muted">
+                      {t("invoices.noLines")}
+                    </td>
+                  </tr>
+                )}
+                {draft.lines.map((l, i) => (
+                  <tr key={l.key}>
+                    <td>
+                      <label className="sr-only" htmlFor={`desc-${l.key}`}>{t("invoices.col.description")}</label>
+                      <textarea id={`desc-${l.key}`} className="input" rows={Math.min(4, Math.max(1, l.description.split("\n").length))} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={!editable} />
+                      {(l.timeEntryCount > 0 || l.expenseCount > 0) && (
+                        <div className="muted small">
+                          {l.timeEntryCount > 0 && t("invoices.linkedTime", { count: l.timeEntryCount })}
+                          {l.timeEntryCount > 0 && l.expenseCount > 0 && " · "}
+                          {l.expenseCount > 0 && t("invoices.linkedExpenses", { count: l.expenseCount })}
+                        </div>
+                      )}
+                    </td>
+                    <td className="num qty">
+                      <input className="input input-num" inputMode="decimal" aria-label={t("invoices.col.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} disabled={!editable} />
+                    </td>
+                    <td className="num price">
+                      <MoneyInput value={l.unitPrice} currency={currency} onChange={(v) => setLine(l.key, { unitPrice: v })} disabled={!editable} aria-describedby={undefined} />
+                    </td>
+                    {vat ? (
+                      <td className="vat">
+                        <div className="row">
+                          <select className="input" aria-label={t("invoices.col.vatCategory")} value={l.vatCategory} onChange={(e) => setLine(l.key, { vatCategory: e.target.value })} disabled={!editable}>
+                            {VAT_CATEGORIES.map((c) => (
+                              <option key={c} value={c}>{t(`invoices.vatCategory.${c}`)}</option>
+                            ))}
+                          </select>
+                          {l.vatCategory === "S" && (
+                            <input className="input input-num rate" inputMode="decimal" aria-label={t("invoices.col.vatRate")} value={l.vatPercent} onChange={(e) => setLine(l.key, { vatPercent: e.target.value })} disabled={!editable} />
+                          )}
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        {draft.tax1Percent && (
+                          <td className="tax">
+                            <input type="checkbox" aria-label={draft.tax1Name || t("invoices.tax")} checked={l.tax1} onChange={(e) => setLine(l.key, { tax1: e.target.checked })} disabled={!editable} />
+                          </td>
+                        )}
+                        {draft.tax2Percent && (
+                          <td className="tax">
+                            <input type="checkbox" aria-label={draft.tax2Name || t("invoices.tax2")} checked={l.tax2} onChange={(e) => setLine(l.key, { tax2: e.target.checked })} disabled={!editable} />
+                          </td>
+                        )}
+                      </>
+                    )}
+                    <td className="num">{money(totals.lineTotals[i])}</td>
+                    {editable && (
+                      <td>
+                        <Button size="sm" variant="ghost" aria-label={t("invoices.removeLine")} title={l.timeEntryCount > 0 ? t("invoices.removeLineHint") : undefined} onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((x) => x.key !== l.key) }))}>
+                          ×
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {err?.fields.lines && <p className="field-error">{err.fields.lines}</p>}
           {editable && (
             <Button size="sm" onClick={addLine} style={{ marginTop: 8 }}>
@@ -513,34 +515,36 @@ function InvoiceEditor({ invoice }: { invoice: Invoice }) {
           {invoice.payments.length === 0 ? (
             <p className="muted">{t("invoices.noPayments")}</p>
           ) : (
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>{t("invoices.col.date")}</th>
-                  <th className="num">{t("invoices.col.amount")}</th>
-                  <th>{t("invoices.col.notes")}</th>
-                  <th>{t("invoices.col.recordedBy")}</th>
-                  {!invoice.is_read_only && <th className="col-narrow"><span className="sr-only">{t("invoices.col.actions")}</span></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.payments.map((p) => (
-                  <tr key={p.id}>
-                    <td>{formatDate(p.paid_date)}</td>
-                    <td className="num">{money(p.amount)}</td>
-                    <td>{p.notes}</td>
-                    <td className="muted">{p.recorded_by}</td>
-                    {!invoice.is_read_only && (
-                      <td>
-                        <Button size="sm" variant="ghost" onClick={() => deletePayment.mutate(p.id)} aria-label={t("invoices.deletePayment")}>
-                          ×
-                        </Button>
-                      </td>
-                    )}
+            <div className="table-scroll">
+              <table className="ledger">
+                <thead>
+                  <tr>
+                    <th>{t("invoices.col.date")}</th>
+                    <th className="num">{t("invoices.col.amount")}</th>
+                    <th>{t("invoices.col.notes")}</th>
+                    <th>{t("invoices.col.recordedBy")}</th>
+                    {!invoice.is_read_only && <th className="col-narrow"><span className="sr-only">{t("invoices.col.actions")}</span></th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {invoice.payments.map((p) => (
+                    <tr key={p.id}>
+                      <td>{formatDate(p.paid_date)}</td>
+                      <td className="num">{money(p.amount)}</td>
+                      <td>{p.notes}</td>
+                      <td className="muted">{p.recorded_by}</td>
+                      {!invoice.is_read_only && (
+                        <td>
+                          <Button size="sm" variant="ghost" onClick={() => deletePayment.mutate(p.id)} aria-label={t("invoices.deletePayment")}>
+                            ×
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {invoice.sent_to.length > 0 && <p className="muted small">{t("invoices.sentTo", { to: invoice.sent_to.join(", "), date: invoice.sent_at ? formatDateTime(invoice.sent_at) : "" })}</p>}
         </section>

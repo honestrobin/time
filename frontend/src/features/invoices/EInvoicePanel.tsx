@@ -51,39 +51,41 @@ export function EInvoicePanel({ invoiceId, clientId }: { invoiceId: string; clie
           <ProblemList problems={shared} clientId={clientId} />
         </div>
       )}
-      <table className="ledger">
-        <tbody>
-          {q.data.map((r) => {
-            const own = r.problems.filter((p) => !sharedKeys.has(key(p)));
-            return (
-              <tr key={r.format}>
-                <td className="nowrap">
-                  <strong>{t(`invoices.einvoice.formats.${r.format}`)}</strong>
-                </td>
-                <td>
-                  {r.ready ? (
-                    <span className="badge badge-ok">{t("invoices.einvoice.ready")}</span>
-                  ) : own.length > 0 ? (
-                    <ProblemList problems={own} clientId={clientId} />
-                  ) : (
-                    <span className="muted small">{t("invoices.einvoice.afterThat")}</span>
-                  )}
-                </td>
-                <td className="num nowrap">
-                  {r.format === "peppol" && peppol.data?.connected && (
-                    <Button size="sm" variant="primary" disabled={!r.ready} busy={send.isPending} onClick={() => send.mutate()} style={{ marginRight: 8 }}>
-                      {t("invoices.einvoice.send")}
+      <div className="table-scroll">
+        <table className="ledger">
+          <tbody>
+            {q.data.map((r) => {
+              const own = r.problems.filter((p) => !sharedKeys.has(key(p)));
+              return (
+                <tr key={r.format}>
+                  <td className="nowrap">
+                    <strong>{t(`invoices.einvoice.formats.${r.format}`)}</strong>
+                  </td>
+                  <td>
+                    {r.ready ? (
+                      <span className="badge badge-ok">{t("invoices.einvoice.ready")}</span>
+                    ) : own.length > 0 ? (
+                      <ProblemList problems={own} clientId={clientId} />
+                    ) : (
+                      <span className="muted small">{t("invoices.einvoice.afterThat")}</span>
+                    )}
+                  </td>
+                  <td className="num nowrap">
+                    {r.format === "peppol" && peppol.data?.connected && (
+                      <Button size="sm" variant="primary" disabled={!r.ready} busy={send.isPending} onClick={() => send.mutate()} style={{ marginRight: 8 }}>
+                        {t("invoices.einvoice.send")}
+                      </Button>
+                    )}
+                    <Button size="sm" disabled={!r.ready} onClick={() => void download(r.format)}>
+                      {t("invoices.einvoice.download", { format: r.format === "facturx" ? "PDF" : "XML" })}
                     </Button>
-                  )}
-                  <Button size="sm" disabled={!r.ready} onClick={() => void download(r.format)}>
-                    {t("invoices.einvoice.download", { format: r.format === "facturx" ? "PDF" : "XML" })}
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       {peppol.data && !peppol.data.connected && <p className="muted small">{t("invoices.einvoice.connectFirst")}</p>}
       {transmissions.data && transmissions.data.length > 0 && (
         <>

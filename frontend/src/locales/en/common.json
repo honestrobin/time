@@ -42,7 +42,9 @@
     "invoiceSettings": "Invoice settings",
     "payments": "Online payments",
     "accounting": "Accounting",
-    "developers": "API"
+    "developers": "API",
+    "menu": "Menu",
+    "closeMenu": "Close menu"
   },
   "auth": {
     "signInTitle": "Sign in",

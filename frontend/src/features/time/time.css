@@ -310,3 +310,12 @@
   font-size: 1.25rem;
   line-height: 1;
 }
+
+/* On a phone the tables scroll sideways rather than squeeze the project name to a few letters. */
+@media (max-width: 800px) {
+  .week-grid th:first-child,
+  .week-grid td:first-child,
+  .day-grid td:first-child {
+    min-width: 10rem;
+  }
+}

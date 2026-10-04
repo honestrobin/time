@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, Kbd, Menu } from "../../design";
 import { api, setAccountId, unwrap } from "../../lib/api";
@@ -24,6 +24,9 @@ export function AppShell() {
   const pathname = useLocation({ select: (l) => l.pathname });
   const qc = useQueryClient();
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // On a phone the menu folds away behind a button, so a page starts with its content.
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [pathname]);
   const current = me.accounts.find((a) => a.id === me.current_account_id);
 
   const logout = useMutation({
@@ -54,9 +57,12 @@ export function AppShell() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <aside className="sidebar">
+      <aside className={menuOpen ? "sidebar menu-open" : "sidebar"}>
         <Wordmark />
-        <nav className="nav" aria-label={t("nav.mainNavigation")}>
+        <button type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="app-nav" onClick={() => setMenuOpen((o) => !o)}>
+          {menuOpen ? t("nav.closeMenu") : t("nav.menu")}
+        </button>
+        <nav id="app-nav" className="nav" aria-label={t("nav.mainNavigation")}>
           {sections.map((section) => (
             <NavSection key={section.id} heading={section.heading ? t(section.heading) : undefined}>
               {section.items.map((item) => {
