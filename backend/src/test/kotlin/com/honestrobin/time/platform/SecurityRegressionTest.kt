@@ -46,6 +46,21 @@ class SecurityRegressionTest : IntegrationTest() {
     }
 
     @Test
+    fun `claiming an address with a sign-in link also removes the API tokens of whoever typed it`() {
+        // Security review of 4 October 2026: the delete ran under row-level security with no
+        // account set, so it matched nothing and the squatter's token kept working.
+        val squatter = signup(verifyEmail = false)
+        val token = squatter.post("/api/v1/me/api_tokens", mapOf("name" to "Keep", "scopes" to listOf("read", "write"))).expect(201)["token"].asText()
+        val api = client().apply { bearer = token }
+        api.get("/api/v1/me").expect(200)
+
+        client().post("/api/v1/auth/magic_link", mapOf("email" to squatter.email)).expect(202)
+        client().post("/api/v1/auth/magic_link/consume", mapOf("token" to mail.linkToken(squatter.email!!))).expect(200)
+        api.get("/api/v1/me").expectError(401, "invalid_token")
+        assertThat(mail.lastTo(squatter.email!!).text).contains("whoever set it up before can't sign in any more")
+    }
+
+    @Test
     fun `receipts are stored as what their bytes are and only images and PDFs are shown in the browser`() {
         val admin = signup()
         val task = createTask(admin)

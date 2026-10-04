@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.auth
 
+import com.honestrobin.time.db.Tables.RATE_LIMIT_EVENTS
 import com.honestrobin.time.platform.crypto.Base32
 import com.honestrobin.time.platform.crypto.Totp
 import com.honestrobin.time.support.IntegrationTest
@@ -108,6 +109,37 @@ class TwoFactorTest : IntegrationTest() {
         val res = owner.post("/api/v1/auth/magic_link/consume", mapOf("token" to mail.linkToken(stranger.email!!))).expect(200)
         assertThat(res["two_factor_required"].asBoolean()).isFalse()
         assertThat(owner.get("/api/v1/me/two_factor").expect(200)["enabled"].asBoolean()).isFalse()
+    }
+
+    @Test
+    fun `wrong codes are limited per person, and signing in again with the password doesn't reset the count`() {
+        val admin = signup()
+        val (secret, step, _) = enable(admin)
+        val near = (-2..2).map { Totp.code(secret, Totp.step(Instant.now()) + it) }
+        val wrong = listOf("000000", "111111", "222222", "333333").first { it !in near }
+        // Every test signs in from 127.0.0.1: start from, and leave, a clean count for that address.
+        val clearIp = { tx.system { dsl.deleteFrom(RATE_LIMIT_EVENTS).where(RATE_LIMIT_EVENTS.BUCKET.eq("login:ip:127.0.0.1")).execute() } }
+        clearIp()
+        try {
+            // A challenge is used up after five wrong codes.
+            val (c, challenge) = login(admin.email!!)
+            repeat(LoginThrottle.WRONG_CODES_PER_CHALLENGE) {
+                c.post("/api/v1/auth/two_factor", mapOf("challenge" to challenge, "code" to wrong)).expectError(400, "invalid_code")
+            }
+            c.post("/api/v1/auth/two_factor", mapOf("challenge" to challenge, "code" to Totp.code(secret, step + 1))).expectError(400, "challenge_expired")
+            // Whoever got this far knows the password, and its owner hears about it.
+            assertThat(mail.lastTo(admin.email!!).text).contains("then a wrong two-factor code 5 times")
+
+            // The password brings a new challenge, but no new guesses beyond the limit.
+            val (d, next) = login(admin.email!!)
+            repeat(LoginThrottle.SECOND_FACTOR_PER_WINDOW - LoginThrottle.WRONG_CODES_PER_CHALLENGE) {
+                d.post("/api/v1/auth/two_factor", mapOf("challenge" to next, "code" to wrong)).expectError(400, "invalid_code")
+            }
+            val (e, last) = login(admin.email!!)
+            e.post("/api/v1/auth/two_factor", mapOf("challenge" to last, "code" to Totp.code(secret, step + 1))).expectError(429, "too_many_attempts")
+        } finally {
+            clearIp()
+        }
     }
 
     @Test

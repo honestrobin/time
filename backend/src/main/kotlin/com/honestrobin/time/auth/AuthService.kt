@@ -7,6 +7,7 @@ import com.honestrobin.time.accounts.AccountService
 import com.honestrobin.time.accounts.NewAccount
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.API_TOKENS
+import com.honestrobin.time.db.Tables.DEVICE_AUTHORIZATIONS
 import com.honestrobin.time.db.Tables.LOGIN_TOKENS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.db.Tables.USERS
@@ -240,12 +241,14 @@ class AuthService(
             .and(LOGIN_TOKENS.EXPIRES_AT.gt(Instant.now()))
             .fetchOne() ?: throw ApiException(HttpStatus.BAD_REQUEST, "challenge_expired", "That took too long. Sign in again.")
         val user = dsl.selectFrom(USERS).where(USERS.ID.eq(row.userId)).fetchOne()!!
-        throttle.check(user.email, ip)
+        throttle.checkSecondFactor(user.id, row.id, ip)
         if (!twoFactor.check(user, code, recoveryCode)) {
-            throttle.failed(user.email, ip)
+            val failures = throttle.failedSecondFactor(user.id, row.id, ip)
+            // Whoever got this far knows the password: tell its owner, once.
+            if (failures == LoginThrottle.SECOND_FACTOR_NOTICE_AT) securityNotice(user, "code-failures", failures, evenIfRolledBack = true)
             throw ApiException(HttpStatus.BAD_REQUEST, "invalid_code", "That code doesn't match. Use the newest code in your authenticator app.")
         }
-        throttle.succeeded(user.email)
+        throttle.succeededSecondFactor(user.id)
         row.usedAt = Instant.now()
         row.store()
         val accountId = row.membershipId?.let { dsl.select(MEMBERSHIPS.ACCOUNT_ID).from(MEMBERSHIPS).where(MEMBERSHIPS.ID.eq(it)).fetchOne()?.value1() }
@@ -369,14 +372,35 @@ class AuthService(
     private fun claimAddress(userId: UUID) {
         val user = dsl.selectFrom(USERS).where(USERS.ID.eq(userId)).fetchOne() ?: return
         if (user.emailVerifiedAt != null) return
+        // Only open sign-up lets someone register an address that isn't theirs. Anywhere else the
+        // only unconfirmed address is the first user's, typed by the instance's owner: proving the
+        // inbox confirms it, and their password and two-factor sign-in stay.
+        if (props.signupMode != SignupMode.OPEN) {
+            markEmailVerified(userId)
+            return
+        }
         user.passwordHash = null
         user.emailVerifiedAt = Instant.now()
         user.store()
         // Whoever registered the address may have set up two-factor sign-in to lock its owner out.
         twoFactor.clear(user)
         sessions.revokeAllForUser(userId)
-        dsl.deleteFrom(API_TOKENS).where(API_TOKENS.MEMBERSHIP_ID.`in`(DSL.select(MEMBERSHIPS.ID).from(MEMBERSHIPS).where(MEMBERSHIPS.USER_ID.eq(userId)))).execute()
+        // API tokens and device sign-ins hang off memberships, which row-level security hides from
+        // a request that has no account yet: without the system context nothing would be removed.
+        DbContext.system {
+            val memberships = DSL.select(MEMBERSHIPS.ID).from(MEMBERSHIPS).where(MEMBERSHIPS.USER_ID.eq(userId))
+            dsl.deleteFrom(API_TOKENS).where(API_TOKENS.MEMBERSHIP_ID.`in`(memberships)).execute()
+            dsl.update(DEVICE_AUTHORIZATIONS).set(DEVICE_AUTHORIZATIONS.STATUS, "denied")
+                .where(DEVICE_AUTHORIZATIONS.STATUS.`in`("pending", "approved")).and(DEVICE_AUTHORIZATIONS.MEMBERSHIP_ID.`in`(memberships)).execute()
+        }
         revokeOutstandingLinks(userId)
+        securityNotice(user, "address-claimed")
+    }
+
+    private fun securityNotice(user: UsersRecord, event: String, count: Int = 0, evenIfRolledBack: Boolean = false) {
+        val model = mapOf("name" to user.name, "messageKey" to "mail.security-notice.$event", "count" to count, "link" to "${props.baseUrl}/settings/profile")
+        val locale = Locale.forLanguageTag(user.locale)
+        if (evenIfRolledBack) mailer.sendNow("security-notice", user.email, locale, model) else mailer.send("security-notice", user.email, locale, model)
     }
 
     private fun revokeOutstandingLinks(userId: UUID) {

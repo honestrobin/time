@@ -87,6 +87,15 @@ class Mailer(
         dispatch(OutgoingMail(listOf(to), subject, text, html, bcc, replyTo, attachments, template))
     }
 
+    /**
+     * Sends at once, even if the surrounding transaction rolls back: for notices about a failed
+     * attempt, where the request fails but the person must still hear about it.
+     */
+    fun sendNow(template: String, to: String, locale: Locale, model: Map<String, Any?>) {
+        val (subject, text, html) = render(template, locale, model)
+        deliver(OutgoingMail(listOf(to), subject, text, html, template = template))
+    }
+
     fun dispatch(mail: OutgoingMail) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
