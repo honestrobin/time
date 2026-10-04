@@ -78,9 +78,10 @@ class OutboundMailTest : IntegrationTest() {
         val admin = signup()
         limits.invoiceRecipientsPerDay = 3
         try {
-            fun invoice(c: com.honestrobin.time.support.TestClient): java.util.UUID {
+            // Only the reminder's own invoice falls due today.
+            fun invoice(c: com.honestrobin.time.support.TestClient, termsDays: Int = 30): java.util.UUID {
                 val client = createClient(c)
-                return c.post("/api/v1/invoices", mapOf("client_id" to client, "payment_terms_days" to 0, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000)))).expect(201).id()
+                return c.post("/api/v1/invoices", mapOf("client_id" to client, "payment_terms_days" to termsDays, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000)))).expect(201).id()
             }
             admin.post("/api/v1/invoices/${invoice(admin)}/send", mapOf("to" to listOf("a@client.test", "b@client.test"))).expect(200)
             // A second workspace of the same person doesn't bring a fresh allowance.
@@ -92,7 +93,7 @@ class OutboundMailTest : IntegrationTest() {
 
             // A reminder is an invoice email too: over the account's limit, it waits.
             admin.accountId = first
-            val due = invoice(admin)
+            val due = invoice(admin, termsDays = 0)
             admin.post("/api/v1/invoices/$due/send", mapOf("to" to listOf("e@client.test", "f@client.test"))).expectError(429, "invoice_email_limit")
             admin.post("/api/v1/invoices/$due/mark_sent").expect(200)
             tx.system { dsl.update(com.honestrobin.time.db.Tables.INVOICES).set(com.honestrobin.time.db.Tables.INVOICES.SENT_TO, arrayOf("e@client.test", "f@client.test")).where(com.honestrobin.time.db.Tables.INVOICES.ID.eq(due)).execute() }
