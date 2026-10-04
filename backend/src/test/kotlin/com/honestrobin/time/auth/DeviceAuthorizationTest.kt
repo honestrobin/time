@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.auth
 
+import com.honestrobin.time.db.Tables.DEVICE_AUTHORIZATIONS
 import com.honestrobin.time.db.Tables.USER_SESSIONS
 import com.honestrobin.time.platform.live.LiveEvents
 import com.honestrobin.time.support.IntegrationTest
@@ -48,6 +49,24 @@ class DeviceAuthorizationTest : IntegrationTest() {
         assertThat(ext.get("/api/v1/me").expect(200)["email"].asText()).isEqualTo(admin.email)
         val tokens = admin.get("/api/v1/me/api_tokens").expect(200).body
         assertThat(tokens.values().map { it["name"].asText() }).contains("Browser extension (Chrome)")
+        // Security review, 4 October 2026: a device token expires when unused for 90 days, and the
+        // person hears about every device connected, so a phished code doesn't go unnoticed.
+        val expires = Instant.parse(tokens.values().first { it["name"].asText() == "Browser extension (Chrome)" }["expires_at"].asText())
+        assertThat(Duration.between(Instant.now(), expires)).isBetween(Duration.ofDays(89), Duration.ofDays(91))
+        assertThat(mail.lastTo(admin.email!!).text).contains("A device was connected to your account: \"Browser extension (Chrome)\"")
+    }
+
+    @Test
+    fun `an approved code must be collected soon after`() {
+        val admin = signup()
+        val device = client().apply { sendCsrf = false }
+        val start = device.post("/api/v1/auth/device", mapOf("client_name" to "Browser extension (Chrome)")).expect(200)
+        admin.post("/api/v1/device_authorizations/${start["user_code"].asText()}/approve").expect(204)
+        tx.system {
+            dsl.update(DEVICE_AUTHORIZATIONS).set(DEVICE_AUTHORIZATIONS.APPROVED_AT, Instant.now().minus(Duration.ofMinutes(11)))
+                .where(DEVICE_AUTHORIZATIONS.USER_CODE.eq(start["user_code"].asText())).execute()
+        }
+        device.post("/api/v1/auth/device/token", mapOf("device_code" to start["device_code"].asText())).expectError(400, "expired_token")
     }
 
     @Test

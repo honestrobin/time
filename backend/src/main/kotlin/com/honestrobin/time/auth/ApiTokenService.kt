@@ -34,8 +34,18 @@ data class CreatedApiToken(val token: String, val apiToken: ApiTokenView)
 class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
     private val validScopes = setOf("read", "write")
 
+    /**
+     * A token for a device that signed in with a code (the browser extension): it expires after
+     * [DEVICE_IDLE_DAYS] days without use, each use moving that forward.
+     */
     @Transactional
-    fun create(member: Member, name: String, scopes: Set<String>, expiresAt: Instant?): CreatedApiToken {
+    fun createForDevice(member: Member, name: String): CreatedApiToken =
+        create(member, name, setOf("read", "write"), Instant.now().plus(Duration.ofDays(DEVICE_IDLE_DAYS.toLong())), idleExpiryDays = DEVICE_IDLE_DAYS)
+
+    @Transactional
+    fun create(member: Member, name: String, scopes: Set<String>, expiresAt: Instant?): CreatedApiToken = create(member, name, scopes, expiresAt, null)
+
+    private fun create(member: Member, name: String, scopes: Set<String>, expiresAt: Instant?, idleExpiryDays: Int?): CreatedApiToken {
         if (name.isBlank()) throw ValidationException("name", "Give the token a name")
         if (scopes.isEmpty() || !validScopes.containsAll(scopes)) throw ValidationException("scopes", "Scopes must be read and/or write")
         val token = Tokens.generate(prefix = "hrt_")
@@ -47,6 +57,7 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
             .set(API_TOKENS.TOKEN_HINT, token.takeLast(4))
             .set(API_TOKENS.SCOPES, scopes.sorted().toTypedArray())
             .set(API_TOKENS.EXPIRES_AT, expiresAt)
+            .set(API_TOKENS.IDLE_EXPIRY_DAYS, idleExpiryDays)
             .returning(API_TOKENS.ID).fetchOne()!!.id
         return CreatedApiToken(token, list(member).first { it.id == id })
     }
@@ -65,7 +76,7 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
     /** Token lookup is cross-tenant by nature: the token itself identifies the account. */
     fun authenticate(token: String): HonestRobinPrincipal? = tx.system {
         val now = Instant.now()
-        val row = dsl.select(API_TOKENS.ID, API_TOKENS.MEMBERSHIP_ID, API_TOKENS.SCOPES, API_TOKENS.LAST_USED_AT, USERS.ID, USERS.EMAIL)
+        val row = dsl.select(API_TOKENS.ID, API_TOKENS.MEMBERSHIP_ID, API_TOKENS.SCOPES, API_TOKENS.LAST_USED_AT, API_TOKENS.IDLE_EXPIRY_DAYS, USERS.ID, USERS.EMAIL)
             .from(API_TOKENS)
             .join(MEMBERSHIPS).on(MEMBERSHIPS.ID.eq(API_TOKENS.MEMBERSHIP_ID))
             .join(USERS).on(USERS.ID.eq(MEMBERSHIPS.USER_ID))
@@ -75,7 +86,10 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
             .fetchOne() ?: return@system null
         val lastUsed = row[API_TOKENS.LAST_USED_AT]
         if (lastUsed == null || Duration.between(lastUsed, now) > Duration.ofMinutes(5)) {
-            dsl.update(API_TOKENS).set(API_TOKENS.LAST_USED_AT, now).where(API_TOKENS.ID.eq(row[API_TOKENS.ID])).execute()
+            val idle = row[API_TOKENS.IDLE_EXPIRY_DAYS]
+            dsl.update(API_TOKENS).set(API_TOKENS.LAST_USED_AT, now)
+                .apply { if (idle != null) set(API_TOKENS.EXPIRES_AT, now.plus(Duration.ofDays(idle.toLong()))) }
+                .where(API_TOKENS.ID.eq(row[API_TOKENS.ID])).execute()
         }
         HonestRobinPrincipal(
             userId = row[USERS.ID],
@@ -84,5 +98,9 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
             tokenMembershipId = row[API_TOKENS.MEMBERSHIP_ID],
             tokenScopes = row[API_TOKENS.SCOPES].toSet(),
         )
+    }
+
+    companion object {
+        const val DEVICE_IDLE_DAYS = 90
     }
 }

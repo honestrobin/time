@@ -186,6 +186,21 @@ public class ApiTokensRecord extends UpdatableRecordImpl<ApiTokensRecord> {
         return (Instant) get(10);
     }
 
+    /**
+     * Setter for <code>public.api_tokens.idle_expiry_days</code>.
+     */
+    public ApiTokensRecord setIdleExpiryDays(Integer value) {
+        set(11, value);
+        return this;
+    }
+
+    /**
+     * Getter for <code>public.api_tokens.idle_expiry_days</code>.
+     */
+    public Integer getIdleExpiryDays() {
+        return (Integer) get(11);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -209,7 +224,7 @@ public class ApiTokensRecord extends UpdatableRecordImpl<ApiTokensRecord> {
     /**
      * Create a detached, initialised ApiTokensRecord
      */
-    public ApiTokensRecord(UUID id, UUID accountId, UUID membershipId, String name, byte[] tokenHash, String tokenHint, String[] scopes, Instant lastUsedAt, Instant expiresAt, Instant createdAt, Instant updatedAt) {
+    public ApiTokensRecord(UUID id, UUID accountId, UUID membershipId, String name, byte[] tokenHash, String tokenHint, String[] scopes, Instant lastUsedAt, Instant expiresAt, Instant createdAt, Instant updatedAt, Integer idleExpiryDays) {
         super(ApiTokens.API_TOKENS);
 
         setId(id);
@@ -223,6 +238,7 @@ public class ApiTokensRecord extends UpdatableRecordImpl<ApiTokensRecord> {
         setExpiresAt(expiresAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
+        setIdleExpiryDays(idleExpiryDays);
         resetTouchedOnNotNull();
     }
 }

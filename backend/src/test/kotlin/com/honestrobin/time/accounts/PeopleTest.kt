@@ -30,6 +30,20 @@ class PeopleTest : IntegrationTest() {
     }
 
     @Test
+    fun `sending an invitation again retires the earlier link`() {
+        val admin = signup()
+        val email = uniqueEmail("rehana")
+        val person = admin.post("/api/v1/people", mapOf("name" to "Rehana", "email" to email, "role" to "member")).expect(201)
+        val first = mail.linkToken(email)
+        admin.post("/api/v1/people/${person.id()}/invite").expect(200)
+        val second = mail.linkToken(email)
+        assertThat(second).isNotEqualTo(first)
+        // Security review, 4 October 2026: an old link left in an inbox stops working.
+        client().post("/api/v1/auth/invite/lookup", mapOf("token" to first)).expectError(400, "invalid_link")
+        client().post("/api/v1/auth/invite/lookup", mapOf("token" to second)).expect(200)
+    }
+
+    @Test
     fun `an existing user joins a second account with the same login`() {
         val first = signup()
         val second = signup()

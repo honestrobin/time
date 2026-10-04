@@ -1,6 +1,6 @@
 [(#{mail.greeting(${name})})]
 
-[(#{__${messageKey}__(${count})})]
+[(#{__${messageKey}__(${arg})})]
 
 [(#{mail.security-notice.button})]: [(${link})]
 

@@ -79,6 +79,7 @@ class AuthService(
     private val recentAuth: RecentAuth,
     private val twoFactor: TwoFactorService,
     private val setup: FirstUserSetup,
+    private val notices: SecurityNotices,
 ) {
     @Transactional(readOnly = true)
     fun hasAnyUser(): Boolean = dsl.fetchExists(USERS)
@@ -223,6 +224,9 @@ class AuthService(
         user.passwordHash = passwords.hash(newPassword)
         user.store()
         sessions.revokeAllForUser(userId, except = keepSession)
+        // Sign-in and reset links sent before stop working, and the person hears about the change.
+        revokeOutstandingLinks(userId)
+        securityNotice(user, "password-changed")
     }
 
     private fun signIn(userId: UUID, ip: String?, userAgent: String?, membershipId: UUID? = null): SignedIn =
@@ -329,6 +333,11 @@ class AuthService(
             dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now())
                 .where(LOGIN_TOKENS.USER_ID.eq(userId)).and(LOGIN_TOKENS.PURPOSE.eq(purpose.sql)).and(LOGIN_TOKENS.USED_AT.isNull).execute()
         }
+        // So is a new invitation: an older one, maybe forwarded or left in an inbox, stops working.
+        if (purpose == TokenPurpose.INVITE && membershipId != null) {
+            dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now())
+                .where(LOGIN_TOKENS.MEMBERSHIP_ID.eq(membershipId)).and(LOGIN_TOKENS.PURPOSE.eq(purpose.sql)).and(LOGIN_TOKENS.USED_AT.isNull).execute()
+        }
         dsl.insertInto(LOGIN_TOKENS)
             .set(LOGIN_TOKENS.USER_ID, userId)
             .set(LOGIN_TOKENS.MEMBERSHIP_ID, membershipId)
@@ -406,11 +415,8 @@ class AuthService(
         securityNotice(user, "address-claimed")
     }
 
-    private fun securityNotice(user: UsersRecord, event: String, count: Int = 0, evenIfRolledBack: Boolean = false) {
-        val model = mapOf("name" to user.name, "messageKey" to "mail.security-notice.$event", "count" to count, "link" to "${props.baseUrl}/settings/profile")
-        val locale = Locale.forLanguageTag(user.locale)
-        if (evenIfRolledBack) mailer.sendNow("security-notice", user.email, locale, model) else mailer.send("security-notice", user.email, locale, model)
-    }
+    private fun securityNotice(user: UsersRecord, event: String, arg: Any? = null, evenIfRolledBack: Boolean = false) =
+        notices.send(user, event, arg, evenIfRolledBack)
 
     private fun revokeOutstandingLinks(userId: UUID) {
         dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now())

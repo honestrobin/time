@@ -5,6 +5,7 @@ import com.honestrobin.time.accounts.MembershipResolver
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.DEVICE_AUTHORIZATIONS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
+import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.db.DbContext
@@ -72,6 +73,7 @@ class DeviceAuthorizationService(
     private val memberships: MembershipResolver,
     private val recentAuth: RecentAuth,
     private val limiter: RateLimiter,
+    private val notices: SecurityNotices,
 ) {
     private val random = SecureRandom()
 
@@ -126,9 +128,9 @@ class DeviceAuthorizationService(
     fun collect(deviceCode: String): DeviceToken = DbContext.system {
         val r = dsl.selectFrom(DEVICE_AUTHORIZATIONS).where(DEVICE_AUTHORIZATIONS.DEVICE_CODE_HASH.eq(Tokens.hash(deviceCode))).forUpdate().fetchOne()
             ?: throw ApiException(HttpStatus.BAD_REQUEST, "invalid_grant", "Unknown device code. Start signing in again.")
-        if (r.expiresAt.isBefore(Instant.now()) && r.status != "approved") {
-            throw ApiException(HttpStatus.BAD_REQUEST, "expired_token", "The code expired. Start signing in again.")
-        }
+        // An approved code must be collected soon after: the device is polling every few seconds.
+        val stale = if (r.status == "approved") r.approvedAt?.isBefore(Instant.now().minus(COLLECT_WITHIN)) ?: true else r.expiresAt.isBefore(Instant.now())
+        if (stale) throw ApiException(HttpStatus.BAD_REQUEST, "expired_token", "The code expired. Start signing in again.")
         when (r.status) {
             "pending" -> throw ApiException(HttpStatus.BAD_REQUEST, "authorization_pending", "Waiting for you to approve the code in Honest Robin.")
             "denied" -> throw ApiException(HttpStatus.BAD_REQUEST, "access_denied", "Signing in was declined.")
@@ -136,9 +138,11 @@ class DeviceAuthorizationService(
         }
         val member = r.membershipId?.let(memberships::byMembershipId)
             ?: throw ApiException(HttpStatus.BAD_REQUEST, "access_denied", "That account is no longer available.")
-        val created = tokens.create(member, r.clientName, setOf("read", "write"), null)
+        val created = tokens.createForDevice(member, r.clientName)
         r.status = "used"
         r.store()
+        // Tell the person, so a device they didn't connect (a phished code) doesn't go unnoticed.
+        dsl.selectFrom(USERS).where(USERS.ID.eq(member.userId)).fetchOne()?.let { notices.send(it, "device-connected", r.clientName) }
         val account = dsl.select(ACCOUNTS.NAME, MEMBERSHIPS.EMAIL).from(MEMBERSHIPS).join(ACCOUNTS).on(ACCOUNTS.ID.eq(MEMBERSHIPS.ACCOUNT_ID))
             .where(MEMBERSHIPS.ID.eq(member.membershipId)).fetchOne()!!
         DeviceToken(created.token, member.accountId, account.value1(), account.value2())
@@ -164,6 +168,9 @@ class DeviceAuthorizationService(
     companion object {
         val TTL: Duration = Duration.ofMinutes(10)
         const val POLL_SECONDS = 2
+
+        /** How long after approval the device may collect its token. */
+        val COLLECT_WITHIN: Duration = Duration.ofMinutes(10)
 
         // RFC 8628 §6.1: consonants only, so no words, no 0/O or 1/I confusion.
         private const val USER_CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ"

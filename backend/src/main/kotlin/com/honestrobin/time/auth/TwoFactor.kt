@@ -11,7 +11,6 @@ import com.honestrobin.time.platform.crypto.SecretBox
 import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.crypto.Totp
 import com.honestrobin.time.platform.db.DbContext
-import com.honestrobin.time.platform.mail.Mailer
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.RecentAuth
 import com.honestrobin.time.platform.web.ConflictException
@@ -31,7 +30,6 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.security.SecureRandom
 import java.time.Instant
-import java.util.Locale
 import java.util.UUID
 
 data class TwoFactorStatus(
@@ -63,7 +61,7 @@ class TwoFactorService(
     private val dsl: DSLContext,
     private val box: SecretBox,
     private val recentAuth: RecentAuth,
-    private val mailer: Mailer,
+    private val notices: SecurityNotices,
     private val props: HonestRobinProperties,
 ) {
     private val random = SecureRandom()
@@ -188,12 +186,7 @@ class TwoFactorService(
 
     private fun normalise(code: String) = code.lowercase().filter(Char::isLetterOrDigit)
 
-    private fun notify(user: UsersRecord, event: String, count: Int = 0) {
-        mailer.send(
-            "security-notice", user.email, Locale.forLanguageTag(user.locale),
-            mapOf("name" to user.name, "messageKey" to "mail.security-notice.$event", "count" to count, "link" to "${props.baseUrl}/settings/profile"),
-        )
-    }
+    private fun notify(user: UsersRecord, event: String, count: Int = 0) = notices.send(user, event, count)
 
     private fun user(id: UUID): UsersRecord = dsl.selectFrom(USERS).where(USERS.ID.eq(id)).fetchOne()!!
 

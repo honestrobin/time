@@ -77,6 +77,16 @@ class SessionSecurityTest : IntegrationTest() {
     }
 
     @Test
+    fun `changing the password ends earlier sign-in links and tells the person`() {
+        val admin = signup()
+        client().post("/api/v1/auth/magic_link", mapOf("email" to admin.email)).expect(202)
+        val link = mail.linkToken(admin.email!!)
+        admin.post("/api/v1/me/password", mapOf("current_password" to "correct horse battery", "new_password" to "a brand new passphrase")).expect(204)
+        assertThat(mail.lastTo(admin.email!!).text).contains("Your password was changed")
+        client().post("/api/v1/auth/magic_link/consume", mapOf("token" to link)).expectError(400, "invalid_link")
+    }
+
+    @Test
     fun `setting a first password needs a recent sign-in`() {
         val admin = signup()
         // A person who signs in with links only has no password to confirm.

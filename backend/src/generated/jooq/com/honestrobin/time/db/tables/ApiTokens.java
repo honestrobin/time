@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import org.jooq.Check;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
@@ -114,6 +115,11 @@ public class ApiTokens extends TableImpl<ApiTokensRecord> {
      * The column <code>public.api_tokens.updated_at</code>.
      */
     public final TableField<ApiTokensRecord, Instant> UPDATED_AT = createField(DSL.name("updated_at"), SQLDataType.INSTANT.nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.INSTANT)), this, "");
+
+    /**
+     * The column <code>public.api_tokens.idle_expiry_days</code>.
+     */
+    public final TableField<ApiTokensRecord, Integer> IDLE_EXPIRY_DAYS = createField(DSL.name("idle_expiry_days"), SQLDataType.INTEGER, this, "");
 
     private ApiTokens(Name alias, Table<ApiTokensRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
@@ -219,6 +225,13 @@ public class ApiTokens extends TableImpl<ApiTokensRecord> {
             _memberships = new MembershipsPath(this, Keys.API_TOKENS__API_TOKENS_MEMBERSHIP_ID_FKEY, null);
 
         return _memberships;
+    }
+
+    @Override
+    public List<Check<ApiTokensRecord>> getChecks() {
+        return Arrays.asList(
+            Internal.createCheck(this, DSL.name("api_tokens_idle_expiry_days_check"), "((idle_expiry_days > 0))", true)
+        );
     }
 
     @Override
