@@ -5,8 +5,11 @@
 ```sh
 # a throwaway Postgres on port 5433
 docker run -d --name honestrobin-pg -e POSTGRES_USER=honestrobin -e POSTGRES_PASSWORD=honestrobin -e POSTGRES_DB=honestrobin -p 5433:5432 postgres:18-alpine
-HONESTROBIN_DB_URL=jdbc:postgresql://localhost:5433/honestrobin HONESTROBIN_SIGNUP_MODE=open ./gradlew :backend:bootRun
+HONESTROBIN_DB_URL=jdbc:postgresql://localhost:5433/honestrobin HONESTROBIN_SIGNUP_MODE=open HONESTROBIN_SETUP_CODE=dev ./gradlew :backend:bootRun
 ```
+
+The first sign-up on an empty database needs the setup code (here `dev`; without the variable the
+app makes one and writes it to its log).
 
 Tests use Testcontainers (`./gradlew :backend:test`). Set `HONESTROBIN_EDITION=cloud` to run the suite in the cloud edition. To use an existing Postgres instead of a container, set `HONESTROBIN_TEST_JDBC_URL` (plus `HONESTROBIN_TEST_JDBC_USER`/`_PASSWORD`).
 
@@ -23,8 +26,8 @@ pnpm --filter @honestrobin/web dev   # http://localhost:5173, proxies /api to :8
 ## End-to-end
 
 ```sh
-docker compose -f deploy/docker-compose.yml up -d --build
-pnpm --filter @honestrobin/e2e test
+HONESTROBIN_SETUP_CODE=e2e docker compose -f deploy/docker-compose.yml up -d --build
+HONESTROBIN_SETUP_CODE=e2e pnpm --filter @honestrobin/e2e test
 ```
 
 `00-first-user.spec.ts` covers AT-0.1 and needs a fresh database.

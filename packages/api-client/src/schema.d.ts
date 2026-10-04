@@ -3352,6 +3352,7 @@ export interface components {
             locale?: string;
             name: string;
             password: string;
+            setup_code?: string;
             timezone?: string;
             /** Format: int32 */
             week_start?: number;

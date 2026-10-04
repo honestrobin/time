@@ -8704,6 +8704,9 @@
           "password" : {
             "type" : "string"
           },
+          "setup_code" : {
+            "type" : "string"
+          },
           "timezone" : {
             "type" : "string"
           },

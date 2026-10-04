@@ -17,7 +17,7 @@ cp deploy/.env.example deploy/.env   # optional: edit settings
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
-Open `HONESTROBIN_BASE_URL` (default http://localhost:8080). The first person to sign up becomes the admin of the instance. After that, sign-up closes and people join by invitation. Set `HONESTROBIN_SIGNUP_MODE=open` to let anyone create an account.
+Open `HONESTROBIN_BASE_URL` (default http://localhost:8080). The first person to sign up becomes the admin of the instance. They need the setup code the app writes to its log until someone has signed up (`docker compose -f deploy/docker-compose.yml logs app | grep "setup code"`), so nobody who finds a new instance before you can claim it. After that, sign-up closes and people join by invitation. Set `HONESTROBIN_SIGNUP_MODE=open` to let anyone create an account.
 
 ## Configuration
 
@@ -27,6 +27,7 @@ All settings are environment variables.
 |---|---|---|
 | `HONESTROBIN_BASE_URL` | `http://localhost:8080` | Public URL, used in emails. Use `https://` in production; it also turns on secure cookies. |
 | `HONESTROBIN_SIGNUP_MODE` | `first_user_only` | `first_user_only`, `open` or `invite_only` |
+| `HONESTROBIN_SETUP_CODE` | made at startup | The code the first sign-up needs. Unset, the app makes one each time it starts and writes it to its log. Set it when several app servers run, so they agree. |
 | `HONESTROBIN_DB_URL` / `_USER` / `_PASSWORD` | local `honestrobin` database | JDBC connection to Postgres |
 | `HONESTROBIN_SMTP_HOST` / `_PORT` / `_USER` / `_PASSWORD` | unset | Outgoing mail. Without SMTP, emails (including sign-in links) go to the application log. |
 | `HONESTROBIN_MAIL_FROM` | `Honest Robin <no-reply@localhost>` | Sender address |
@@ -53,7 +54,7 @@ If the service can't be reached, the password is accepted.
 1. Get a small Linux server with Docker (2 GB of memory is plenty for a team) and point your domain at it: an `A` record (and `AAAA` for IPv6) for, say, `time.example.com`.
 2. On the server: `git clone https://github.com/honestrobin/time && cd time`
 3. `HONESTROBIN_DOMAIN=time.example.com docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.https.yml up -d --build`
-4. Open `https://time.example.com`. The first person to sign up becomes the admin; everyone else joins by invitation.
+4. Open `https://time.example.com`. The first person to sign up becomes the admin, with the setup code from the app's log; everyone else joins by invitation.
 
 Caddy gets the certificate by itself. Without SMTP settings, emails (sign-in links, invitations) are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
 
@@ -140,7 +141,8 @@ Pull the new version and restart: `git pull && docker compose -f deploy/docker-c
 Instances set up before 4 October 2026 ran PostgreSQL 16. The app now needs 18 (its database
 library supports no older version), and the compose file keeps PostgreSQL 18's data in a new
 volume. Move the data across once, in this order, before the app starts on the new database:
-an empty database looks like a fresh instance, where the first person to sign up becomes admin.
+an empty database looks like a fresh instance. (Since 4 October 2026 nobody can claim one without
+the setup code from the log, but your data still wouldn't be there.)
 
 ```sh
 C="docker compose -f deploy/docker-compose.yml"   # add -f deploy/docker-compose.https.yml if you use it

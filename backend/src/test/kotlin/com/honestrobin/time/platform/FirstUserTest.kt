@@ -36,6 +36,12 @@ class FirstUserTest {
         assertThat(before["needs_setup"].asBoolean()).isTrue()
         assertThat(before["signup_allowed"].asBoolean()).isTrue()
 
+        // Nobody who can't read the server's log can claim an empty instance.
+        val owner = mapOf("name" to "Owner", "email" to "owner@example.test", "password" to "correct horse battery", "account_name" to "Owner Co")
+        c.post("/api/v1/auth/signup", owner + ("setup_code" to null)).expectError(403, "setup_code_required")
+        c.post("/api/v1/auth/signup", owner + ("setup_code" to "AAAA-BBBB-CCCC")).expectError(403, "setup_code_required")
+        assertThat(c.get("/api/v1/auth/config").expect(200)["needs_setup"].asBoolean()).isTrue()
+
         c.post(
             "/api/v1/auth/signup",
             mapOf("name" to "Owner", "email" to "owner@example.test", "password" to "correct horse battery", "account_name" to "Owner Co"),

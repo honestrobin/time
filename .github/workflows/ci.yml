@@ -114,6 +114,7 @@ jobs:
         run: docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 300
         env:
           HONESTROBIN_EDITION: ${{ matrix.edition }}
+          HONESTROBIN_SETUP_CODE: e2e-setup-code
       - name: Wait for the app
         run: timeout 180 bash -c 'until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 2; done'
       - run: pnpm --filter @honestrobin/e2e exec playwright install --with-deps chromium
@@ -123,6 +124,7 @@ jobs:
         env:
           CI: "true"
           HONESTROBIN_E2E_BASE_URL: http://localhost:8080
+          HONESTROBIN_SETUP_CODE: e2e-setup-code
       - name: No errors in the app log
         run: |
           if docker compose -f deploy/docker-compose.yml logs app | grep -E " ERROR "; then

@@ -1,5 +1,7 @@
 honestrobin:
   signup-mode: open
+  # The first sign-up of an instance needs it (FirstUserSetup); TestClient sends it with every one.
+  setup-code: test-setup-code
   mail:
     limits:
       # Every test signs up from 127.0.0.1.
