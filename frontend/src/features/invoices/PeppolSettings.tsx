@@ -14,6 +14,8 @@ export function PeppolSettings({ readOnly }: { readOnly: boolean }) {
   const qc = useQueryClient();
   const status = useQuery(peppolQuery);
   const [key, setKey] = useState("");
+  // What disconnecting couldn't end at Storecove, and how to end it there.
+  const [leftover, setLeftover] = useState<string | null>(null);
   const connect = useMutation({
     mutationFn: (apiKey: string | null) => unwrap(api.POST("/api/v1/einvoicing/peppol", { body: apiKey ? { api_key: apiKey } : {} })),
     onSuccess: (s) => {
@@ -24,7 +26,10 @@ export function PeppolSettings({ readOnly }: { readOnly: boolean }) {
   });
   const disconnect = useMutation({
     mutationFn: () => unwrap(api.DELETE("/api/v1/einvoicing/peppol")),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: peppolQuery.queryKey }),
+    onSuccess: (r) => {
+      setLeftover(r.note ?? null);
+      void qc.invalidateQueries({ queryKey: peppolQuery.queryKey });
+    },
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
   const s = status.data;
@@ -38,6 +43,7 @@ export function PeppolSettings({ readOnly }: { readOnly: boolean }) {
     <section className="form-section stack" style={{ marginTop: 40 }}>
       <h2>{t("peppol.title")}</h2>
       <p className="muted">{t("peppol.lead")}</p>
+      {leftover && <p className="notice notice-warn">{leftover}</p>}
       {s.connected ? (
         <>
           <p className="notice notice-ok">{t(s.mode === "connect" ? "peppol.viaPlatform" : "peppol.viaOwn")}</p>

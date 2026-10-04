@@ -56,6 +56,11 @@ class StripeClient(private val settings: StripeSettings, private val json: Objec
     fun oauthToken(code: String): String =
         call("POST", "${settings.connectBaseUrl}/oauth/token", settings.platformSecretKey, null, mapOf("grant_type" to "authorization_code", "code" to code))["stripe_user_id"].asText()
 
+    /** Ends Honest Robin's access to a Connect account (Stripe's "deauthorize"). */
+    fun deauthorize(stripeUserId: String) {
+        call("POST", "${settings.connectBaseUrl}/oauth/deauthorize", settings.platformSecretKey, null, mapOf("client_id" to settings.connectClientId, "stripe_user_id" to stripeUserId))
+    }
+
     private fun call(method: String, url: String, secretKey: String, stripeAccount: String?, params: Map<String, String>): JsonNode {
         val form = params.entries.joinToString("&") { (k, v) -> "${enc(k)}=${enc(v)}" }
         val builder = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30))

@@ -8,7 +8,7 @@ import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** A stand-in for the parts of the Stripe API the app calls: account lookup, Checkout and Connect OAuth. */
+/** A stand-in for the parts of the Stripe API the app calls: account lookup, Checkout, and Connect OAuth and deauthorization. */
 object MockStripe {
     const val PLATFORM_KEY = "sk_test_platform"
     const val CLIENT_ID = "ca_test_platform"
@@ -19,6 +19,9 @@ object MockStripe {
 
     val calls = CopyOnWriteArrayList<Call>()
     @Volatile var connectedAccount = "acct_connected_1"
+
+    /** Connect accounts whose deauthorization Stripe refuses. */
+    val refuseDeauthorize: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     private val mapper = ObjectMapper()
     private val server: HttpServer by lazy {
@@ -45,6 +48,9 @@ object MockStripe {
             "/v1/checkout/sessions" ->
                 if (key == ACCOUNT_KEY || key == PLATFORM_KEY) respond(ex, 200, mapOf("id" to "cs_test_${calls.size}", "url" to "https://checkout.stripe.test/pay/cs_test_${calls.size}"))
                 else respond(ex, 401, mapOf("error" to mapOf("message" to "Invalid API Key provided")))
+            "/oauth/deauthorize" ->
+                if (key == PLATFORM_KEY && form["client_id"] == CLIENT_ID && form["stripe_user_id"] !in refuseDeauthorize) respond(ex, 200, mapOf("stripe_user_id" to form["stripe_user_id"]))
+                else respond(ex, 400, mapOf("error" to "invalid_client", "error_description" to "This application is not connected to stripe account ${form["stripe_user_id"]}"))
             "/oauth/token" ->
                 if (key == PLATFORM_KEY && form["code"] == "good-code") respond(ex, 200, mapOf("stripe_user_id" to connectedAccount, "scope" to "read_write"))
                 else respond(ex, 400, mapOf("error" to "invalid_grant", "error_description" to "Authorization code expired"))

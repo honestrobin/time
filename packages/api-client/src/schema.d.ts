@@ -2544,6 +2544,10 @@ export interface components {
         DeviceTokenRequest: {
             device_code: string;
         };
+        Disconnected: {
+            note?: string;
+            revoked: boolean;
+        };
         DocumentLine: {
             amount: string;
             description: string;
@@ -3859,7 +3863,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Disconnected"];
+                };
             };
         };
     };
@@ -4817,7 +4823,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Disconnected"];
+                };
             };
         };
     };
@@ -6223,12 +6231,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Disconnected"];
+                };
             };
         };
     };

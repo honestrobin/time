@@ -103,6 +103,36 @@ class PeppolTest : IntegrationTest() {
     }
 
     @Test
+    fun `disconnecting removes the sender and its Peppol ID at Storecove`() {
+        // Security review, 4 October 2026: disconnecting left the Peppol ID registered with
+        // Storecove, where no other access point could register it.
+        val s = setup()
+        s.admin.post("/api/v1/einvoicing/peppol", emptyMap<String, Any>()).expect(200)
+        val entity = s.admin.get("/api/v1/einvoicing/peppol")["legal_entity_id"].asText()
+        // On Honest Robin's contract nobody else can remove it, so a failure changes nothing.
+        MockStorecove.refuseDelete += entity
+        s.admin.delete("/api/v1/einvoicing/peppol").expectError(502, "provider_error")
+        assertThat(s.admin.get("/api/v1/einvoicing/peppol")["connected"].asBoolean()).isTrue()
+        MockStorecove.refuseDelete -= entity
+
+        MockStorecove.calls.clear()
+        assertThat(s.admin.delete("/api/v1/einvoicing/peppol").expect(200)["revoked"].asBoolean()).isTrue()
+        assertThat(MockStorecove.calls.filter { it.method == "DELETE" }.map { it.path }).containsExactly(
+            "/api/v2/legal_entities/$entity/peppol_identifiers/iso6523-actorid-upis/DE:VAT/DE123456789",
+            "/api/v2/legal_entities/$entity",
+        )
+        assertThat(MockStorecove.calls.filter { it.method == "DELETE" }.map { it.authorization }).containsOnly("Bearer ${MockStorecove.PLATFORM_KEY}")
+        assertThat(s.admin.get("/api/v1/einvoicing/peppol")["connected"].asBoolean()).isFalse()
+
+        // With its own key, the sender goes too, and the answer says the key still works there.
+        s.admin.post("/api/v1/einvoicing/peppol", mapOf("api_key" to MockStorecove.OWN_KEY)).expect(200)
+        val own = s.admin.delete("/api/v1/einvoicing/peppol").expect(200)
+        assertThat(own["revoked"].asBoolean()).isFalse()
+        assertThat(own["note"].asText()).contains("delete it there")
+        assertThat(MockStorecove.calls.last { it.method == "DELETE" }.authorization).isEqualTo("Bearer ${MockStorecove.OWN_KEY}")
+    }
+
+    @Test
     fun `connecting needs the account's address and a supported Peppol ID`() {
         val admin = signup()
         admin.post("/api/v1/einvoicing/peppol", mapOf("api_key" to MockStorecove.OWN_KEY)).expectError(422, "validation_failed")

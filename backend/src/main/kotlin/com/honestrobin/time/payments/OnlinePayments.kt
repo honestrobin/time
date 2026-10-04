@@ -9,6 +9,7 @@ import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.db.Tables.PAYMENTS
 import com.honestrobin.time.db.tables.records.IntegrationsRecord
 import com.honestrobin.time.invoicing.InvoiceService
+import com.honestrobin.time.platform.Disconnected
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.crypto.SecretBox
 import com.honestrobin.time.platform.db.DbContext
@@ -37,7 +38,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 import java.time.Instant
@@ -161,11 +161,42 @@ class OnlinePaymentService(
         }
     }
 
-    fun disconnect(m: Member) {
-
+    /** Forgets the connection, and ends Honest Robin's access at Stripe where it can. */
+    fun disconnect(m: Member): Disconnected {
         m.requireWritable()
         m.requireAdmin()
+        val r = tx.run { integration() }
+        val result = when {
+            r == null || r.status != "connected" -> Disconnected(revoked = true)
+            r.mode == "connect" -> deauthorize(m, r.externalAccountId)
+            else -> Disconnected(
+                revoked = false,
+                note = "Honest Robin has deleted your key, but it works at Stripe until you roll it there (Developers → API keys). Delete the webhook endpoint there too.",
+            )
+        }
         tx.run { dsl.deleteFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).execute() }
+        return result
+    }
+
+    private fun deauthorize(m: Member, stripeAccount: String): Disconnected {
+        // Stripe knows one connection between an account and Honest Robin, however many
+        // workspaces use it: ending it here would cut off the others too.
+        val shared = tx.system {
+            dsl.fetchExists(
+                dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.STATUS.eq("connected"))
+                    .and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(stripeAccount)).and(INTEGRATIONS.ACCOUNT_ID.ne(m.accountId)),
+            )
+        }
+        if (shared) {
+            return Disconnected(false, "Another workspace on this instance still uses this Stripe account, so Stripe keeps Honest Robin's access until that one disconnects too.")
+        }
+        return try {
+            stripe.deauthorize(stripeAccount)
+            Disconnected(revoked = true)
+        } catch (e: StripeException) {
+            log.warn("Stripe didn't confirm deauthorizing {}: {}", stripeAccount, e.message)
+            Disconnected(false, "Stripe didn't confirm that Honest Robin's access has ended (${e.message}). To be sure, remove Honest Robin from the platforms connected to your Stripe account.")
+        }
     }
 
     private fun save(m: Member, mode: String, externalId: String, name: String?, creds: Map<String, String>) = tx.run {
@@ -243,6 +274,17 @@ class OnlinePaymentService(
             null
         }
         val event = runCatching { json.readTree(payload) }.getOrNull() ?: return false
+        if (integration == null && event["type"]?.asText() == "account.application.deauthorized") {
+            // The owner removed Honest Robin in Stripe: stop saying it's connected.
+            val acct = event["account"]?.asText() ?: return true
+            val app = event["data"]?.get("object")?.get("id")?.asText()
+            if (app != null && app != settings.connectClientId) return true
+            val removed = tx.system {
+                dsl.deleteFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(acct)).execute()
+            }
+            log.info("Stripe account {} removed Honest Robin; {} connection(s) ended", acct, removed)
+            return true
+        }
         if (integration == null) {
             // The platform's Connect endpoint: the event names the connected account. One Stripe
             // account can be connected to several workspaces; the checkout names the workspace.
@@ -310,7 +352,6 @@ class PaymentsController(private val service: OnlinePaymentService, private val 
     }
 
     @DeleteMapping("/stripe")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     fun disconnect() = service.disconnect(Current.member())
 }
 

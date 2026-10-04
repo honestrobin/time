@@ -9,6 +9,7 @@ import com.honestrobin.time.db.Tables.EINVOICE_TRANSMISSIONS
 import com.honestrobin.time.db.Tables.INTEGRATIONS
 import com.honestrobin.time.db.tables.records.IntegrationsRecord
 import com.honestrobin.time.invoicing.InvoiceService
+import com.honestrobin.time.platform.Disconnected
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.crypto.SecretBox
 import com.honestrobin.time.platform.crypto.Tokens
@@ -74,6 +75,9 @@ interface EInvoiceProvider {
 
     fun addIdentifier(apiKey: String, legalEntityId: String, scheme: String, identifier: String)
 
+    /** Removes the sender and its Peppol ID (when known), so the ID is free to register elsewhere. */
+    fun removeLegalEntity(apiKey: String, legalEntityId: String, scheme: String?, identifier: String?)
+
     /** Whether the receiver can get invoices over Peppol. */
     fun lookupRecipient(apiKey: String, scheme: String, identifier: String): Boolean
 
@@ -111,6 +115,24 @@ class StorecoveProvider(private val settings: StorecoveSettings, private val jso
     override fun addIdentifier(apiKey: String, legalEntityId: String, scheme: String, identifier: String) {
         call(apiKey, "POST", "/legal_entities/$legalEntityId/peppol_identifiers", mapOf("superscheme" to "iso6523-actorid-upis", "scheme" to scheme, "identifier" to identifier))
     }
+
+    override fun removeLegalEntity(apiKey: String, legalEntityId: String, scheme: String?, identifier: String?) {
+        fun goneAlready(e: ProviderException) = e.status == 404
+        if (scheme != null && identifier != null) {
+            try {
+                call(apiKey, "DELETE", "/legal_entities/$legalEntityId/peppol_identifiers/iso6523-actorid-upis/${enc(scheme)}/${enc(identifier)}", null)
+            } catch (e: ProviderException) {
+                if (!goneAlready(e)) throw e
+            }
+        }
+        try {
+            call(apiKey, "DELETE", "/legal_entities/$legalEntityId", null)
+        } catch (e: ProviderException) {
+            if (!goneAlready(e)) throw e
+        }
+    }
+
+    private fun enc(s: String) = java.net.URLEncoder.encode(s, Charsets.UTF_8).replace("+", "%20")
 
     override fun lookupRecipient(apiKey: String, scheme: String, identifier: String): Boolean =
         call(
@@ -256,6 +278,8 @@ class PeppolService(
             r.externalAccountId = entity
             r.displayName = "Storecove"
             r.credentialsEncrypted = own?.let { secrets.encrypt(json.writeValueAsString(mapOf("api_key" to it, "webhook_secret" to Tokens.generate(24)))) }
+            // What was registered, to remove the same when disconnecting.
+            r.settings = JSONB.valueOf(json.writeValueAsString(mapOf("peppol_scheme" to scheme, "peppol_id" to account.peppolId)))
             r.connectedBy = m.membershipId
             r.connectedAt = Instant.now()
             r.lastError = null
@@ -264,10 +288,42 @@ class PeppolService(
         return status(m)
     }
 
-    fun disconnect(m: Member) {
+    /**
+     * Removes the sender registered at Storecove, then forgets the connection. Left there, the
+     * account's Peppol ID would stay registered with Storecove, and no other access point could
+     * register it.
+     */
+    fun disconnect(m: Member): Disconnected {
         m.requireWritable()
         m.requireAdmin()
+        val r = tx.run { integration() }
+        val entity = r?.externalAccountId?.takeIf { r.status == "connected" }
+        if (r == null || entity == null) {
+            tx.run { integration()?.delete() }
+            return Disconnected(revoked = true)
+        }
+        val registered = r.settings?.data()?.let { runCatching { json.readValue(it, Map::class.java) }.getOrNull() }.orEmpty()
+        // Connections made before 4 October 2026 didn't keep what they registered: use the account's ID.
+        val (scheme, identifier) = if (registered["peppol_id"] != null) {
+            registered["peppol_scheme"]?.toString() to registered["peppol_id"]?.toString()
+        } else {
+            tx.run { dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!! }.let { PeppolSchemes.storecove(it.peppolScheme) to it.peppolId }
+        }
+        val result = try {
+            provider.removeLegalEntity(apiKey(r), entity, scheme, identifier)
+            if (r.mode == "connect") {
+                Disconnected(revoked = true)
+            } else {
+                Disconnected(false, "Honest Robin has removed your sender from Storecove and deleted your API key. The key works at Storecove until you delete it there.")
+            }
+        } catch (e: ProviderException) {
+            log.warn("Storecove didn't remove legal entity {} for account {}: {}", entity, m.accountId, e.message)
+            // On Honest Robin's contract, nobody else can remove it: stay connected and say so.
+            if (r.mode == "connect") throw ApiException(HttpStatus.BAD_GATEWAY, "provider_error", "Storecove couldn't remove your Peppol ID just now (${e.message}). Nothing changed; try again in a few minutes.")
+            Disconnected(false, "Storecove didn't confirm removing your sender (${e.message}). To be sure, remove it in your Storecove account, then delete the API key there.")
+        }
         tx.run { integration()?.delete() }
+        return result
     }
 
     /** Asks the provider whether the client can receive over Peppol, and remembers the answer. */
@@ -386,10 +442,7 @@ class PeppolController(private val peppol: PeppolService, private val recentAuth
     }
 
     @DeleteMapping("/einvoicing/peppol")
-    fun disconnect(): ResponseEntity<Unit> {
-        peppol.disconnect(Current.member())
-        return ResponseEntity.noContent().build()
-    }
+    fun disconnect() = peppol.disconnect(Current.member())
 
     @PostMapping("/clients/{id}/peppol_check")
     @Operation(summary = "Check whether the client can receive e-invoices over Peppol")

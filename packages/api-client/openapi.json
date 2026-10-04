@@ -205,7 +205,13 @@
         } ],
         "responses" : {
           "200" : {
-            "content" : { },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Disconnected"
+                }
+              }
+            },
             "description" : "OK"
           }
         },
@@ -1311,7 +1317,13 @@
         "operationId" : "peppol_disconnect",
         "responses" : {
           "200" : {
-            "content" : { },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Disconnected"
+                }
+              }
+            },
             "description" : "OK"
           }
         },
@@ -3047,8 +3059,15 @@
       "delete" : {
         "operationId" : "payments_disconnect",
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Disconnected"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "payments" ]
@@ -6537,6 +6556,17 @@
           }
         },
         "required" : [ "device_code" ]
+      },
+      "Disconnected" : {
+        "properties" : {
+          "note" : {
+            "type" : "string"
+          },
+          "revoked" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "revoked" ]
       },
       "DocumentLine" : {
         "properties" : {

@@ -17,6 +17,8 @@ export function PaymentsSettingsPage() {
   const [secretKey, setSecretKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [confirm, setConfirm] = useState(false);
+  // What disconnecting couldn't end at Stripe, and how to end it there.
+  const [leftover, setLeftover] = useState<string | null>(null);
   const result = new URLSearchParams(location.search).get("stripe");
   const refresh = () => qc.invalidateQueries({ queryKey: ["payments", "stripe"] });
 
@@ -38,8 +40,9 @@ export function PaymentsSettingsPage() {
   });
   const disconnect = useMutation({
     mutationFn: () => unwrap(api.DELETE("/api/v1/payments/stripe")),
-    onSuccess: () => {
+    onSuccess: (r) => {
       setConfirm(false);
+      setLeftover(r.note ?? null);
       void refresh();
       toast(t("payments.disconnected"));
     },
@@ -59,6 +62,7 @@ export function PaymentsSettingsPage() {
       {result === "connected" && <p className="notice notice-ok">{t("payments.connectedNotice")}</p>}
       {result === "error" && <p className="notice notice-error">{t("payments.connectError")}</p>}
       {!perms.isAdmin && <p className="notice">{t("settings.adminOnly")}</p>}
+      {leftover && <p className="notice notice-warn">{leftover}</p>}
 
       {s.connected ? (
         <section className="stack">

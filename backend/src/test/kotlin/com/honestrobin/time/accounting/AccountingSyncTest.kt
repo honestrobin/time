@@ -161,6 +161,26 @@ class AccountingSyncTest : IntegrationTest() {
     }
 
     @Test
+    fun `disconnecting ends Honest Robin's access over there, and in Xero only to this workspace's organisation`() {
+        // Security review, 4 October 2026: disconnecting only forgot the tokens, and Xero used the
+        // first of all the person's organisations, not the one just authorised.
+        val admin = signup()
+        connect(admin, "qbo")
+        val before = MockAccounting.removed.size
+        val qbo = admin.delete("/api/v1/accounting/qbo").expect(200)
+        assertThat(qbo["revoked"].asBoolean()).isTrue()
+        assertThat(qbo["note"].isNull || qbo["note"].isMissingNode).isTrue()
+        assertThat(MockAccounting.removed.drop(before)).singleElement().matches { it.startsWith("qbo:rt_") }
+        assertThat(connected(admin)).isFalse()
+
+        connect(admin, "xero")
+        val xero = admin.get("/api/v1/accounting").expect(200).body.first { it["kind"].asText() == "xero" }
+        assertThat(xero["organisation"].asText()).isEqualTo("Fjord & Pine (Xero)")
+        assertThat(admin.delete("/api/v1/accounting/xero").expect(200)["revoked"].asBoolean()).isTrue()
+        assertThat(MockAccounting.removed).contains("xero:conn-1").doesNotContain("xero:conn-0")
+    }
+
+    @Test
     fun `nothing is queued without a connection, and a manual push needs one`() {
         val admin = signup()
         val inv = invoice(admin, createClient(admin))

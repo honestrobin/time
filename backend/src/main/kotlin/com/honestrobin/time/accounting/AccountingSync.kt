@@ -19,6 +19,7 @@ import com.honestrobin.time.db.tables.records.IntegrationsRecord
 import com.honestrobin.time.invoicing.InvoiceIssued
 import com.honestrobin.time.invoicing.InvoiceService
 import com.honestrobin.time.invoicing.PaymentRecorded
+import com.honestrobin.time.platform.Disconnected
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.Money
 import com.honestrobin.time.platform.crypto.SecretBox
@@ -215,13 +216,28 @@ class AccountingService(
         }
     }
 
-    fun disconnect(m: Member, kind: String) {
+    /** Forgets the connection, and ends Honest Robin's access at the provider. */
+    fun disconnect(m: Member, kind: String): Disconnected {
         m.requireWritable()
         m.requireAdmin()
+        val p = provider(kind)
+        val r = tx.run { integration(kind) }
+        val result = if (r?.status == "connected" && r.credentialsEncrypted != null) {
+            try {
+                p.revoke(fresh(r))
+                Disconnected(revoked = true)
+            } catch (e: AccountingException) {
+                log.warn("{} didn't confirm revoking access for account {}: {}", p.label, m.accountId, e.message)
+                Disconnected(false, "${p.label} didn't confirm that Honest Robin's access has ended (${e.message}). To be sure, remove Honest Robin from the connected apps in ${p.label}.")
+            }
+        } else {
+            Disconnected(revoked = true)
+        }
         tx.run {
             integration(kind)?.delete()
             dsl.deleteFrom(ACCOUNTING_SYNC_ITEMS).where(ACCOUNTING_SYNC_ITEMS.PROVIDER.eq(kind)).and(ACCOUNTING_SYNC_ITEMS.STATUS.ne("done")).execute()
         }
+        return result
     }
 
     fun options(m: Member, kind: String): AccountingOptionsView {
@@ -494,10 +510,7 @@ class AccountingController(private val accounting: AccountingService, private va
     }
 
     @DeleteMapping("/accounting/{kind}")
-    fun disconnect(@PathVariable kind: String): ResponseEntity<Unit> {
-        accounting.disconnect(Current.member(), kind)
-        return ResponseEntity.noContent().build()
-    }
+    fun disconnect(@PathVariable kind: String) = accounting.disconnect(Current.member(), kind)
 
     @GetMapping("/accounting/{kind}/options")
     fun options(@PathVariable kind: String) = accounting.options(Current.member(), kind)

@@ -73,6 +73,9 @@ interface AccountingProvider {
 
     fun refresh(tokens: OAuthTokens): OAuthTokens
 
+    /** Ends Honest Robin's access to this company at the provider. */
+    fun revoke(tokens: OAuthTokens)
+
     fun options(tokens: OAuthTokens): ProviderOptions
 
     fun findOrCreateCustomer(tokens: OAuthTokens, customer: CustomerData): String
@@ -91,6 +94,7 @@ data class QboSettings(
     val clientSecret: String = "",
     val authorizeUrl: String = "https://appcenter.intuit.com/connect/oauth2",
     val tokenUrl: String = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+    val revokeUrl: String = "https://developer.api.intuit.com/v2/oauth2/tokens/revoke",
     /** https://sandbox-quickbooks.api.intuit.com for sandbox companies. */
     val apiBaseUrl: String = "https://quickbooks.api.intuit.com",
 )
@@ -117,6 +121,14 @@ abstract class HttpProvider(protected val json: ObjectMapper) {
         return send(
             HttpRequest.newBuilder(URI.create(url)).header("Authorization", "Basic $auth").header("Content-Type", "application/x-www-form-urlencoded")
                 .header("Accept", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)),
+        )
+    }
+
+    protected fun basicJson(url: String, basicUser: String, basicPassword: String, body: Any): JsonNode {
+        val auth = Base64.getEncoder().encodeToString("$basicUser:$basicPassword".toByteArray())
+        return send(
+            HttpRequest.newBuilder(URI.create(url)).header("Authorization", "Basic $auth").header("Content-Type", "application/json")
+                .header("Accept", "application/json").POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))),
         )
     }
 
@@ -168,6 +180,11 @@ class QboProvider(private val settings: QboSettings, json: ObjectMapper) : HttpP
 
     override fun refresh(tokens: OAuthTokens): OAuthTokens =
         tokens(form(settings.tokenUrl, settings.clientId, settings.clientSecret, mapOf("grant_type" to "refresh_token", "refresh_token" to tokens.refresh)), tokens.orgId, tokens.orgName)
+
+    /** Revoking the refresh token ends the connection to this company (RFC 7009). */
+    override fun revoke(tokens: OAuthTokens) {
+        basicJson(settings.revokeUrl, settings.clientId, settings.clientSecret, mapOf("token" to tokens.refresh))
+    }
 
     private fun api(t: OAuthTokens, method: String, path: String, body: Any? = null, requestId: String? = null): JsonNode {
         val sep = if (path.contains('?')) "&" else "?"
@@ -254,9 +271,32 @@ class XeroProvider(private val settings: XeroSettings, json: ObjectMapper) : Htt
     override fun exchange(code: String, redirectUri: String, params: Map<String, String>): OAuthTokens {
         val body = form(settings.tokenUrl, settings.clientId, settings.clientSecret, mapOf("grant_type" to "authorization_code", "code" to code, "redirect_uri" to redirectUri))
         val access = body["access_token"].asText()
-        val org = call("GET", settings.connectionsUrl, access).firstOrNull { it["tenantType"]?.asText() == "ORGANISATION" }
-            ?: throw AccountingException(400, "Xero didn't give access to an organisation")
+        // Only the organisations authorised just now: the person may have connected others
+        // before, for other workspaces.
+        val event = authEventId(access)
+        val orgs = call("GET", settings.connectionsUrl + (event?.let { "?authEventId=${enc(it)}" } ?: ""), access).values()
+            .filter { it["tenantType"]?.asText() == "ORGANISATION" }
+        val org = orgs.singleOrNull() ?: run {
+            if (orgs.isEmpty()) throw AccountingException(400, "Xero didn't give access to an organisation")
+            // Choosing one would be a guess. Those were all authorised just now, so remove them.
+            if (event != null) orgs.forEach { runCatching { call("DELETE", "${settings.connectionsUrl}/${enc(it["id"].asText())}", access) } }
+            throw AccountingException(400, "Xero gave access to more than one organisation; connect again and choose only this workspace's")
+        }
         return tokens(body, org["tenantId"].asText(), org["tenantName"]?.asText())
+    }
+
+    /** The sign-in that issued [accessToken] (a JWT), which /connections can filter on. */
+    private fun authEventId(accessToken: String): String? = runCatching {
+        json.readTree(Base64.getUrlDecoder().decode(accessToken.split('.')[1]))["authentication_event_id"]?.asText()
+    }.getOrNull()
+
+    /**
+     * Removes this organisation's connection only. Revoking the refresh token would also end
+     * the person's connections to other organisations, which other workspaces may use.
+     */
+    override fun revoke(tokens: OAuthTokens) {
+        call("GET", settings.connectionsUrl, tokens.access).values().filter { it["tenantId"]?.asText() == tokens.orgId }
+            .forEach { call("DELETE", "${settings.connectionsUrl}/${enc(it["id"].asText())}", tokens.access) }
     }
 
     override fun refresh(tokens: OAuthTokens): OAuthTokens =

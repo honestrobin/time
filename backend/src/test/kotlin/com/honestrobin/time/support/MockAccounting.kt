@@ -22,6 +22,13 @@ object MockAccounting {
     const val REALM = "9130354"
     const val XERO_TENANT = "xero-tenant-1"
 
+    /** An organisation the same Xero user connected earlier, for another workspace. */
+    const val XERO_OTHER_TENANT = "xero-tenant-0"
+    private const val XERO_AUTH_EVENT = "auth-event-1"
+
+    /** Xero connections removed (DELETE /connections/{id}) and QuickBooks tokens revoked. */
+    val removed = CopyOnWriteArrayList<String>()
+
     data class Call(val method: String, val path: String, val query: String?, val headers: Map<String, String?>, val body: JsonNode?, val raw: String)
 
     val calls = CopyOnWriteArrayList<Call>()
@@ -56,7 +63,14 @@ object MockAccounting {
         val form = raw.split("&").filter { it.contains("=") }.associate { URLDecoder.decode(it.substringBefore("="), Charsets.UTF_8) to URLDecoder.decode(it.substringAfter("="), Charsets.UTF_8) }
         val bearer = headers["Authorization"]?.takeIf { it.startsWith("Bearer ") }
 
-        fun tokens() = mapOf("access_token" to "at_${UUID.randomUUID()}", "refresh_token" to "rt_${UUID.randomUUID()}", "expires_in" to expiresIn, "token_type" to "bearer")
+        // Xero's access tokens are JWTs that name the sign-in (authentication_event_id).
+        fun access() = if (path.endsWith("/connect/token")) {
+            val payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(mapper.writeValueAsBytes(mapOf("authentication_event_id" to XERO_AUTH_EVENT, "jti" to UUID.randomUUID().toString())))
+            "eyJhbGciOiJSUzI1NiJ9.$payload.signature"
+        } else {
+            "at_${UUID.randomUUID()}"
+        }
+        fun tokens() = mapOf("access_token" to access(), "refresh_token" to "rt_${UUID.randomUUID()}", "expires_in" to expiresIn, "token_type" to "bearer")
         fun create(system: String, kind: String, key: String?, make: (String) -> Map<String, Any?>): Map<String, Any?> {
             val id = key?.let { idempotent.computeIfAbsent("$system:$it") { UUID.randomUUID().toString() } } ?: UUID.randomUUID().toString()
             val list = created.computeIfAbsent("$system:$kind") { CopyOnWriteArrayList() }
@@ -68,9 +82,14 @@ object MockAccounting {
             // OAuth (both)
             path.endsWith("/tokens/bearer") || path.endsWith("/connect/token") ->
                 if (form["grant_type"] == "refresh_token" || form["code"] == "good-code") 200 to tokens() else 400 to mapOf("error" to "invalid_grant")
+            path.endsWith("/tokens/revoke") -> body?.get("token")?.asText()?.let { removed += "qbo:$it"; 200 to emptyMap<String, Any>() } ?: (400 to mapOf("error" to "invalid_request"))
             bearer == null -> 401 to mapOf("error" to "unauthorized")
-            // Xero
-            path == "/connections" -> 200 to listOf(mapOf("tenantId" to XERO_TENANT, "tenantName" to "Fjord & Pine (Xero)", "tenantType" to "ORGANISATION"))
+            // Xero: the person connected another organisation before; this sign-in authorised one.
+            path == "/connections" && ex.requestMethod == "GET" -> 200 to listOfNotNull(
+                mapOf("id" to "conn-0", "tenantId" to XERO_OTHER_TENANT, "tenantName" to "Another Org (Xero)", "tenantType" to "ORGANISATION").takeIf { query?.contains("authEventId=$XERO_AUTH_EVENT") != true },
+                mapOf("id" to "conn-1", "tenantId" to XERO_TENANT, "tenantName" to "Fjord & Pine (Xero)", "tenantType" to "ORGANISATION"),
+            )
+            path.startsWith("/connections/") && ex.requestMethod == "DELETE" -> { removed += "xero:${path.substringAfterLast('/')}"; 204 to null }
             path == "/api.xro/2.0/TaxRates" -> 200 to mapOf("TaxRates" to listOf(mapOf("TaxType" to "OUTPUT2", "Name" to "20% (VAT on Income)", "Status" to "ACTIVE"), mapOf("TaxType" to "ZERORATEDOUTPUT", "Name" to "Zero Rated Income", "Status" to "ACTIVE")))
             path == "/api.xro/2.0/Accounts" -> 200 to mapOf("Accounts" to listOf(
                 mapOf("AccountID" to "acc-sales", "Code" to "200", "Name" to "Sales", "Type" to "REVENUE", "Status" to "ACTIVE"),
@@ -99,6 +118,11 @@ object MockAccounting {
             path.endsWith("/invoice") -> 200 to create("qbo", "Invoice", requestId(query)) { mapOf("Invoice" to mapOf("Id" to it)) }
             path.endsWith("/payment") -> 200 to create("qbo", "Payment", requestId(query)) { mapOf("Payment" to mapOf("Id" to it)) }
             else -> 404 to mapOf("error" to "not found")
+        }
+        if (response == null) {
+            ex.sendResponseHeaders(status, -1)
+            ex.close()
+            return
         }
         val bytes = mapper.writeValueAsBytes(response)
         ex.responseHeaders.add("Content-Type", "application/json")

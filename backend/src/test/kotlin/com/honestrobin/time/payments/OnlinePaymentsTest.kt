@@ -132,6 +132,54 @@ class OnlinePaymentsTest : IntegrationTest() {
     }
 
     @Test
+    fun `disconnecting ends Honest Robin's access at Stripe, unless another workspace still uses the account`() {
+        // Security review, 4 October 2026: disconnecting only forgot the connection here.
+        val acct = "acct_leaving_${UUID.randomUUID().toString().take(8)}"
+        val first = signup(accountName = "First Co")
+        val second = signup(accountName = "Second Co")
+        connect(first, acct)
+        connect(second, acct)
+        MockStripe.calls.clear()
+        val shared = first.delete("/api/v1/payments/stripe").expect(200)
+        assertThat(shared["revoked"].asBoolean()).isFalse()
+        assertThat(shared["note"].asText()).contains("Another workspace")
+        assertThat(MockStripe.calls).noneMatch { it.path == "/oauth/deauthorize" }
+        assertThat(first.get("/api/v1/payments/stripe")["connected"].asBoolean()).isFalse()
+        assertThat(second.delete("/api/v1/payments/stripe").expect(200)["revoked"].asBoolean()).isTrue()
+        assertThat(MockStripe.calls.single { it.path == "/oauth/deauthorize" }.form).containsEntry("stripe_user_id", acct).containsEntry("client_id", MockStripe.CLIENT_ID)
+
+        // Stripe refuses: disconnected here all the same, and the answer says what to do there.
+        val third = signup(accountName = "Third Co")
+        val refused = "acct_refused_${UUID.randomUUID().toString().take(8)}"
+        connect(third, refused)
+        MockStripe.refuseDeauthorize += refused
+        val answer = third.delete("/api/v1/payments/stripe").expect(200)
+        assertThat(answer["revoked"].asBoolean()).isFalse()
+        assertThat(answer["note"].asText()).contains("didn't confirm")
+        assertThat(third.get("/api/v1/payments/stripe")["connected"].asBoolean()).isFalse()
+
+        // With its own key there's nothing Honest Robin can revoke; it says so.
+        val own = signup(accountName = "Own Key Co")
+        own.post("/api/v1/payments/stripe/key", mapOf("secret_key" to MockStripe.ACCOUNT_KEY, "webhook_secret" to "whsec_own")).expect(200)
+        val forgotten = own.delete("/api/v1/payments/stripe").expect(200)
+        assertThat(forgotten["revoked"].asBoolean()).isFalse()
+        assertThat(forgotten["note"].asText()).contains("roll it")
+    }
+
+    @Test
+    fun `when the owner removes Honest Robin in Stripe, the workspace stops saying it's connected`() {
+        val admin = signup()
+        val acct = "acct_removed_${UUID.randomUUID().toString().take(8)}"
+        connect(admin, acct)
+        val payload = """{"id":"evt_${UUID.randomUUID()}","type":"account.application.deauthorized","account":"$acct","created":${Instant.now().epochSecond},
+            "data":{"object":{"id":"${MockStripe.CLIENT_ID}","object":"application"}}}"""
+        webhook("/webhooks/stripe", payload, signed(payload, "whsec_not_ours")).expect(400)
+        assertThat(admin.get("/api/v1/payments/stripe")["connected"].asBoolean()).isTrue()
+        webhook("/webhooks/stripe", payload, signed(payload, MockStripe.PLATFORM_WEBHOOK_SECRET)).expect(200)
+        assertThat(admin.get("/api/v1/payments/stripe")["connected"].asBoolean()).isFalse()
+    }
+
+    @Test
     fun `without a connection the page offers no online payment`() {
         val admin = signup()
         val (_, token) = sentInvoice(admin)

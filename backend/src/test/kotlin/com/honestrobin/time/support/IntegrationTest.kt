@@ -136,6 +136,7 @@ abstract class IntegrationTest {
             registry.add("honestrobin.qbo.authorize-url") { "${MockAccounting.baseUrl}/connect/oauth2" }
             registry.add("honestrobin.qbo.token-url") { "${MockAccounting.baseUrl}/oauth2/v1/tokens/bearer" }
             registry.add("honestrobin.qbo.api-base-url") { MockAccounting.baseUrl }
+            registry.add("honestrobin.qbo.revoke-url") { "${MockAccounting.baseUrl}/v2/oauth2/tokens/revoke" }
             registry.add("honestrobin.xero.authorize-url") { "${MockAccounting.baseUrl}/identity/connect/authorize" }
             registry.add("honestrobin.xero.token-url") { "${MockAccounting.baseUrl}/connect/token" }
             registry.add("honestrobin.xero.connections-url") { "${MockAccounting.baseUrl}/connections" }

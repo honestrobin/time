@@ -46,13 +46,20 @@ function ConnectionSection({ c }: { c: Connection }) {
     onSuccess: (r) => location.assign((r as { url: string }).url),
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
+  // What disconnecting couldn't end at the provider, and how to end it there.
+  const [leftover, setLeftover] = useState<string | null>(null);
   const disconnect = useMutation({
     mutationFn: () => unwrap(api.DELETE("/api/v1/accounting/{kind}", { params: { path: { kind: c.kind } } })),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: connectionsQuery.queryKey }),
+    onSuccess: (r) => {
+      setLeftover(r.note ?? null);
+      void qc.invalidateQueries({ queryKey: connectionsQuery.queryKey });
+    },
+    onError: (e) => toast(errorInfo(e).message, "error"),
   });
   return (
     <section className="form-section stack">
       <h2>{c.label}</h2>
+      {leftover && <p className="notice notice-warn">{leftover}</p>}
       {!c.available ? (
         <p className="muted">{t("accounting.unavailable", { name: c.label })}</p>
       ) : !c.connected ? (
