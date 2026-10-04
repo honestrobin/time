@@ -271,11 +271,20 @@
   margin-bottom: var(--s4);
 }
 
+/* The buttons stay in view: a dialog taller than the window scrolls its fields behind them. The
+   row spans the dialog's padding so it covers what scrolls underneath. */
 .dialog-actions {
+  position: sticky;
+  /* Stuck rows stop at the dialog's padding; this puts the row on the dialog's edge instead. */
+  bottom: calc(-1 * var(--s5));
+  z-index: 1;
   display: flex;
   justify-content: flex-end;
   gap: var(--s2);
-  margin-top: var(--s5);
+  margin: var(--s5) calc(-1 * var(--s5)) calc(-1 * var(--s5));
+  padding: var(--s3) var(--s5) var(--s5);
+  border-top: 1px solid var(--rule);
+  background: var(--surface);
 }
 
 /* ---- Notices ----------------------------------------------------------- */
