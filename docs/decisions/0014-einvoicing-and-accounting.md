@@ -22,7 +22,11 @@
 5. **Peppol sending through a provider interface**, Storecove first: our own validated document
    goes as raw data, one transmission per attempt, idempotent by the transmission id, delivery
    from webhooks behind a secret header. Accounts use their own Storecove key, or the operator's
-   contract where the instance offers one (Honest Robin Cloud).
+   contract where the instance offers one. Changed after the security review of 4 October 2026:
+   the operator's contract is off unless switched on with
+   `HONESTROBIN_STORECOVE_PLATFORM_SENDING_WITHOUT_ID_CHECK`, because nothing checks that a Peppol
+   ID belongs to the account that registers it. Honest Robin Cloud keeps it off until such a check
+   exists; the maintainer decided so that day.
 6. **Accounting sync is one-way and queued.** Invoices are pushed when issued, payments when
    recorded, to QuickBooks Online and Xero, through `accounting_sync_items` with backoff (1, 5,
    30, 120, 720 minutes) and a visible failed state. Idempotent twice over: `external_links`
@@ -32,6 +36,9 @@
    the provider until they're made.
 
 ## Not done yet
+
+- Checking that a Peppol ID belongs to the account that registers it, before sending through
+  the operator's contract (see 5).
 
 - Credit notes, as e-invoices and in accounting.
 - Customer matching by email with a manual override screen (spec §8); today customers are

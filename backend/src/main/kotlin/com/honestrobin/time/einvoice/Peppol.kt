@@ -94,12 +94,18 @@ class ProviderException(val status: Int, message: String) : RuntimeException(mes
 @ConfigurationProperties(prefix = "honestrobin.storecove")
 data class StorecoveSettings(
     val apiBaseUrl: String = "https://api.storecove.com/api/v2",
-    /** The operator's key (Honest Robin Cloud): accounts can send without a Storecove contract of their own. */
+    /** The operator's key: accounts could send without a Storecove contract of their own. */
     val platformApiKey: String = "",
     /** Secret Storecove sends with its webhooks to the platform endpoint (as a custom header). */
     val platformWebhookSecret: String = "",
+    /**
+     * Sending through the operator's contract. Off: nothing yet checks that a Peppol ID belongs to
+     * the account registering it, so any account could send e-invoices in another company's name
+     * (security review, 4 October 2026). Honest Robin Cloud keeps it off until such a check exists.
+     */
+    val platformSendingWithoutIdCheck: Boolean = false,
 ) {
-    val platformEnabled: Boolean get() = platformApiKey.isNotBlank()
+    val platformEnabled: Boolean get() = platformApiKey.isNotBlank() && platformSendingWithoutIdCheck
 }
 
 /** Storecove's REST API (VERIFY: shapes from Storecove's OpenAPI 2.0.1 and docs, October 2026). */
@@ -237,6 +243,20 @@ class PeppolService(
 
     private fun apiKey(r: IntegrationsRecord): String = if (r.mode == "connect") settings.platformApiKey else credentials(r)["api_key"].orEmpty()
 
+    /** A connection that may send now: through the operator's contract only while that's switched on. */
+    private fun sending(): IntegrationsRecord {
+        val r = integration()?.takeIf { it.status == "connected" } ?: throw ConflictException("peppol_not_connected", "Connect Peppol sending in Invoice settings first")
+        if (r.mode == "connect" && !settings.platformEnabled) {
+            throw ConflictException("peppol_not_connected", "Sending through Honest Robin's Storecove contract is off for now. Connect your own Storecove API key in Invoice settings.")
+        }
+        return r
+    }
+
+    @jakarta.annotation.PostConstruct
+    fun warnIfUnchecked() {
+        if (settings.platformEnabled) log.warn("Peppol sending through this instance's Storecove contract is on, and nothing checks that a Peppol ID belongs to the account that registers it")
+    }
+
     fun status(m: Member): PeppolStatus {
         invoices.requireAccess(m)
         return tx.run {
@@ -349,8 +369,7 @@ class PeppolService(
     fun checkClient(m: Member, clientId: UUID): ClientPeppolCheck {
         m.requireManagerOrAdmin()
         val (client, r) = tx.run {
-            (dsl.selectFrom(CLIENTS).where(CLIENTS.ID.eq(clientId)).fetchOne() ?: throw NotFoundException("Client")) to
-                (integration()?.takeIf { it.status == "connected" } ?: throw ConflictException("peppol_not_connected", "Connect Peppol sending in Invoice settings first"))
+            (dsl.selectFrom(CLIENTS).where(CLIENTS.ID.eq(clientId)).fetchOne() ?: throw NotFoundException("Client")) to sending()
         }
         val reachable = if (client.peppolId.isNullOrBlank()) {
             false
@@ -375,7 +394,7 @@ class PeppolService(
         invoices.requireAccess(m)
         val (invoice, r, ubl) = tx.run {
             val inv = invoices.load(invoiceId)
-            val r = integration()?.takeIf { it.status == "connected" } ?: throw ConflictException("peppol_not_connected", "Connect Peppol sending in Invoice settings first")
+            val r = sending()
             Triple(inv, r, einvoices.generate(inv, EInvoiceFormat.PEPPOL).bytes)
         }
         val client = tx.run { dsl.selectFrom(CLIENTS).where(CLIENTS.ID.eq(invoice.clientId)).fetchOne()!! }

@@ -144,6 +144,14 @@ class PeppolTest : IntegrationTest() {
     }
 
     @Test
+    fun `sending through the operator's contract is off unless switched on, because Peppol IDs aren't checked`() {
+        // Security review, 4 October 2026: any account could register any company's Peppol ID.
+        assertThat(StorecoveSettings(platformApiKey = "sc_platform").platformEnabled).isFalse()
+        assertThat(StorecoveSettings(platformApiKey = "sc_platform", platformSendingWithoutIdCheck = true).platformEnabled).isTrue()
+        assertThat(StorecoveSettings(platformSendingWithoutIdCheck = true).platformEnabled).isFalse()
+    }
+
+    @Test
     fun `connecting needs the account's address and a supported Peppol ID`() {
         val admin = signup()
         admin.post("/api/v1/einvoicing/peppol", mapOf("api_key" to MockStorecove.OWN_KEY)).expectError(422, "validation_failed")

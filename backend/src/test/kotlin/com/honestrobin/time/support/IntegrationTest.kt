@@ -129,6 +129,8 @@ abstract class IntegrationTest {
             registry.add("honestrobin.storecove.api-base-url") { MockStorecove.baseUrl }
             registry.add("honestrobin.storecove.platform-api-key") { MockStorecove.PLATFORM_KEY }
             registry.add("honestrobin.storecove.platform-webhook-secret") { MockStorecove.PLATFORM_WEBHOOK_SECRET }
+            // Off everywhere else until Peppol IDs are checked; on here, so its code stays tested.
+            registry.add("honestrobin.storecove.platform-sending-without-id-check") { "true" }
             for (p in listOf("qbo", "xero")) {
                 registry.add("honestrobin.$p.client-id") { MockAccounting.CLIENT_ID }
                 registry.add("honestrobin.$p.client-secret") { MockAccounting.CLIENT_SECRET }
