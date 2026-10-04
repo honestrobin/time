@@ -44,8 +44,9 @@ Firefox → `about:debugging` → This Firefox → Load Temporary Add-on → `di
   (issue view), Trello (card back). The fixtures in `test/fixtures/` mirror what the config expects.
 - **Store listings**: Chrome Web Store and Firefox Add-ons accounts, screenshots
   (`e2e/screenshots/m4-*.png` with `SCREENSHOTS=1`), and the permission justifications below.
-- The cloud address is assumed to be `https://app.honestrobin.com` (`src/lib/storage.ts`,
-  `build.mjs`); change both if Honest Robin Cloud lives elsewhere.
+- The cloud address is `https://time.honestrobin.com` (`src/lib/storage.ts`, `build.mjs`,
+  decision record 0017). Changing it after the extension is published makes every user approve
+  the new address again.
 
 ### Permissions
 
@@ -53,6 +54,6 @@ Firefox → `about:debugging` → This Firefox → Load Temporary Add-on → `di
 |---|---|
 | `storage` | The sign-in token, the instance address, remembered projects per workspace, the newest selector config. |
 | `alarms` | Refresh the toolbar badge every minute and the selector config daily. |
-| Host `app.honestrobin.com` | Talk to Honest Robin Cloud. |
+| Host `time.honestrobin.com` | Talk to Honest Robin Cloud. |
 | Optional hosts (asked for at sign-in) | Talk to a self-hosted instance, only the address the person enters. |
 | Content scripts on github.com, *.atlassian.net, app.asana.com, linear.app, trello.com | Show the Track time button. The scripts read the item's title and address, nothing else, and send nothing anywhere except the person's own Honest Robin when they start a timer. |

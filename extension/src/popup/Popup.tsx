@@ -144,7 +144,7 @@ function SignIn({ state, onState }: { state: State; onState: (s: State) => void 
       <p className="muted">Sign in to track time from your browser and from Jira, Asana, GitHub, Linear and Trello.</p>
       <label>
         Your Honest Robin address
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="app.honestrobin.com" inputMode="url" autoComplete="url" />
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="time.honestrobin.com" inputMode="url" autoComplete="url" />
         <span className="hint">Leave empty for Honest Robin Cloud, or enter your own instance.</span>
       </label>
       {useToken && (

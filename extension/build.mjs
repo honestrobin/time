@@ -24,7 +24,7 @@ function manifest(browser) {
     background: browser === "firefox" ? { scripts: ["background.js"] } : { service_worker: "background.js" },
     permissions: ["storage", "alarms"],
     // Honest Robin Cloud; a self-hosted instance is asked for when signing in.
-    host_permissions: ["https://app.honestrobin.com/*", ...(e2e ? ["http://localhost/*", "http://127.0.0.1/*"] : [])],
+    host_permissions: ["https://time.honestrobin.com/*", ...(e2e ? ["http://localhost/*", "http://127.0.0.1/*"] : [])],
     optional_host_permissions: ["https://*/*", "http://*/*"],
     content_scripts: [{ matches: sitePatterns, js: ["content.js"], run_at: "document_idle" }],
     ...(browser === "firefox"

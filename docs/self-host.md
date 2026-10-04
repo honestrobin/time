@@ -76,8 +76,9 @@ To use Cloudflare's proxy (the orange cloud) in front of the HTTPS setup above:
 
 1. Create the record as **DNS only** first, start the app, and wait until
    `https://<your domain>` works: Caddy has its certificate. Then turn the proxy on.
-2. In Cloudflare, set SSL/TLS to **Full (strict)**. Leave "Always Use HTTPS" off: Caddy already
-   sends visitors to HTTPS, and this way certificate renewals on port 80 reach Caddy.
+2. In Cloudflare, set SSL/TLS to **Full (strict)**. "Always Use HTTPS" can be on: Cloudflare
+   still passes Let's Encrypt's checks (`/.well-known/acme-challenge/`) through to Caddy on port
+   80, which is how Caddy renews its certificate behind the proxy.
 3. Only an `A` record is needed; Cloudflare serves IPv6 visitors itself. With an `AAAA` record,
    Cloudflare may reach your server over IPv6, which Docker passes on from its own address, and
    the visitor's address is lost.

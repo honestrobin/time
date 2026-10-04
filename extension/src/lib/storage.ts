@@ -2,7 +2,7 @@
 // What the extension keeps, in chrome.storage.local (this device only).
 import type { SelectorConfig } from "./sites";
 
-export const CLOUD_URL = "https://app.honestrobin.com";
+export const CLOUD_URL = "https://time.honestrobin.com";
 
 export interface Session {
   instanceUrl: string;
