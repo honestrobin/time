@@ -255,7 +255,9 @@
     "requireTwoFactorHint": "Members who haven't set it up are asked to before they can do anything else. Turn it on for yourself first, under Profile.",
     "twoFactorGateTitle": "Set up two-factor sign-in",
     "twoFactorGateLead": "{{account}} requires two-factor sign-in. Set it up to continue: it takes a minute, with any authenticator app on your phone.",
-    "security": "Security"
+    "security": "Security",
+    "dateStyle": "Dates on invoices",
+    "dateStyleHint": "How dates look on invoices, their PDFs and the page your client sees."
   },
   "weekday": {
     "1": "Monday",

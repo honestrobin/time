@@ -31,6 +31,39 @@ export function guessCurrency(locale: string): string {
   return REGION_CURRENCY[region(locale) ?? ""] ?? "USD";
 }
 
+/**
+ * The account's locale, which decides how dates look on invoices, their PDFs and the client's
+ * page. The words are English for now, so the date style follows the browser's region (en-GB,
+ * en-US, en-AU…), and a browser in another language gets international English ("4 Oct 2026").
+ */
+export function invoiceLocale(browserLocale: string): string {
+  try {
+    const l = new Intl.Locale(browserLocale);
+    return l.language === "en" ? l.toString() : "en-001";
+  } catch {
+    return "en-001";
+  }
+}
+
+/** The date styles offered in account settings, each shown as an example date, without repeats. */
+export function dateStyleOptions(current: string): { value: string; label: string }[] {
+  const sample = new Date(2026, 9, 4, 12);
+  const seen = new Set<string>();
+  const options: { value: string; label: string }[] = [];
+  for (const value of [current, "en-GB", "en-US"]) {
+    let label: string;
+    try {
+      label = new Intl.DateTimeFormat(value, { dateStyle: "medium" }).format(sample);
+    } catch {
+      continue;
+    }
+    if (seen.has(label)) continue;
+    seen.add(label);
+    options.push({ value, label });
+  }
+  return options;
+}
+
 /** The first day of the week where the locale is used: 1 (Monday), 6 (Saturday) or 7 (Sunday). */
 export function guessWeekStart(locale: string): number {
   try {

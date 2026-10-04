@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, SelectField, TextField } from "../../design";
 import { api, errorInfo, setAccountId, unwrap } from "../../lib/api";
 import { useAuthConfig } from "../../lib/session";
-import { CURRENCIES, guessCurrency, guessWeekStart, TIME_ZONES } from "../../lib/reference";
+import { CURRENCIES, TIME_ZONES, guessCurrency, guessWeekStart, invoiceLocale } from "../../lib/reference";
 import { AuthLayout } from "./AuthLayout";
 
 export function SignupPage() {
@@ -26,7 +26,7 @@ export function SignupPage() {
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const signup = useMutation({
-    mutationFn: () => unwrap(api.POST("/api/v1/auth/signup", { body: { ...form, locale: "en", week_start: guessWeekStart(navigator.language) } })),
+    mutationFn: () => unwrap(api.POST("/api/v1/auth/signup", { body: { ...form, locale: invoiceLocale(navigator.language), week_start: guessWeekStart(navigator.language) } })),
     onSuccess: async (res) => {
       if (res.account_id) setAccountId(res.account_id);
       await qc.invalidateQueries();
