@@ -25,13 +25,16 @@ class DeviceAuthorizationTest : IntegrationTest() {
         val deviceCode = start["device_code"].asText()
         val userCode = start["user_code"].asText()
         assertThat(userCode).matches("[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}")
-        assertThat(start["verification_uri_complete"].asText()).endsWith("/device?code=$userCode")
+        // The link carries no code: the person types it (security review, 4 October 2026).
+        assertThat(start["verification_uri_complete"].asText()).endsWith("/device").doesNotContain(userCode)
         assertThat(start["interval"].asInt()).isEqualTo(2)
 
         device.post("/api/v1/auth/device/token", mapOf("device_code" to deviceCode)).expectError(400, "authorization_pending")
         // The approval page shows which device asks; codes are forgiving about case and dashes.
-        assertThat(admin.get("/api/v1/device_authorizations/${userCode.lowercase().replace("-", "")}").expect(200)["client_name"].asText())
-            .isEqualTo("Browser extension (Chrome)")
+        val asks = admin.get("/api/v1/device_authorizations/${userCode.lowercase().replace("-", "")}").expect(200)
+        assertThat(asks["client_name"].asText()).isEqualTo("Browser extension (Chrome)")
+        // Asked from this computer's network.
+        assertThat(asks["same_network"].asBoolean()).isTrue()
         // Approving creates a token, so it needs a recent sign-in.
         tx.system { dsl.update(USER_SESSIONS).set(USER_SESSIONS.AUTHENTICATED_AT, Instant.now().minus(Duration.ofHours(1))).where(USER_SESSIONS.USER_ID.eq(admin.userId)).execute() }
         admin.post("/api/v1/device_authorizations/$userCode/approve").expectError(403, "reauth_required")
@@ -54,6 +57,22 @@ class DeviceAuthorizationTest : IntegrationTest() {
         val expires = Instant.parse(tokens.values().first { it["name"].asText() == "Browser extension (Chrome)" }["expires_at"].asText())
         assertThat(Duration.between(Instant.now(), expires)).isBetween(Duration.ofDays(89), Duration.ofDays(91))
         assertThat(mail.lastTo(admin.email!!).text).contains("A device was connected to your account: \"Browser extension (Chrome)\"")
+    }
+
+    @Test
+    fun `the approval page says when a code was asked for from another network`() {
+        val admin = signup()
+        val start = client().apply { sendCsrf = false }.post("/api/v1/auth/device", mapOf("client_name" to "Browser extension (Chrome)")).expect(200)
+        val userCode = start["user_code"].asText()
+        tx.system { dsl.update(DEVICE_AUTHORIZATIONS).set(DEVICE_AUTHORIZATIONS.REQUESTED_FROM, "203.0.113.7").where(DEVICE_AUTHORIZATIONS.USER_CODE.eq(userCode)).execute() }
+        assertThat(admin.get("/api/v1/device_authorizations/$userCode").expect(200)["same_network"].asBoolean()).isFalse()
+
+        assertThat(DeviceAuthorizationService.sameNetwork("203.0.113.7", "203.0.113.7")).isTrue()
+        assertThat(DeviceAuthorizationService.sameNetwork("2001:db8:1:2::10", "2001:db8:1:2:abcd::1")).isTrue()
+        assertThat(DeviceAuthorizationService.sameNetwork("2001:db8:1:2::10", "2001:db8:1:3::10")).isFalse()
+        assertThat(DeviceAuthorizationService.sameNetwork("203.0.113.7", "2001:db8:1:2::10")).isNull()
+        assertThat(DeviceAuthorizationService.sameNetwork(null, "203.0.113.7")).isNull()
+        assertThat(DeviceAuthorizationService.sameNetwork("not-an-address.example", "203.0.113.7")).isNull()
     }
 
     @Test

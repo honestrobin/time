@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.net.URLEncoder
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
@@ -44,9 +43,10 @@ data class DeviceAuthorizationRequest(
 data class DeviceAuthorizationStart(
     /** The device's secret: send it to `/auth/device/token` until the person approves. */
     val deviceCode: String,
-    /** Shown on the device; the person checks it matches on the approval page. */
+    /** Shown on the device; the person types it on the approval page. */
     val userCode: String,
     val verificationUri: String,
+    /** The same page: the code is typed, never carried in the link (see [DeviceAuthorizationService.start]). */
     val verificationUriComplete: String,
     val expiresIn: Long,
     /** Seconds to wait between polls. */
@@ -57,7 +57,15 @@ data class DeviceTokenRequest(val deviceCode: String)
 
 data class DeviceToken(val token: String, val accountId: UUID, val accountName: String, val email: String)
 
-data class DeviceAuthorizationView(val userCode: String, val clientName: String, val status: String, val createdAt: Instant, val expiresAt: Instant)
+data class DeviceAuthorizationView(
+    val userCode: String,
+    val clientName: String,
+    val status: String,
+    val createdAt: Instant,
+    val expiresAt: Instant,
+    /** Whether the device asked from the same network as the browser looking: null when that can't be told. */
+    val sameNetwork: Boolean?,
+)
 
 /**
  * Signing in a device, the browser extension above all, without typing a password into it
@@ -90,16 +98,20 @@ class DeviceAuthorizationService(
             .set(DEVICE_AUTHORIZATIONS.USER_CODE, userCode)
             .set(DEVICE_AUTHORIZATIONS.CLIENT_NAME, name)
             .set(DEVICE_AUTHORIZATIONS.EXPIRES_AT, Instant.now().plus(TTL))
+            .set(DEVICE_AUTHORIZATIONS.REQUESTED_FROM, ip)
             .execute()
+        // No code in the link (security review, 4 October 2026): a link that filled it in could be
+        // sent to anyone, who would then approve a stranger's device with one click on our own
+        // domain. The person types the code their device shows.
         val uri = "${props.baseUrl}/device"
-        DeviceAuthorizationStart(deviceCode, userCode, uri, "$uri?code=${URLEncoder.encode(userCode, Charsets.UTF_8)}", TTL.seconds, POLL_SECONDS)
+        DeviceAuthorizationStart(deviceCode, userCode, uri, uri, TTL.seconds, POLL_SECONDS)
     }
 
-    /** For the approval page: which device asks. */
+    /** For the approval page: which device asks, when, and whether from this network. */
     @Transactional(readOnly = true)
-    fun lookup(userCode: String): DeviceAuthorizationView = DbContext.system {
+    fun lookup(userCode: String, viewerIp: String?): DeviceAuthorizationView = DbContext.system {
         val r = pending(userCode)
-        DeviceAuthorizationView(r.userCode, r.clientName, r.status, r.createdAt, r.expiresAt)
+        DeviceAuthorizationView(r.userCode, r.clientName, r.status, r.createdAt, r.expiresAt, sameNetwork(r.requestedFrom, viewerIp))
     }
 
     /** The signed-in person lets the device act as them in [member]'s account. Creates a token, so it needs a recent sign-in. */
@@ -166,6 +178,20 @@ class DeviceAuthorizationService(
     }
 
     companion object {
+        /**
+         * The same IPv4 address, or the same IPv6 /64 (one home or office network). Null when either
+         * is unknown or they're of different kinds, which says nothing either way.
+         */
+        fun sameNetwork(a: String?, b: String?): Boolean? {
+            val x = a?.let { runCatching { java.net.InetAddress.ofLiteral(it) }.getOrNull() } ?: return null
+            val y = b?.let { runCatching { java.net.InetAddress.ofLiteral(it) }.getOrNull() } ?: return null
+            return when {
+                x is java.net.Inet4Address && y is java.net.Inet4Address -> x == y
+                x is java.net.Inet6Address && y is java.net.Inet6Address -> x.address.copyOf(8).contentEquals(y.address.copyOf(8))
+                else -> null
+            }
+        }
+
         val TTL: Duration = Duration.ofMinutes(10)
         const val POLL_SECONDS = 2
 
@@ -189,7 +215,7 @@ class DeviceAuthorizationController(private val service: DeviceAuthorizationServ
     fun token(@RequestBody body: DeviceTokenRequest) = service.collect(body.deviceCode)
 
     @GetMapping("/api/v1/device_authorizations/{userCode}")
-    fun lookup(@PathVariable userCode: String) = service.lookup(userCode)
+    fun lookup(@PathVariable userCode: String, request: HttpServletRequest) = service.lookup(userCode, request.remoteAddr)
 
     @PostMapping("/api/v1/device_authorizations/{userCode}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)

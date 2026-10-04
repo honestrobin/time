@@ -105,6 +105,11 @@ public class DeviceAuthorizations extends TableImpl<DeviceAuthorizationsRecord> 
      */
     public final TableField<DeviceAuthorizationsRecord, Instant> APPROVED_AT = createField(DSL.name("approved_at"), SQLDataType.INSTANT, this, "");
 
+    /**
+     * The column <code>public.device_authorizations.requested_from</code>.
+     */
+    public final TableField<DeviceAuthorizationsRecord, String> REQUESTED_FROM = createField(DSL.name("requested_from"), SQLDataType.CLOB, this, "");
+
     private DeviceAuthorizations(Name alias, Table<DeviceAuthorizationsRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

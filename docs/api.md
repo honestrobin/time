@@ -40,8 +40,9 @@ tokens included, answer `two_factor_required`.
 
 **Signing in an app without a password** (how the browser extension does it, RFC 8628): `POST
 /api/v1/auth/device` with a `client_name` returns a `device_code`, a `user_code` and a
-`verification_uri_complete`. Show the user code and open the link; the person approves it in the
-web app. Meanwhile poll `POST /api/v1/auth/device/token` with the device code every `interval`
+`verification_uri_complete`. Show the user code and open the link; the person types the code in
+the web app and approves it. The link carries no code, so nobody can be sent one that approves a
+stranger's device in a click, and the approval page says when the request came from another network. Meanwhile poll `POST /api/v1/auth/device/token` with the device code every `interval`
 seconds: it answers `authorization_pending` until approved, then once with a token (scopes read
 and write) for the account they chose.
 

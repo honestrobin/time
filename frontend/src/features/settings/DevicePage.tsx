@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Approving a device's sign-in (the browser extension, RFC 8628): the person checks the code
-// matches the one on the device, then lets it act as them in the current account.
+// Approving a device's sign-in (the browser extension, RFC 8628): the person types the code the
+// device shows, then lets it act as them in the current account. The code is never taken from the
+// link: a link that filled it in could be sent to anyone, who'd approve a stranger's device in one
+// click on our own domain (security review, 4 October 2026).
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, PageHeader, TextField } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
+import { formatDateTime } from "../../lib/format";
 import { useMe } from "../../lib/session";
 
 export function DevicePage() {
   const { t } = useTranslation();
-  const search = useSearch({ strict: false }) as { code?: string };
-  const [code, setCode] = useState(search.code ?? "");
-  const [entered, setEntered] = useState(search.code ?? "");
+  const [code, setCode] = useState("");
+  const [entered, setEntered] = useState("");
   const me = useMe();
   const account = me.accounts.find((a) => a.id === me.current_account_id);
   const lookup = useQuery({
@@ -39,7 +40,7 @@ export function DevicePage() {
     body = (
       <form className="stack" onSubmit={submit}>
         {lookup.isError && <p className="notice notice-error">{t("device.invalid")}</p>}
-        <TextField label={t("device.enterCode")} value={code} onChange={setCode} autoFocus autoComplete="off" placeholder="BCDF-GHJK" />
+        <TextField label={t("device.enterCode")} hint={t("device.enterCodeHint")} value={code} onChange={setCode} autoFocus autoComplete="off" placeholder="BCDF-GHJK" />
         <div>
           <Button type="submit" variant="primary" disabled={!code.trim()}>
             {t("device.continue")}
@@ -55,6 +56,8 @@ export function DevicePage() {
         <p className="device-code" aria-label={t("device.codeLabel")}>
           {lookup.data.user_code}
         </p>
+        <p className="muted">{t("device.askedAt", { time: formatDateTime(lookup.data.created_at) })}</p>
+        {lookup.data.same_network === false && <p className="notice notice-warn">{t("device.otherNetwork")}</p>}
         <p className="muted">{t("device.checkCode")}</p>
         {me.accounts.length > 1 && <p className="muted small">{t("device.otherAccount")}</p>}
         {err && <p className="notice notice-error">{errorInfo(err).message}</p>}

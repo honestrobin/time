@@ -19,8 +19,9 @@ Firefox → `about:debugging` → This Firefox → Load Temporary Add-on → `di
 ## How it works
 
 - **Signing in** uses the device flow (RFC 8628): the extension asks the instance for a code,
-  opens the instance's `/device` page, and the person approves the code there, signed in as
-  usual (with two-factor sign-in if they use it). The extension then collects a personal access
+  opens the instance's `/device` page, and the person types the code there and approves it,
+  signed in as usual (with two-factor sign-in if they use it). The link never carries the code,
+  so nobody can be sent a link that approves someone else's device in one click. The extension then collects a personal access
   token for the account they chose. It works with Honest Robin Cloud and any self-hosted address;
   for a self-hosted one the extension asks for access to that address only. Pasting a token
   (Profile → Personal access tokens) works too.

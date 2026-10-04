@@ -2531,6 +2531,7 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             expires_at: string;
+            same_network?: boolean;
             status: string;
             user_code: string;
         };

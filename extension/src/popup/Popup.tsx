@@ -124,11 +124,11 @@ function SignIn({ state, onState }: { state: State; onState: (s: State) => void 
           </>
         ) : (
           <>
-            <p>Approve this code in Honest Robin, in the tab that just opened:</p>
+            <p>Type this code in Honest Robin, in the tab that just opened:</p>
             <p className="code" aria-label="Your code">
               {pending.userCode}
             </p>
-            <p className="muted small">Check that it matches the code on the approval page. Waiting for you…</p>
+            <p className="muted small">Waiting for you…</p>
             <div className="row">
               <button onClick={() => void chrome.tabs.create({ url: pending.verificationUri })}>Open the page again</button>
               <button onClick={() => void ask<State>({ type: "cancelSignIn" }).then(onState)}>Cancel</button>

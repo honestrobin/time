@@ -156,6 +156,21 @@ public class DeviceAuthorizationsRecord extends UpdatableRecordImpl<DeviceAuthor
         return (Instant) get(8);
     }
 
+    /**
+     * Setter for <code>public.device_authorizations.requested_from</code>.
+     */
+    public DeviceAuthorizationsRecord setRequestedFrom(String value) {
+        set(9, value);
+        return this;
+    }
+
+    /**
+     * Getter for <code>public.device_authorizations.requested_from</code>.
+     */
+    public String getRequestedFrom() {
+        return (String) get(9);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -179,7 +194,7 @@ public class DeviceAuthorizationsRecord extends UpdatableRecordImpl<DeviceAuthor
     /**
      * Create a detached, initialised DeviceAuthorizationsRecord
      */
-    public DeviceAuthorizationsRecord(UUID id, byte[] deviceCodeHash, String userCode, String clientName, String status, UUID membershipId, Instant createdAt, Instant expiresAt, Instant approvedAt) {
+    public DeviceAuthorizationsRecord(UUID id, byte[] deviceCodeHash, String userCode, String clientName, String status, UUID membershipId, Instant createdAt, Instant expiresAt, Instant approvedAt, String requestedFrom) {
         super(DeviceAuthorizations.DEVICE_AUTHORIZATIONS);
 
         setId(id);
@@ -191,6 +206,7 @@ public class DeviceAuthorizationsRecord extends UpdatableRecordImpl<DeviceAuthor
         setCreatedAt(createdAt);
         setExpiresAt(expiresAt);
         setApprovedAt(approvedAt);
+        setRequestedFrom(requestedFrom);
         resetTouchedOnNotNull();
     }
 }

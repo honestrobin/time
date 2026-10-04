@@ -6522,6 +6522,9 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "same_network" : {
+            "type" : "boolean"
+          },
           "status" : {
             "type" : "string"
           },

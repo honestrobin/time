@@ -53,6 +53,10 @@ test("the extension signs in with a code approved in the web app", async () => {
   const approval = await approvalTab;
   const code = (await popup.getByLabel("Your code").textContent())!.trim();
   await expect(approval.getByRole("heading", { name: "Connect a device" })).toBeVisible();
+  // The page never takes the code from its link: the person types it.
+  await expect(approval.getByLabel("The code shown in the extension")).toHaveValue("");
+  await approval.getByLabel("The code shown in the extension").fill(code);
+  await approval.getByRole("button", { name: "Continue" }).click();
   await expect(approval.getByText(code)).toBeVisible();
   await expect(approval.getByText(/Browser extension \(Chrome\) wants to track time as you in Extension & Co/)).toBeVisible();
   await snap(approval, "m4-device-approval");

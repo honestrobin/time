@@ -132,12 +132,7 @@ const invoiceNewRoute = createRoute({
   },
 });
 const developersRoute = createRoute({ getParentRoute: () => appRoute, path: "/developers", component: DevelopersPage });
-const deviceRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "/device",
-  component: DevicePage,
-  validateSearch: (s: Record<string, unknown>): { code?: string } => (typeof s.code === "string" ? { code: s.code } : {}),
-});
+const deviceRoute = createRoute({ getParentRoute: () => appRoute, path: "/device", component: DevicePage });
 const reportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/reports", component: ReportsPage, validateSearch: validateReportSearch });
 const invoiceRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoices/$invoiceId", component: InvoicePage });
 const invoiceSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/invoices", component: InvoiceSettingsPage });
