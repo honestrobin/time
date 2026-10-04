@@ -3,7 +3,9 @@
 Guidance for AI coding assistants (and a quick orientation for anyone) working in this
 repository. Time tracking, invoicing and reports for small teams, with the workflows Harvest users
 know. `ROADMAP.md` says what's built and what's left; the specification is `docs/spec.md`, and
-decisions are recorded in `docs/decisions/`.
+decisions are recorded in `docs/decisions/`. The rules every Honest Robin agent follows are in
+[honestrobin/robinscode](https://github.com/honestrobin/robinscode); this file adds what's
+particular to Time, and where the two disagree, stop and ask.
 
 ## Project rules
 
