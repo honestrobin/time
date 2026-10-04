@@ -17,8 +17,9 @@ services. So far only the maintainer has used it.
 - **Accounting:** invoices and payments pushed to QuickBooks Online and Xero through a retrying,
   idempotent queue.
 - **Moving from Harvest:** an importer that brings over people, clients, projects, tasks, rates,
-  time, expenses and invoices, then compares every total with Harvest's own reports; an optional
-  sync window for teams that switch gradually; and a CSV fallback that works offline.
+  time, expenses and invoices, then compares hours, billable amounts and invoice totals with
+  Harvest's own reports; an optional sync window for teams that switch gradually; and a CSV
+  fallback that works offline.
 - **Reports:** time, detailed time with bulk edit, uninvoiced, budgets and expenses, exported as
   CSV or XLSX.
 - **Browser extension** for Chrome and Firefox: a timer in the toolbar and a "Track time" button
@@ -47,6 +48,8 @@ services. So far only the maintainer has used it.
   differences in the meantime.
 - Sign in to Harvest with OAuth, which needs a registered Harvest app (today: a personal access
   token).
+- Honest Robin Cloud: cancel a subscription inside the app. Today the billing page opens Paddle's
+  page for it, and the README promises "you cancel in the app".
 - Decide whether a timer that ran past midnight should end "the next day".
 - Publish the extension in the Chrome Web Store and Firefox Add-ons.
 

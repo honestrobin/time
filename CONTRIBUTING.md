@@ -4,7 +4,7 @@ Thanks for helping. A few ground rules keep the project healthy.
 
 ## Licence and sign-off
 
-Honest Robin: Time is licensed under the GNU AGPL v3 (`AGPL-3.0-only`). We do **not** ask for a contributor licence agreement: you keep your copyright, and the project can never be relicensed as proprietary.
+Honest Robin: Time is licensed under the GNU AGPL v3 (`AGPL-3.0-only`). We do **not** ask for a contributor licence agreement: you keep your copyright, so nobody can publish your contribution under another licence without your consent. One limit, stated plainly: today one person holds all the copyright, so future versions could still be relicensed until other contributors hold copyright too. What is already published stays AGPL.
 
 Instead, every commit must carry a [Developer Certificate of Origin](https://developercertificate.org/) sign-off:
 

@@ -1,8 +1,7 @@
 # Honest Robin: Time
 
 Open-source time tracking and invoicing for freelancers and agencies. It works the way people who
-come from Harvest expect, brings your Harvest account over with one access token, and has
-e-invoicing built in.
+come from Harvest expect, can import your Harvest account, and has e-invoicing built in.
 Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
 [Honest Robin](https://honestrobin.com) products: a joy to use, honest, and you come first.
 
@@ -25,28 +24,28 @@ Nothing about that is hidden:
   dependency updates. The first commit gathers the four days it took to build version 1; the work
   since is in the history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
-  with the reasoning and what was left open.
-- **The code is tested.** About 40,000 lines of Kotlin, TypeScript and SQL, covered by around 190
-  backend tests in two editions, frontend and extension tests, and end-to-end tests that run the
-  packaged app and the browser extension in a real browser. Import totals are checked against
+  with the reasoning.
+- **The code is tested.** About 43,000 lines of Kotlin, TypeScript and SQL (counted on 4 October
+  2026, after a fifth day of fixes), covered by around 190 backend tests in two editions, frontend
+  and extension tests, and end-to-end tests that run the packaged app and the browser extension in
+  a real browser. The Harvest import compares hours, billable amounts and invoice totals with
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
-  e-invoices against the official validation rules.
+  e-invoices are checked against the official validation rules.
 
 No person has read the code yet, and it hasn't had an independent security audit, so treat it as
-pre-release software: try it with made-up data, and don't run your business on it yet. 40,000
-lines of code is a liability and not an achievement.
+pre-release software: try it with made-up data, and don't run your business on it yet.
 
-One person can't review every line, and we won't pretend otherwise. Before a release the
-maintainer, who knows the architecture, tests the product and reviews samples of the code. AI
-agents make most of the corrections and check our claims against the facts, and he signs off what
-he sampled. Reports of anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
+The maintainer will not read every line before a release either. He knows the architecture, and
+he will test the product and review samples of the code. AI agents make most of the corrections
+and check our claims against the facts. He approves only the parts he has checked. Reports of
+anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
 
 ## What it does
 
 - **Track time** with timers or day and week timesheets; approvals lock submitted weeks; budgets warn you before they run out.
 - **Invoice** from tracked time and expenses, with gapless numbering, taxes or VAT, PDFs, reminders, and online payment through your own Stripe account (no fee from us).
 - **E-invoicing:** Factur-X/ZUGFeRD, XRechnung and Peppol BIS, sent over Peppol if you like; invoices and payments can go to QuickBooks Online or Xero.
-- **Move from Harvest** with one token: people, clients, projects, rates, time, expenses and invoices, checked total by total against Harvest. A CSV import works offline.
+- **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
 - **Reports** for time, uninvoiced work, budgets and expenses, exported to CSV or Excel.
 - **A browser extension** (Chrome, Firefox) with a timer and a "Track time" button on Jira, Asana, GitHub, Linear and Trello.
 - **Your data stays yours:** a full export on every plan and in every state, a public REST API, and two-factor sign-in.
