@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, PageHeader, SelectField, TextField } from "../../design";
@@ -52,6 +52,23 @@ export function InvoiceNewPage() {
     queryFn: () => unwrap(api.GET("/api/v1/invoices/uninvoiced", { params: { query: { client_id: clientId, from: range.from, to: range.to } } })),
     enabled: !!clientId && source === "time",
   });
+  // Billable time priced at 0 never reaches an invoice. Say where it is, instead of "nothing to bill".
+  const open = useQuery({
+    queryKey: ["invoices", "unpriced", clientId, range.from, range.to],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/time_entries", {
+          params: { query: { client_id: clientId, from: range.from, to: range.to, billable: true, invoiced: false, is_running: false, limit: 500 } },
+        }),
+      ),
+    enabled: !!clientId && source === "time",
+  });
+  const unpriced = useMemo(() => {
+    const rows = (open.data?.data ?? []).filter((e) => e.billable_rate === 0);
+    const projects = new Map<string, string>();
+    for (const e of rows) projects.set(e.project.id, e.project.name);
+    return { seconds: rows.reduce((sum, e) => sum + e.rounded_seconds, 0), projects: [...projects] };
+  }, [open.data]);
   const create = useMutation({
     mutationFn: () =>
       unwrap(
@@ -165,8 +182,22 @@ export function InvoiceNewPage() {
                       </tr>
                     </tfoot>
                   </table>
-                ) : (
+                ) : unpriced.seconds > 0 ? null : (
                   <p className="notice">{t("invoices.nothingToBill")}</p>
+                )}
+                {unpriced.seconds > 0 && (
+                  <p className="notice">
+                    {t("invoices.unpriced", { count: unpriced.projects.length, duration: formatDuration(unpriced.seconds, durationStyle) })}{" "}
+                    {unpriced.projects.map(([id, name], i) => (
+                      <span key={id}>
+                        {i > 0 && ", "}
+                        <Link to="/projects/$projectId" params={{ projectId: id }}>
+                          {name}
+                        </Link>
+                      </span>
+                    ))}
+                    . {t("invoices.unpricedHow")}
+                  </p>
                 )}
               </div>
             )}
