@@ -1,8 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # HTTPS in front of Honest Robin: Time. Caddy gets and renews the certificate by itself.
+{
+	servers {
+		# Whose word to take for a visitor's address. By default no one's: the address is the
+		# connection's own. Behind a proxy such as Cloudflare, list the proxy's ranges in
+		# HONESTROBIN_TRUSTED_PROXIES and its header in HONESTROBIN_CLIENT_IP_HEADER
+		# (docs/self-host.md). Requests from anywhere else can't fake an address.
+		trusted_proxies static {$HONESTROBIN_TRUSTED_PROXIES:127.0.0.1/32}
+		client_ip_headers {$HONESTROBIN_CLIENT_IP_HEADER:X-Forwarded-For}
+	}
+}
+
 {$HONESTROBIN_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy app:8080 {
+		# The visitor's real address, which sign-in protection and the audit log use.
+		header_up X-Forwarded-For {client_ip}
 		# Live timer updates are a stream; pass it through as it comes.
 		flush_interval -1
 	}

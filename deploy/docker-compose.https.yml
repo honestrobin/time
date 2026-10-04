@@ -19,6 +19,9 @@ services:
       - "443:443/udp"
     environment:
       HONESTROBIN_DOMAIN: ${HONESTROBIN_DOMAIN}
+      # Behind Cloudflare or another proxy: see docs/self-host.md. The defaults trust no one.
+      HONESTROBIN_TRUSTED_PROXIES: ${HONESTROBIN_TRUSTED_PROXIES:-127.0.0.1/32}
+      HONESTROBIN_CLIENT_IP_HEADER: ${HONESTROBIN_CLIENT_IP_HEADER:-X-Forwarded-For}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

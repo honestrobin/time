@@ -59,55 +59,43 @@ Caddy gets the certificate by itself. Without SMTP settings, emails (sign-in lin
 
 ## Prebuilt images
 
-You don't have to build the app yourself: images are published at `ghcr.io/honestrobin/time`.
-
-- `:main` is a **development build**: the newest code that passed every test, for x86 (amd64)
-  and Arm (arm64) servers. It is not a release. It can break, and it comes with no promises. It's
-  what we run on our own test server; don't use it for real work.
-- Version tags (`:1.2.3`, and `:latest` for the newest) come with releases. There are none yet,
-  and release images are x86 only for now.
-
-To run an image instead of building, add it to `deploy/.env` and start without building:
-
-```sh
-echo 'HONESTROBIN_IMAGE=ghcr.io/honestrobin/time:main' >> deploy/.env
-docker compose -f deploy/docker-compose.yml up -d --no-build
-```
-
-### What's inside
-
-Each image carries two records made by the build: where it came from (the commit and the CI run
-that built it, called provenance) and a list of everything inside, with licences where they are
-known (a software bill of materials, or SBOM). To read them:
-
-```sh
-docker buildx imagetools inspect ghcr.io/honestrobin/time:main --format '{{ json .Provenance }}'
-docker buildx imagetools inspect ghcr.io/honestrobin/time:main --format '{{ json .SBOM }}'
-```
-
-The image is our code (AGPL-3.0-only, the source is this repository) on top of the
-[Eclipse Temurin](https://adoptium.net) Java runtime image: OpenJDK 25 on Ubuntu (26.04 at the
-time of writing; the SBOM has the exact versions). Those parts keep their own licences, many of
-them in the GPL family. Where to get their source:
-
-- **OpenJDK:** every Temurin release publishes its source next to the binaries, at
-  [adoptium/temurin25-binaries](https://github.com/adoptium/temurin25-binaries/releases)
-  (`OpenJDK25U-jdk-sources_<version>.tar.gz`). Its licence notices are in the image under
-  `/opt/java/openjdk/legal`.
-- **Ubuntu packages:** from Ubuntu's archive, for example with `apt-get source <package>` on
-  Ubuntu, or at [launchpad.net/ubuntu](https://launchpad.net/ubuntu). The package list:
-  `docker run --rm --entrypoint dpkg ghcr.io/honestrobin/time:main -l`.
-- **Java libraries** sit inside the app's jar unchanged, as their own jars, with whatever licence
-  files they ship with (not all of them include one). CI refuses any whose licence doesn't fit
-  the AGPL (`./gradlew :backend:checkLicense`, against `config/allowed-licenses.json`).
-
-Postgres and Caddy are not part of our image: Compose pulls them from their own publishers.
+CI builds an image of every change to `main` that passes all tests, for x86 (amd64) and Arm
+(arm64) servers, at `ghcr.io/honestrobin/time`. For now these images are private: they run our
+own test server. Public images will come with the first release. Until then, build from source
+as above; it's the same code.
 
 ## Reverse proxy and TLS
 
 Put Caddy, Traefik or nginx in front, terminate TLS there, and forward to port 8080. Set `HONESTROBIN_BASE_URL` to the public `https://` address.
 
 The web app and the browser extension keep a stream open to `/api/v1/me/events` for live timer updates. The app asks proxies not to buffer it (`X-Accel-Buffering: no`, which nginx honours) and sends a comment every 25 seconds; if your proxy closes idle connections sooner, raise its read timeout for that path. Serving over HTTP/2 (any TLS proxy does) avoids browsers' limit of six connections per site.
+
+### Behind Cloudflare
+
+To use Cloudflare's proxy (the orange cloud) in front of the HTTPS setup above:
+
+1. Create the record as **DNS only** first, start the app, and wait until
+   `https://<your domain>` works: Caddy has its certificate. Then turn the proxy on.
+2. In Cloudflare, set SSL/TLS to **Full (strict)**. Leave "Always Use HTTPS" off: Caddy already
+   sends visitors to HTTPS, and this way certificate renewals on port 80 reach Caddy.
+3. Only an `A` record is needed; Cloudflare serves IPv6 visitors itself. With an `AAAA` record,
+   Cloudflare may reach your server over IPv6, which Docker passes on from its own address, and
+   the visitor's address is lost.
+4. Tell Caddy to take Cloudflare's word for visitors' addresses, in `deploy/.env`:
+
+   ```sh
+   HONESTROBIN_TRUSTED_PROXIES=<the ranges at https://www.cloudflare.com/ips/, separated by spaces>
+   HONESTROBIN_CLIENT_IP_HEADER=CF-Connecting-IP
+   ```
+
+   Without this, everyone seems to come from Cloudflare, and sign-in protection and the audit log
+   see Cloudflare's addresses instead of people's. Requests that don't come from those ranges
+   can't set the header. Cloudflare rarely changes its ranges, but check now and then.
+5. Optionally, let ports 80 and 443 in only from Cloudflare's ranges in your firewall, so no one
+   can go around it.
+
+Cloudflare decrypts the traffic it proxies, so it can read it. If you run Honest Robin for other
+people, say so in your privacy notice.
 
 ## The browser extension
 
