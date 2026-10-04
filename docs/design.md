@@ -3,6 +3,9 @@
 The design philosophy of Honest Robin: Time, and of every Honest Robin product. The app doesn't
 meet all of it yet; where it falls short, that's a bug to fix.
 
+Too much work software got bloated and bossy. Ours should be fun again, so that people can get on
+with their work, their way.
+
 ## Simple first, powerful when needed
 
 - The common thing takes one step. Tracking time means saying what you're working on and pressing
@@ -12,6 +15,8 @@ meet all of it yet; where it falls short, that's a bug to fix.
   the main menu.
 - Power never gets in the way of the common thing, and simplicity never hides what a professional
   needs: the week view, reports, the API and a full export are all there.
+- No opinions on how people work. The tool fits their way of working and stays out of the way; it
+  doesn't prescribe one.
 
 ## Professional, and playful
 
@@ -27,6 +32,8 @@ meet all of it yet; where it falls short, that's a bug to fix.
 
 Much of the joy is in what we leave out. Each of these is a bug:
 
+- **Bloat:** a feature has to earn its place. Anything that gets between people and their work
+  comes out.
 - **Tricks:** fake urgency, buttons that guilt people, pre-ticked boxes, hidden ways out, nagging
   to upgrade.
 - **Noise:** emails or notifications whose job is to pull people back in. Only send what people

@@ -31,8 +31,10 @@ Nothing about that is hidden:
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices against the official validation rules.
 
-It hasn't had an independent security audit yet, so treat it as pre-release software. Reports of
-anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
+No person has read the code yet, the maintainer included, and it hasn't had an independent
+security audit. Until someone has, 40,000 lines are a liability, not an achievement, so treat it as
+pre-release software. Reports of anything that looks wrong are very welcome; see
+[SECURITY.md](SECURITY.md).
 
 ## What it does
 
