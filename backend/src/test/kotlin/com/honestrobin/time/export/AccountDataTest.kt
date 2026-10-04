@@ -158,15 +158,18 @@ class AccountDataTest : IntegrationTest() {
         }
         assertThat(s.admin.get("/api/v1/account").status).isIn(401, 403, 404)
 
-        // A new person imports the zip on this instance.
+        // A new person imports the zip on this instance. The account was deleted here, so it comes
+        // back under a new id: things outside that still name the old one (a subscription that
+        // wasn't cancelled) mustn't find it (security review, 4 October 2026).
         val importer = signup(name = "Rangi Importer", accountName = "Scratch")
         val imported = importer.request(HttpMethod.POST, "/api/v1/accounts/import", first, headers = mapOf("Content-Type" to "application/zip")).expect(201)
-        assertThat(imported["account_id"].asText()).isEqualTo(accountId.toString())
+        val newId = UUID.fromString(imported["account_id"].asText())
+        assertThat(newId).isNotEqualTo(accountId)
         assertThat(imported["rows"]["time_entries"].asInt()).isEqualTo(2)
         assertThat(imported["files"].asInt()).isEqualTo(1)
 
         // The importer is an admin of the imported account and sees its data, receipts included.
-        importer.accountId = accountId
+        importer.accountId = newId
         assertThat(importer.get("/api/v1/me")["role"].asText()).isEqualTo("admin")
         assertThat(importer.get("/api/v1/time_entries", mapOf("from" to "2026-09-01", "to" to "2026-09-30"))["data"]).hasSize(2)
         assertThat(importer.get("/api/v1/expenses/${s.expense}/receipt").expect(200).bytes).isEqualTo(s.receipt)
@@ -176,24 +179,39 @@ class AccountDataTest : IntegrationTest() {
         val people = importer.get("/api/v1/people").expect(200)["data"]
         assertThat(people.first { it["email"].asText() == s.member.email }["status"].asText()).isEqualTo("pending_invite")
 
-        // Export again and compare: every table is byte for byte the same, except for people's
-        // sign-ins (memberships, users, audit actors) and the import's own audit entry.
+        // Export again and compare: every table is the same under the new account id, except for
+        // people's sign-ins (memberships, users, audit actors), the import's own audit entry, and
+        // the invoices' public links.
         val again = unzip(export(importer))
         val before = unzip(first)
-        val m1 = mapper.readTree(before["manifest.json"])["tables"].associate { it["name"].asText() to it["sha256"].asText() }
-        val m2 = mapper.readTree(again["manifest.json"])["tables"].associate { it["name"].asText() to it["sha256"].asText() }
-        val changed = setOf("memberships", "users", "audit_log", "files")
-        for (name in m1.keys - changed) assertThat(m2[name]).withFailMessage { "$name differs after the round trip" }.isEqualTo(m1[name])
-        fun rows(parts: Map<String, ByteArray>, name: String): List<JsonNode> = mapper.readTree(parts["data/$name.json"]).toList()
         fun without(rows: List<JsonNode>, vararg columns: String) = rows.map { (it.deepCopy() as tools.jackson.databind.node.ObjectNode).apply { remove(columns.toList()) } }
+        fun rows(parts: Map<String, ByteArray>, name: String): List<JsonNode> = mapper.readTree(parts["data/$name.json"]).toList()
+        // The rows as exported, moved to the new id the way the import moves them.
+        fun moved(name: String): List<JsonNode> = rows(before, name).map { row ->
+            (row.deepCopy() as tools.jackson.databind.node.ObjectNode).apply {
+                val owner = if (name == "accounts") "id" else "account_id"
+                if (get(owner)?.asText() == accountId.toString()) put(owner, newId.toString())
+                if (name == "audit_log" && get("entity_type")?.asText() == "accounts" && get("entity_id")?.asText() == accountId.toString()) put("entity_id", newId.toString())
+            }
+        }
+        val tables = mapper.readTree(before["manifest.json"])["tables"].values().map { it["name"].asText() }
+        val changed = setOf("memberships", "users", "audit_log", "files", "invoices")
+        for (name in tables - changed) assertThat(rows(again, name)).withFailMessage { "$name differs after the round trip" }.isEqualTo(moved(name))
+        // Deleting the account retired its invoice links, so the invoice has a new one.
+        assertThat(without(rows(again, "invoices"), "public_token")).isEqualTo(without(moved("invoices"), "public_token"))
+        val oldLink = rows(before, "invoices").single()["public_token"].asText()
+        val newLink = rows(again, "invoices").single()["public_token"].asText()
+        assertThat(newLink).isNotEqualTo(oldLink)
+        assertThat(client().get("/api/v1/public/invoices/$oldLink").status).isEqualTo(404)
+        client().get("/api/v1/public/invoices/$newLink").expect(200)
         assertThat(without(rows(again, "memberships").filter { it["email"].asText() != importer.email }, "user_id", "status"))
-            .isEqualTo(without(rows(before, "memberships"), "user_id", "status"))
+            .isEqualTo(without(moved("memberships"), "user_id", "status"))
         assertThat(rows(again, "users").map { it["email"].asText() }).containsExactly(importer.email)
         // Files get storage keys from this instance.
-        assertThat(without(rows(again, "files"), "storage_key")).isEqualTo(without(rows(before, "files"), "storage_key"))
+        assertThat(without(rows(again, "files"), "storage_key")).isEqualTo(without(moved("files"), "storage_key"))
         val audit = rows(again, "audit_log")
         assertThat(without(audit.filter { it["action"].asText() !in setOf("accounts.imported", "account_exports.insert", "account_exports.update") }, "actor_user_id"))
-            .isEqualTo(without(rows(before, "audit_log").filter { it["action"].asText() !in setOf("account_exports.insert", "account_exports.update") }, "actor_user_id"))
+            .isEqualTo(without(moved("audit_log").filter { it["action"].asText() !in setOf("account_exports.insert", "account_exports.update") }, "actor_user_id"))
 
         // The same export can't be imported twice.
         importer.request(HttpMethod.POST, "/api/v1/accounts/import", first, headers = mapOf("Content-Type" to "application/zip")).expectError(409, "account_exists")
@@ -260,8 +278,9 @@ class AccountDataTest : IntegrationTest() {
         // A storage key pointing elsewhere is replaced, never used.
         val imported = send(tamper(zip, "files") { rows -> (rows[0] as tools.jackson.databind.node.ObjectNode).put("storage_key", "exports/${victim.accountId}/x.zip") }).expect(201)
         assertThat(imported["files"].asInt()).isEqualTo(1)
-        val key = tx.system { dsl.select(com.honestrobin.time.db.Tables.FILES.STORAGE_KEY).from(com.honestrobin.time.db.Tables.FILES).where(com.honestrobin.time.db.Tables.FILES.ACCOUNT_ID.eq(accountId)).fetchOne()!!.value1() }
-        assertThat(key).startsWith("$accountId/")
+        val importedId = UUID.fromString(imported["account_id"].asText())
+        val key = tx.system { dsl.select(com.honestrobin.time.db.Tables.FILES.STORAGE_KEY).from(com.honestrobin.time.db.Tables.FILES).where(com.honestrobin.time.db.Tables.FILES.ACCOUNT_ID.eq(importedId)).fetchOne()!!.value1() }
+        assertThat(key).startsWith("$importedId/")
     }
 
     private fun rezip(parts: Map<String, ByteArray>): ByteArray {

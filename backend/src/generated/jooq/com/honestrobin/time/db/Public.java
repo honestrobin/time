@@ -37,6 +37,7 @@ import com.honestrobin.time.db.tables.ProjectMembers;
 import com.honestrobin.time.db.tables.ProjectTasks;
 import com.honestrobin.time.db.tables.Projects;
 import com.honestrobin.time.db.tables.RateLimitEvents;
+import com.honestrobin.time.db.tables.RetiredPublicLinks;
 import com.honestrobin.time.db.tables.Subscriptions;
 import com.honestrobin.time.db.tables.Tasks;
 import com.honestrobin.time.db.tables.TeamMemberships;
@@ -236,6 +237,11 @@ public class Public extends SchemaImpl {
     public final RateLimitEvents RATE_LIMIT_EVENTS = RateLimitEvents.RATE_LIMIT_EVENTS;
 
     /**
+     * The table <code>public.retired_public_links</code>.
+     */
+    public final RetiredPublicLinks RETIRED_PUBLIC_LINKS = RetiredPublicLinks.RETIRED_PUBLIC_LINKS;
+
+    /**
      * The table <code>public.subscriptions</code>.
      */
     public final Subscriptions SUBSCRIPTIONS = Subscriptions.SUBSCRIPTIONS;
@@ -334,6 +340,7 @@ public class Public extends SchemaImpl {
             ProjectTasks.PROJECT_TASKS,
             Projects.PROJECTS,
             RateLimitEvents.RATE_LIMIT_EVENTS,
+            RetiredPublicLinks.RETIRED_PUBLIC_LINKS,
             Subscriptions.SUBSCRIPTIONS,
             Tasks.TASKS,
             TeamMemberships.TEAM_MEMBERSHIPS,

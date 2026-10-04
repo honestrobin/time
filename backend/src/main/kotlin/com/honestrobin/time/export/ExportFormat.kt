@@ -46,6 +46,7 @@ import com.honestrobin.time.db.Tables.TIME_ENTRIES
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.Tables.USER_RECOVERY_CODES
 import com.honestrobin.time.db.Tables.RATE_LIMIT_EVENTS
+import com.honestrobin.time.db.Tables.RETIRED_PUBLIC_LINKS
 import com.honestrobin.time.db.Tables.DEVICE_AUTHORIZATIONS
 import com.honestrobin.time.db.Tables.USER_SESSIONS
 import org.jooq.Condition
@@ -127,6 +128,7 @@ object ExportFormat {
         LOGIN_TOKENS to "Sign-in links.",
         USER_RECOVERY_CODES to "Two-factor sign-in is set up again on the new instance.",
         RATE_LIMIT_EVENTS to "Rate-limit counters of that instance.",
+        RETIRED_PUBLIC_LINKS to "Hashes of deleted accounts' invoice links on that instance, which never work again.",
         DEVICE_AUTHORIZATIONS to "Sign-ins of devices such as the browser extension; sign them in again.",
         ACCOUNTING_SYNC_ITEMS to "The queue of pushes to QuickBooks or Xero; connect again after importing.",
         SUBSCRIPTIONS to "An Honest Robin Cloud subscription belongs to that instance; subscribe again where you import.",

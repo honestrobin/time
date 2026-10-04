@@ -184,6 +184,17 @@ class BillingTest : IntegrationTest() {
     }
 
     @Test
+    fun `deleting an account cancels its subscription at Paddle`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Matai Ltd")
+        val subscription = "sub_deleted_${UUID.randomUUID().toString().take(8)}"
+        assertThat(deliver(subscriptionEvent(admin.accountId!!, subscription = subscription))).isEqualTo(200)
+        MockPaddle.calls.clear()
+        context.getBean(com.honestrobin.time.export.AccountDeletionService::class.java).purge(admin.accountId!!)
+        assertThat(MockPaddle.calls.single { it.path == "/subscriptions/$subscription/cancel" }.body!!["effective_from"].asText()).isEqualTo("immediately")
+    }
+
+    @Test
     fun `the database refuses to raise a subscription's price (AT-6_2)`() {
         val admin = signup()
         val account = admin.accountId!!

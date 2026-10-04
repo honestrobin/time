@@ -16,6 +16,7 @@ import com.honestrobin.time.db.Tables.INVOICE_LINES
 import com.honestrobin.time.db.Tables.PAYMENTS
 import com.honestrobin.time.db.tables.records.AccountingSyncItemsRecord
 import com.honestrobin.time.db.tables.records.IntegrationsRecord
+import com.honestrobin.time.export.AccountPurging
 import com.honestrobin.time.invoicing.InvoiceIssued
 import com.honestrobin.time.invoicing.InvoiceService
 import com.honestrobin.time.invoicing.PaymentRecorded
@@ -222,22 +223,28 @@ class AccountingService(
         m.requireAdmin()
         val p = provider(kind)
         val r = tx.run { integration(kind) }
-        val result = if (r?.status == "connected" && r.credentialsEncrypted != null) {
-            try {
-                p.revoke(fresh(r))
-                Disconnected(revoked = true)
-            } catch (e: AccountingException) {
-                log.warn("{} didn't confirm revoking access for account {}: {}", p.label, m.accountId, e.message)
-                Disconnected(false, "${p.label} didn't confirm that Honest Robin's access has ended (${e.message}). To be sure, remove Honest Robin from the connected apps in ${p.label}.")
-            }
-        } else {
-            Disconnected(revoked = true)
-        }
+        val result = if (r?.status == "connected" && r.credentialsEncrypted != null) revoke(p, r) else Disconnected(revoked = true)
         tx.run {
             integration(kind)?.delete()
             dsl.deleteFrom(ACCOUNTING_SYNC_ITEMS).where(ACCOUNTING_SYNC_ITEMS.PROVIDER.eq(kind)).and(ACCOUNTING_SYNC_ITEMS.STATUS.ne("done")).execute()
         }
         return result
+    }
+
+    private fun revoke(p: AccountingProvider, r: IntegrationsRecord): Disconnected = try {
+        p.revoke(fresh(r))
+        Disconnected(revoked = true)
+    } catch (e: AccountingException) {
+        log.warn("{} didn't confirm revoking access for account {}: {}", p.label, r.accountId, e.message)
+        Disconnected(false, "${p.label} didn't confirm that Honest Robin's access has ended (${e.message}). To be sure, remove Honest Robin from the connected apps in ${p.label}.")
+    }
+
+    /** Deleting an account ends Honest Robin's access to its books too, as disconnecting does. */
+    @EventListener
+    fun onAccountPurging(e: AccountPurging) = DbContext.forAccount(e.accountId) {
+        tx.run { dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.`in`(providers.keys)).and(INTEGRATIONS.STATUS.eq("connected")).fetch() }
+            .filter { it.credentialsEncrypted != null }
+            .forEach { r -> revoke(providers.getValue(r.kind), r) }
     }
 
     fun options(m: Member, kind: String): AccountingOptionsView {

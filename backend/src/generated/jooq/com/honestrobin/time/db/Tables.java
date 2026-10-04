@@ -37,6 +37,7 @@ import com.honestrobin.time.db.tables.ProjectMembers;
 import com.honestrobin.time.db.tables.ProjectTasks;
 import com.honestrobin.time.db.tables.Projects;
 import com.honestrobin.time.db.tables.RateLimitEvents;
+import com.honestrobin.time.db.tables.RetiredPublicLinks;
 import com.honestrobin.time.db.tables.Subscriptions;
 import com.honestrobin.time.db.tables.Tasks;
 import com.honestrobin.time.db.tables.TeamMemberships;
@@ -219,6 +220,11 @@ public class Tables {
      * The table <code>public.rate_limit_events</code>.
      */
     public static final RateLimitEvents RATE_LIMIT_EVENTS = RateLimitEvents.RATE_LIMIT_EVENTS;
+
+    /**
+     * The table <code>public.retired_public_links</code>.
+     */
+    public static final RetiredPublicLinks RETIRED_PUBLIC_LINKS = RetiredPublicLinks.RETIRED_PUBLIC_LINKS;
 
     /**
      * The table <code>public.subscriptions</code>.

@@ -15,6 +15,7 @@ import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.SubscriptionsRecord
+import com.honestrobin.time.export.AccountPurging
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.edition.CloudEditionOnly
@@ -242,6 +243,23 @@ class BillingService(
         r.store()
         if (isNew) funnel.event(accountId, Funnel.SUBSCRIPTION_STARTED, mapOf("interval" to r.billingInterval, "seats" to r.seats))
         if (isPaying(r)) reactivate(accountId) else lapseIfOverFree(accountId)
+    }
+
+    /**
+     * Deleting an account cancels its subscription at Paddle, so nobody keeps paying for an account
+     * that's gone. Before, it renewed, and its next event could attach to an account imported with
+     * the same id.
+     */
+    @org.springframework.context.event.EventListener
+    fun onAccountPurging(e: AccountPurging) {
+        val s = tx.system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(e.accountId)).fetchOne() } ?: return
+        if (!isPaying(s) || !settings.configured) return
+        try {
+            paddle.cancel(s.externalId)
+            log.info("Deleting account {}: cancelled subscription {}", e.accountId, s.externalId)
+        } catch (ex: PaddleException) {
+            log.error("Deleting account {}: cancelling subscription {} failed ({}); cancel it in Paddle by hand", e.accountId, s.externalId, ex.message)
+        }
     }
 
     /** Keeps Paddle's seat count in step with the people who can sign in (the job). */

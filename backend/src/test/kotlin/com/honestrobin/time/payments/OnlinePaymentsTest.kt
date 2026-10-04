@@ -12,6 +12,7 @@ import java.util.UUID
 
 /** Spec §5.6 and AT-3.4, against MockStripe. */
 class OnlinePaymentsTest : IntegrationTest() {
+    @org.springframework.beans.factory.annotation.Autowired lateinit var deletions: com.honestrobin.time.export.AccountDeletionService
 
     private fun sentInvoice(admin: TestClient, currency: String = "EUR", unitPrice: Long = 125_000): Pair<UUID, String> {
         val client = admin.post("/api/v1/clients", mapOf("name" to "Client ${UUID.randomUUID().toString().take(6)}", "currency" to currency)).expect(201).id()
@@ -172,6 +173,16 @@ class OnlinePaymentsTest : IntegrationTest() {
         val forgotten = own.delete("/api/v1/payments/stripe").expect(200)
         assertThat(forgotten["revoked"].asBoolean()).isFalse()
         assertThat(forgotten["note"].asText()).contains("roll it")
+    }
+
+    @Test
+    fun `deleting an account ends Honest Robin's access at Stripe`() {
+        val admin = signup()
+        val acct = "acct_deleted_${UUID.randomUUID().toString().take(8)}"
+        connect(admin, acct)
+        MockStripe.calls.clear()
+        deletions.purge(admin.accountId!!)
+        assertThat(MockStripe.calls.single { it.path == "/oauth/deauthorize" }.form["stripe_user_id"]).isEqualTo(acct)
     }
 
     @Test

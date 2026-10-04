@@ -2,6 +2,7 @@
 package com.honestrobin.time.payments
 
 import com.honestrobin.time.analytics.Funnel
+import com.honestrobin.time.export.AccountPurging
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import com.honestrobin.time.db.Tables.INTEGRATIONS
@@ -177,7 +178,7 @@ class OnlinePaymentService(
         val r = tx.run { integration() }
         val result = when {
             r == null || r.status != "connected" -> Disconnected(revoked = true)
-            r.mode == "connect" -> deauthorize(m, r.externalAccountId)
+            r.mode == "connect" -> deauthorize(m.accountId, r.externalAccountId)
             else -> Disconnected(
                 revoked = false,
                 note = "Honest Robin has deleted your key, but it works at Stripe until you roll it there (Developers → API keys). Delete the webhook endpoint there too.",
@@ -187,13 +188,21 @@ class OnlinePaymentService(
         return result
     }
 
-    private fun deauthorize(m: Member, stripeAccount: String): Disconnected {
+    /** Deleting an account ends Honest Robin's access at Stripe too, as disconnecting does. */
+    @org.springframework.context.event.EventListener
+    fun onAccountPurging(e: AccountPurging) {
+        val r = DbContext.forAccount(e.accountId) { tx.run { integration() } } ?: return
+        if (r.status != "connected" || r.mode != "connect") return
+        deauthorize(e.accountId, r.externalAccountId).note?.let { log.warn("Deleting account {}: {}", e.accountId, it) }
+    }
+
+    private fun deauthorize(accountId: UUID, stripeAccount: String): Disconnected {
         // Stripe knows one connection between an account and Honest Robin, however many
         // workspaces use it: ending it here would cut off the others too.
         val shared = tx.system {
             dsl.fetchExists(
                 dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.STATUS.eq("connected"))
-                    .and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(stripeAccount)).and(INTEGRATIONS.ACCOUNT_ID.ne(m.accountId)),
+                    .and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(stripeAccount)).and(INTEGRATIONS.ACCOUNT_ID.ne(accountId)),
             )
         }
         if (shared) {

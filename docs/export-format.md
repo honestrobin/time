@@ -104,7 +104,9 @@ The importer:
 1. Checks `format` and `version`, and the SHA-256 of every data file against the manifest. A
    changed or damaged file stops the import before anything is written.
 2. Refuses an account id that already exists on the instance (`409 account_exists`): importing
-   the same export twice is a mistake, not a merge.
+   the same export twice is a mistake, not a merge. An account that was deleted on this instance
+   comes back under a new id, so anything outside that still names the old one, like a
+   subscription, can't find it; importing it a second time is refused the same way.
 3. Requires every row to belong to the account in the manifest, and refuses a row that points
    at a row of another account, even where a foreign key would allow it. The zip comes from a
    user and is written with row-level security off, so it is checked as untrusted input.
@@ -117,6 +119,9 @@ The importer:
    Team. (Audit entries keep what happened but not who, for the same reason.)
 6. Gives every file a storage key on this instance and puts the files back into storage (and
    removes them again if the import fails).
+7. Keeps each invoice's public link, unless the link belonged to an account deleted on this
+   instance: those never work again, so such an invoice gets a new link. Clients may still have
+   the old link in their inbox, and it must never show anything else.
 
 ## Deletion
 
@@ -124,7 +129,13 @@ An admin can delete an account under **Settings → Account → Delete this acco
 name. The account turns read-only for 14 days (exports keep working), every admin gets an email,
 and any admin can cancel. After 14 days a job deletes the account's rows, files, exports and audit
 log for good, plus users left without any account. One audit entry (`accounts.purged`, with the
-account id and nothing else) records that it happened.
+account id and nothing else) records that it happened, and a SHA-256 of each invoice's public link
+is kept, so those links never work again.
+
+Deleting also ends what the account holds outside: Honest Robin's access to its Stripe account
+(unless another workspace on the instance still uses it), QuickBooks and Xero books, and its sender
+and Peppol ID at Storecove; on Honest Robin Cloud, its subscription is cancelled. A provider that
+doesn't answer doesn't stop the deletion; the server's log says what to remove by hand.
 
 Backups still hold deleted data until they rotate out. For Honest Robin Cloud the planned
 retention for nightly backups and point-in-time recovery is 30 days (to be confirmed before

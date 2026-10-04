@@ -10,7 +10,9 @@ import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.ACCOUNT_EXPORTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
 import com.honestrobin.time.db.Tables.FILES
+import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
+import com.honestrobin.time.db.Tables.RETIRED_PUBLIC_LINKS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.AccountExportsRecord
 import com.honestrobin.time.files.FileStorage
@@ -239,6 +241,14 @@ class AccountExportService(
     }
 }
 
+/**
+ * Published just before an account is deleted for good, while its rows still exist, so each
+ * module can end what the account holds outside: connections at Stripe, QuickBooks, Xero and
+ * Storecove, and a Honest Robin Cloud subscription. Listeners log their failures; the deletion
+ * goes ahead.
+ */
+data class AccountPurging(val accountId: UUID)
+
 data class DeletionRequest(
     /** The account's name, typed out, so nobody deletes an account by accident. */
     val confirmName: String = "",
@@ -258,6 +268,7 @@ class AccountDeletionService(
     private val settings: AccountDataSettings,
     private val props: HonestRobinProperties,
     private val clock: Clock,
+    private val events: org.springframework.context.ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -303,8 +314,14 @@ class AccountDeletionService(
 
     /** Hard delete: rows, files, exports and the audit log, plus users left without any account. */
     fun purge(accountId: UUID) {
+        events.publishEvent(AccountPurging(accountId))
         val blobs = mutableListOf<String>()
         tx.system {
+            // The invoices' public links stay dead: no import can bring them back (V22).
+            dsl.insertInto(RETIRED_PUBLIC_LINKS, RETIRED_PUBLIC_LINKS.TOKEN_SHA256)
+                .select(DSL.select(DSL.field("sha256(convert_to({0}, 'UTF8'))", ByteArray::class.java, INVOICES.PUBLIC_TOKEN)).from(INVOICES)
+                    .where(INVOICES.ACCOUNT_ID.eq(accountId)).and(INVOICES.PUBLIC_TOKEN.isNotNull))
+                .onConflictDoNothing().execute()
             blobs += dsl.select(FILES.STORAGE_KEY).from(FILES).where(FILES.ACCOUNT_ID.eq(accountId)).fetch(FILES.STORAGE_KEY)
             blobs += dsl.select(ACCOUNT_EXPORTS.STORAGE_KEY).from(ACCOUNT_EXPORTS).where(ACCOUNT_EXPORTS.ACCOUNT_ID.eq(accountId)).and(ACCOUNT_EXPORTS.STORAGE_KEY.isNotNull).fetch(ACCOUNT_EXPORTS.STORAGE_KEY)
             val people = dsl.select(MEMBERSHIPS.USER_ID).from(MEMBERSHIPS).where(MEMBERSHIPS.ACCOUNT_ID.eq(accountId)).and(MEMBERSHIPS.USER_ID.isNotNull).fetch(MEMBERSHIPS.USER_ID)

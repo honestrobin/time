@@ -12,6 +12,7 @@ import java.util.UUID
 
 /** Spec §7.3 and AT-5.2: sending over Peppol through Storecove, against MockStorecove. */
 class PeppolTest : IntegrationTest() {
+    @org.springframework.beans.factory.annotation.Autowired lateinit var deletions: com.honestrobin.time.export.AccountDeletionService
 
     private class Setup(val admin: TestClient, val client: UUID, val vat: String)
 
@@ -130,6 +131,16 @@ class PeppolTest : IntegrationTest() {
         assertThat(own["revoked"].asBoolean()).isFalse()
         assertThat(own["note"].asText()).contains("delete it there")
         assertThat(MockStorecove.calls.last { it.method == "DELETE" }.authorization).isEqualTo("Bearer ${MockStorecove.OWN_KEY}")
+    }
+
+    @Test
+    fun `deleting an account removes its sender at Storecove`() {
+        val s = setup()
+        s.admin.post("/api/v1/einvoicing/peppol", emptyMap<String, Any>()).expect(200)
+        val entity = s.admin.get("/api/v1/einvoicing/peppol")["legal_entity_id"].asText()
+        MockStorecove.calls.clear()
+        deletions.purge(s.admin.accountId!!)
+        assertThat(MockStorecove.calls.filter { it.method == "DELETE" }.map { it.path }).contains("/api/v2/legal_entities/$entity")
     }
 
     @Test

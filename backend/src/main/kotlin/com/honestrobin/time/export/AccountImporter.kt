@@ -11,11 +11,15 @@ import tools.jackson.databind.node.ObjectNode
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
 import com.honestrobin.time.db.Tables.FILES
+import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
+import com.honestrobin.time.db.Tables.RETIRED_PUBLIC_LINKS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.UsersRecord
 import com.honestrobin.time.files.FileStorage
+import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.db.DbContext
+import com.honestrobin.time.platform.db.Ids
 import com.honestrobin.time.platform.db.TenantAwareTransactionManager
 import com.honestrobin.time.platform.web.ApiException
 import com.honestrobin.time.platform.web.BadRequestException
@@ -107,7 +111,7 @@ class AccountImporter(
                 throw BadRequestException("export_damaged", "data/${t.name}.json doesn't match its checksum; the file was changed or damaged")
             }
         }
-        val accountId = UUID.fromString(manifest["account_id"].asText())
+        val exportedId = UUID.fromString(manifest["account_id"].asText())
 
         DbContext.system {
             tx.execute {
@@ -116,16 +120,24 @@ class AccountImporter(
                 if (!locked) throw ApiException(HttpStatus.TOO_MANY_REQUESTS, "import_running", "An import is already running")
                 // The rows carry their own history; importing them shouldn't add a second one.
                 TenantAwareTransactionManager.setLocal("honestrobin.audit_disabled", "on")
-                if (dsl.fetchExists(ACCOUNTS, ACCOUNTS.ID.eq(accountId))) {
+                if (dsl.fetchExists(ACCOUNTS, ACCOUNTS.ID.eq(exportedId))) {
                     throw ConflictException("account_exists", "This account is already on this instance")
                 }
+                // An account deleted here comes back under a new id: things outside that still
+                // name the old one, like a subscription that wasn't cancelled, must not find it.
+                val deletedHere = dsl.fetchExists(AUDIT_LOG, AUDIT_LOG.ACTION.eq("accounts.purged").and(AUDIT_LOG.ENTITY_ID.eq(exportedId)))
+                val reimported = DSL.field("{0} ->> 'exported_account_id'", String::class.java, AUDIT_LOG.DIFF)
+                if (deletedHere && dsl.fetchExists(AUDIT_LOG, AUDIT_LOG.ACTION.eq("accounts.imported").and(reimported.eq(exportedId.toString())))) {
+                    throw ConflictException("account_exists", "This account is already on this instance")
+                }
+                val accountId = if (deletedHere) Ids.v7() else exportedId
                 val importer = dsl.selectFrom(USERS).where(USERS.ID.eq(importingUserId)).fetchOne()
                     ?: throw ApiException(HttpStatus.UNAUTHORIZED, "unauthenticated", "Sign in again")
                 val people = People(readUsers(zip), importer)
                 val counts = linkedMapOf<String, Long>()
                 for (t in ExportFormat.TABLES.filter { it.table != USERS }) {
                     counts[t.name] = try {
-                        insertRows(zip, t) { row -> prepare(t, row, accountId, people) }
+                        insertRows(zip, t) { row -> prepare(t, row, exportedId, accountId, people) }
                     } catch (e: RuntimeException) {
                         // Keys between an account's tables include account_id (V15), so the database
                         // itself refuses a row that points at another account's data.
@@ -139,7 +151,14 @@ class AccountImporter(
                 dsl.insertInto(AUDIT_LOG)
                     .set(AUDIT_LOG.ACCOUNT_ID, accountId).set(AUDIT_LOG.ACTOR_USER_ID, importingUserId).set(AUDIT_LOG.ACTOR_TYPE, "user")
                     .set(AUDIT_LOG.ACTION, "accounts.imported").set(AUDIT_LOG.ENTITY_TYPE, "accounts").set(AUDIT_LOG.ENTITY_ID, accountId)
-                    .set(AUDIT_LOG.DIFF, org.jooq.JSONB.valueOf(json.writeValueAsString(mapOf("exported_at" to manifest["exported_at"]?.asText(), "from_version" to manifest["app_version"]?.asText()))))
+                    .set(
+                        AUDIT_LOG.DIFF,
+                        org.jooq.JSONB.valueOf(
+                            json.writeValueAsString(
+                                mapOf("exported_at" to manifest["exported_at"]?.asText(), "from_version" to manifest["app_version"]?.asText(), "exported_account_id" to exportedId.toString()),
+                            ),
+                        ),
+                    )
                     .execute()
                 ImportedAccount(accountId, manifest["account_name"].asText(), counts, files)
             }!!
@@ -165,12 +184,17 @@ class AccountImporter(
      * imported: the zip is uploaded by a user and written with row-level security off, so a row
      * naming another account would land in it.
      */
-    private fun prepare(t: ExportTable, row: ObjectNode, accountId: UUID, people: People): ObjectNode {
-        val owner = if (t.table == ACCOUNTS) row["id"] else row["account_id"]
-        if (owner?.asText() != accountId.toString()) {
+    private fun prepare(t: ExportTable, row: ObjectNode, exportedId: UUID, accountId: UUID, people: People): ObjectNode {
+        val ownerColumn = if (t.table == ACCOUNTS) "id" else "account_id"
+        if (row[ownerColumn]?.asText() != exportedId.toString()) {
             throw BadRequestException("export_damaged", "data/${t.name}.json has rows of another account")
         }
+        row.put(ownerColumn, accountId.toString())
         when (t.table) {
+            // A link that belonged to a deleted account stays dead; the invoice gets a new one.
+            INVOICES -> row["public_token"]?.takeIf { it.isTextual }?.asText()?.let { token ->
+                if (dsl.fetchExists(RETIRED_PUBLIC_LINKS, RETIRED_PUBLIC_LINKS.TOKEN_SHA256.eq(Tokens.hash(token)))) row.put("public_token", Tokens.generate(24))
+            }
             // People keep their place in the account, but only the person importing is linked to
             // a sign-in here; the others are invited again, so nobody is added to an account
             // without saying yes.
@@ -184,6 +208,7 @@ class AccountImporter(
                 }
             }
             AUDIT_LOG -> {
+                if (row["entity_type"]?.asText() == "accounts" && row["entity_id"]?.asText() == exportedId.toString()) row.put("entity_id", accountId.toString())
                 val actor = row["actor_user_id"]?.takeIf { !it.isNull }?.asText()?.let(UUID::fromString)
                 if (actor != null) {
                     if (actor in people.importerOldIds) row.put("actor_user_id", people.importer.id.toString()) else row.putNull("actor_user_id")

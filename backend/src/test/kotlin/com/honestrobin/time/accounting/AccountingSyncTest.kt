@@ -17,6 +17,8 @@ import java.util.UUID
 class AccountingSyncTest : IntegrationTest() {
     @Autowired lateinit var accounting: AccountingService
 
+    @Autowired lateinit var deletions: com.honestrobin.time.export.AccountDeletionService
+
     private fun connect(admin: TestClient, kind: String) {
         val url = admin.post("/api/v1/accounting/$kind/connect").expect(200)["url"].asText()
         assertThat(url).contains("client_id=${MockAccounting.CLIENT_ID}")
@@ -178,6 +180,15 @@ class AccountingSyncTest : IntegrationTest() {
         assertThat(xero["organisation"].asText()).isEqualTo("Fjord & Pine (Xero)")
         assertThat(admin.delete("/api/v1/accounting/xero").expect(200)["revoked"].asBoolean()).isTrue()
         assertThat(MockAccounting.removed).contains("xero:conn-1").doesNotContain("xero:conn-0")
+    }
+
+    @Test
+    fun `deleting an account ends Honest Robin's access to its books`() {
+        val admin = signup()
+        connect(admin, "qbo")
+        val before = MockAccounting.removed.size
+        deletions.purge(admin.accountId!!)
+        assertThat(MockAccounting.removed.drop(before)).singleElement().matches { it.startsWith("qbo:rt_") }
     }
 
     @Test

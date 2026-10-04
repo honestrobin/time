@@ -8,11 +8,13 @@ import com.honestrobin.time.db.Tables.CLIENTS
 import com.honestrobin.time.db.Tables.EINVOICE_TRANSMISSIONS
 import com.honestrobin.time.db.Tables.INTEGRATIONS
 import com.honestrobin.time.db.tables.records.IntegrationsRecord
+import com.honestrobin.time.export.AccountPurging
 import com.honestrobin.time.invoicing.InvoiceService
 import com.honestrobin.time.platform.Disconnected
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.crypto.SecretBox
 import com.honestrobin.time.platform.crypto.Tokens
+import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
@@ -302,15 +304,8 @@ class PeppolService(
             tx.run { integration()?.delete() }
             return Disconnected(revoked = true)
         }
-        val registered = r.settings?.data()?.let { runCatching { json.readValue(it, Map::class.java) }.getOrNull() }.orEmpty()
-        // Connections made before 4 October 2026 didn't keep what they registered: use the account's ID.
-        val (scheme, identifier) = if (registered["peppol_id"] != null) {
-            registered["peppol_scheme"]?.toString() to registered["peppol_id"]?.toString()
-        } else {
-            tx.run { dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!! }.let { PeppolSchemes.storecove(it.peppolScheme) to it.peppolId }
-        }
         val result = try {
-            provider.removeLegalEntity(apiKey(r), entity, scheme, identifier)
+            unregister(r, entity)
             if (r.mode == "connect") {
                 Disconnected(revoked = true)
             } else {
@@ -324,6 +319,30 @@ class PeppolService(
         }
         tx.run { integration()?.delete() }
         return result
+    }
+
+    private fun unregister(r: IntegrationsRecord, entity: String) {
+        val registered = r.settings?.data()?.let { runCatching { json.readValue(it, Map::class.java) }.getOrNull() }.orEmpty()
+        // Connections made before 4 October 2026 didn't keep what they registered: use the account's ID.
+        val (scheme, identifier) = if (registered["peppol_id"] != null) {
+            registered["peppol_scheme"]?.toString() to registered["peppol_id"]?.toString()
+        } else {
+            tx.run { dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(r.accountId)).fetchOne()!! }.let { PeppolSchemes.storecove(it.peppolScheme) to it.peppolId }
+        }
+        provider.removeLegalEntity(apiKey(r), entity, scheme, identifier)
+    }
+
+    /** Deleting an account removes its sender and Peppol ID at Storecove too, as disconnecting does. */
+    @org.springframework.context.event.EventListener
+    fun onAccountPurging(e: AccountPurging) {
+        val r = DbContext.forAccount(e.accountId) { tx.run { integration() } } ?: return
+        val entity = r.externalAccountId?.takeIf { r.status == "connected" } ?: return
+        try {
+            DbContext.forAccount(e.accountId) { unregister(r, entity) }
+        } catch (ex: ProviderException) {
+            // Nobody else can remove it on Honest Robin's contract: a person has to.
+            log.error("Deleting account {}: Storecove didn't remove legal entity {} ({}); remove it by hand", e.accountId, entity, ex.message)
+        }
     }
 
     /** Asks the provider whether the client can receive over Peppol, and remembers the answer. */
