@@ -120,7 +120,8 @@
     "passwordChangedNeedCode": "Your new password is saved. To finish signing in, enter a code from your authenticator app.",
     "reauthLeadCode": "This changes something important, so enter a code from your authenticator app.",
     "reauthUseCode": "Use a code from your app instead",
-    "reauthUsePassword": "Use your password instead"
+    "reauthUsePassword": "Use your password instead",
+    "inviteOnly": "New here? You need an invitation to join. Ask the person who runs this Honest Robin to send you one."
   },
   "settings": {
     "accountTitle": "Account settings",

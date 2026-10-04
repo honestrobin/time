@@ -34,7 +34,7 @@
 .auth-main {
   flex: 1;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   padding: var(--s8) var(--s6);
 }
 

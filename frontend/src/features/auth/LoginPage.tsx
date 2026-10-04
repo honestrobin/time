@@ -80,6 +80,7 @@ export function LoginPage() {
             {t("auth.noAccount")} <Link to="/signup">{t("auth.createAccount")}</Link>
           </span>
         )}
+        {config && !config.signup_allowed && <span>{t("auth.inviteOnly")}</span>}
       </div>
     </AuthLayout>
   );
