@@ -65,7 +65,12 @@ class ApiExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException::class, MethodArgumentTypeMismatchException::class, MissingServletRequestParameterException::class)
-    fun unreadable(e: Exception) = ResponseEntity.badRequest().body(ApiError("bad_request", e.message?.substringBefore(":") ?: "Malformed request"))
+    fun unreadable(e: Exception): ResponseEntity<ApiError> {
+        generateSequence(e as Throwable) { it.cause }.filterIsInstance<RequestTooLargeException>().firstOrNull()?.let {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(RequestSizeLimitFilter.tooLarge(it.limit))
+        }
+        return ResponseEntity.badRequest().body(ApiError("bad_request", e.message?.substringBefore(":") ?: "Malformed request"))
+    }
 
     @ExceptionHandler(AccessDeniedException::class)
     fun denied(e: AccessDeniedException) = ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError("forbidden", "You don't have permission to do this"))

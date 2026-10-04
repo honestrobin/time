@@ -13,6 +13,12 @@
 
 {$HONESTROBIN_DOMAIN} {
 	encode zstd gzip
+	# What anyone can reach without signing in takes small bodies. The app caps every body itself
+	# too (2 MB, uploads aside); this stops oversized ones before they reach it.
+	@public path /webhooks/* /api/v1/auth/* /api/v1/public/*
+	request_body @public {
+		max_size 1MB
+	}
 	reverse_proxy app:8080 {
 		# The visitor's real address, which sign-in protection and the audit log use.
 		header_up X-Forwarded-For {client_ip}

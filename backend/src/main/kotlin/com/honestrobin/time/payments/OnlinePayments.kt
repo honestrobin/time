@@ -2,6 +2,7 @@
 package com.honestrobin.time.payments
 
 import com.honestrobin.time.analytics.Funnel
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.honestrobin.time.db.Tables.INTEGRATIONS
 import com.honestrobin.time.db.Tables.INVOICES
@@ -226,22 +227,32 @@ class OnlinePaymentService(
      * for the platform's Connect endpoint, where the event names the connected account.
      */
     fun webhook(accountId: UUID?, payload: String, signature: String?): Boolean {
-        val event = runCatching { json.readTree(payload) }.getOrNull() ?: return false
-        val integration = tx.system {
-            if (accountId != null) {
+        // The endpoint is public: check the signature before parsing anything, so only Stripe can
+        // make us build a JSON tree. The secret is the platform's, or the account's own.
+        val integration = if (accountId != null) {
+            val own = tx.system {
                 dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.ACCOUNT_ID.eq(accountId)).and(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("api_key")).fetchOne()
-            } else {
-                event["account"]?.asText()?.let { acct ->
+            } ?: return false
+            if (!StripeClient.verifySignature(payload, signature, credentials(own)["webhook_secret"] ?: "")) return false
+            own
+        } else {
+            if (!StripeClient.verifySignature(payload, signature, settings.platformWebhookSecret)) return false
+            null
+        }
+        val event = runCatching { json.readTree(payload) }.getOrNull() ?: return false
+        if (integration == null) {
+            // The platform's Connect endpoint: the event names the connected account.
+            val connected = event["account"]?.asText()?.let { acct ->
+                tx.system {
                     dsl.selectFrom(INTEGRATIONS).where(INTEGRATIONS.KIND.eq("stripe")).and(INTEGRATIONS.MODE.eq("connect")).and(INTEGRATIONS.EXTERNAL_ACCOUNT_ID.eq(acct)).fetchOne()
                 }
-            }
+            } ?: return true
+            return record(connected, event)
         }
-        val secret = when {
-            integration == null -> return accountId == null && StripeClient.verifySignature(payload, signature, settings.platformWebhookSecret)
-            integration.mode == "connect" -> settings.platformWebhookSecret
-            else -> credentials(integration)["webhook_secret"] ?: ""
-        }
-        if (!StripeClient.verifySignature(payload, signature, secret)) return false
+        return record(integration, event)
+    }
+
+    private fun record(integration: IntegrationsRecord, event: JsonNode): Boolean {
         val type = event["type"]?.asText()
         if (type !in setOf("checkout.session.completed", "checkout.session.async_payment_succeeded")) return true
         val session = event["data"]["object"]
