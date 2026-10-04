@@ -54,6 +54,14 @@ val codegenRuntimeOnly: Configuration by configurations.getting
 // Spring Boot's BOM still pins Kotlin 1.9; keep the libraries in step with the compiler plugin.
 extra["kotlin.version"] = "2.4.20"
 
+// Spring Boot 3.5 gets no more free releases (its support ended on 30 June 2026), so its BOM no
+// longer brings security fixes. Until the move to Spring Boot 4: Jackson's denial-of-service
+// fixes (2.21.7), Tomcat 10.1.60, and commons-lang3 at the version our libraries ask for (the
+// BOM pinned it down to 3.17.0, which has CVE-2025-48924).
+extra["jackson-bom.version"] = "2.21.7"
+extra["tomcat.version"] = "10.1.60"
+extra["commons-lang3.version"] = "3.20.0"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -69,7 +77,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.8.17")
     implementation("com.github.kagkarlsson:db-scheduler-spring-boot-starter:16.12.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.82")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.
     implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.22")
     // Report exports to Excel (spec §12); streams rows, Apache-2.0.
