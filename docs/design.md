@@ -38,7 +38,18 @@ Much of the joy is in what we leave out. Each of these is a bug:
 ## Honest
 
 Honesty is the first project rule (`CLAUDE.md`): never mislead, and disclose by default. The
-design shows prices, limits and mistakes plainly, with numbers where there are numbers.
+design shows prices, limits and mistakes plainly, with numbers where there are numbers. Copy makes
+no claim we couldn't be held to: it says what Time does, not what's guaranteed to happen.
+
+## You come first
+
+When what's good for us and what's good for the person using Time pull apart, we pick them.
+
+- They're always right about what they need. When someone says something's missing or in their
+  way, start from there and work back.
+- Nobody stays because leaving is hard. Export, cancelling and self-hosting stay one step away.
+- The promises that follow from this are in the [Robin's Code](https://honestrobin.com/code),
+  the promises every Honest Robin product is measured against.
 
 ## The look
 

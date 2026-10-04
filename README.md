@@ -2,7 +2,8 @@
 
 Open-source time tracking and invoicing for freelancers and agencies. It works the way people who
 come from Harvest expect, moves your Harvest account over in minutes, and has e-invoicing built in.
-Run it on your own server, or use Honest Robin Cloud (coming later).
+Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
+[Honest Robin](https://honestrobin.com) products: honest, a joy to use, and you come first.
 
 > **Not released yet.** Version 1 is feature-complete and being tried out before a first release.
 > See the [roadmap](ROADMAP.md) for what's built and what's still to check.
@@ -58,6 +59,9 @@ What we promise, and what holds us to it:
 The first three are guarded by tests, so they can't break by accident. Code can't stop us breaking
 a promise on purpose, though, so all four will also go into the terms of service. And the last
 guarantee is yours: you can export everything and run the same software yourself.
+
+They sit on top of the [Robin's Code](https://honestrobin.com/code), the promises every Honest
+Robin product is measured against. It's a draft until it's in the terms of service.
 
 ## Run it yourself
 

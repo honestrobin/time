@@ -15,10 +15,17 @@ decisions are recorded in `docs/decisions/`.
 - **A joy to use: professional, and playful.** Simple first, powerful when needed. The robin
   keeps people company; words sound like a person. No tricks, nagging, corporate language or AI
   for its own sake: treat any of those as a bug (`docs/design.md`).
+- **You come first.** When what's good for us and what's good for the people using Time pull
+  apart, pick them, and if we can't, say so and why. They're always right about what they need:
+  start from what they say is missing or in their way, and work back.
 - **Global by default.** No defaults, copy or compliance scoped to one country or region
   (decision record 0009). Country rules go in modules behind a neutral core.
 - **Plain English** in the UI, emails and docs: short sentences, no jargon.
-- **The trust charter** (README, "Our promises") is guarded by tests in code: nothing is metered
+- **Copy we can stand behind.** Say what Time does, never an outcome nobody could enforce. A joy
+  to read: a little wit in chosen places, never on money, data or errors. Name a promise ("You can
+  always leave"); never cite it by number.
+- **The trust charter** (README, "Our promises"; Time's part of the Robin's Code at
+  honestrobin.com/code) is guarded by tests in code: nothing is metered
   for billing, export always works, and the editions have the same features. Tests stop a promise
   breaking by accident, not on purpose, so never call a check a guarantee. Edition-specific code
   (cloud vs self-host) lives only in `billing`, `analytics` and `platform.edition`;
