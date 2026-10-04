@@ -208,6 +208,6 @@ public class ImportIssuesRecord extends UpdatableRecordImpl<ImportIssuesRecord> 
         setPayload(payload);
         setResolvedAt(resolvedAt);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

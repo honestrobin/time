@@ -8,7 +8,7 @@ import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.db.ActorType
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.web.ApiError
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

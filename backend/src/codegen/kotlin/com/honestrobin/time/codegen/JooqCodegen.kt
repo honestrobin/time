@@ -10,7 +10,7 @@ import org.jooq.meta.jaxb.Generate
 import org.jooq.meta.jaxb.Generator
 import org.jooq.meta.jaxb.Jdbc
 import org.jooq.meta.jaxb.Target
-import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.postgresql.PostgreSQLContainer
 import java.io.File
 
 /**
@@ -19,7 +19,7 @@ import java.io.File
  */
 fun main() {
     val explicitUrl = System.getenv("JOOQ_JDBC_URL")
-    val container = if (explicitUrl == null) PostgreSQLContainer("postgres:16-alpine").also { it.start() } else null
+    val container = if (explicitUrl == null) PostgreSQLContainer("postgres:18-alpine").also { it.start() } else null
     try {
         val url = explicitUrl ?: container!!.jdbcUrl
         val user = System.getenv("JOOQ_JDBC_USER") ?: container?.username ?: "postgres"

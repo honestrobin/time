@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletResponse
 import org.postgresql.PGConnection
 import org.slf4j.LoggerFactory
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties
 import org.springframework.context.SmartLifecycle
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component

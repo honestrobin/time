@@ -10,9 +10,9 @@ class Passwords {
     private val encoder = Argon2PasswordEncoder(16, 32, 1, 19 * 1024, 2)
 
     // Used to equalise timing when the user does not exist.
-    private val dummyHash = encoder.encode("honestrobin-timing-equaliser")
+    private val dummyHash = checkNotNull(encoder.encode("honestrobin-timing-equaliser"))
 
-    fun hash(raw: String): String = encoder.encode(raw)
+    fun hash(raw: String): String = checkNotNull(encoder.encode(raw))
 
     fun matches(raw: String, hash: String?): Boolean =
         if (hash == null) {

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.support
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.MissingNode
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.node.MissingNode
 import jakarta.servlet.http.Cookie
 import org.assertj.core.api.Assertions.assertThat
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import java.util.UUID
 
@@ -68,7 +68,7 @@ class TestClient(private val mvc: MockMvc, private val mapper: ObjectMapper) {
         return perform(builder)
     }
 
-    private fun perform(builder: MockHttpServletRequestBuilder): TestResponse {
+    private fun perform(builder: AbstractMockHttpServletRequestBuilder<*>): TestResponse {
         if (cookies.isNotEmpty()) builder.cookie(*cookies.values.toTypedArray())
         cookies["XSRF-TOKEN"]?.let { if (sendCsrf) builder.header("X-XSRF-TOKEN", it.value) }
         accountId?.let { builder.header("HonestRobin-Account-Id", it.toString()) }

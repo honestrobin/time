@@ -272,6 +272,6 @@ public class IntegrationsRecord extends UpdatableRecordImpl<IntegrationsRecord> 
         setConnectedAt(connectedAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

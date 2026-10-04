@@ -47,7 +47,7 @@ class DeviceAuthorizationTest : IntegrationTest() {
         val ext = client().apply { bearer = collected["token"].asText() }
         assertThat(ext.get("/api/v1/me").expect(200)["email"].asText()).isEqualTo(admin.email)
         val tokens = admin.get("/api/v1/me/api_tokens").expect(200).body
-        assertThat(tokens.map { it["name"].asText() }).contains("Browser extension (Chrome)")
+        assertThat(tokens.values().map { it["name"].asText() }).contains("Browser extension (Chrome)")
     }
 
     @Test
@@ -100,7 +100,7 @@ class DeviceAuthorizationTest : IntegrationTest() {
     fun `the instance serves the extension's selector config, for fixes without a store release`() {
         val res = client().get("/extension/selectors.json").expect(200)
         assertThat(res["version"].asInt()).isPositive()
-        assertThat(res["sites"].map { it["source"].asText() }).containsExactlyInAnyOrder("github", "jira", "asana", "linear", "trello")
+        assertThat(res["sites"].values().map { it["source"].asText() }).containsExactlyInAnyOrder("github", "jira", "asana", "linear", "trello")
     }
 }
 

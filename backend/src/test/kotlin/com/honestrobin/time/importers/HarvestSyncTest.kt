@@ -72,7 +72,7 @@ class HarvestSyncTest : IntegrationTest() {
             // The entry timing here was left alone, and the reason is listed.
             assertThat(dsl.select(TIME_ENTRIES.NOTES).from(TIME_ENTRIES).where(TIME_ENTRIES.ID.eq(timingId)).fetchOne()!!.value1()).isEqualTo("Timing here")
         }
-        assertThat(admin.get("/api/v1/imports/$id/issues").expect(200).body.map { it["reason"].asText() }).anyMatch { it.contains("kept as it is here") }
+        assertThat(admin.get("/api/v1/imports/$id/issues").expect(200).body.values().map { it["reason"].asText() }).anyMatch { it.contains("kept as it is here") }
 
         // The cutover: syncing stops and the token is forgotten.
         val stopped = admin.post("/api/v1/imports/$id/stop_sync").expect(200)

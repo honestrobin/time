@@ -143,6 +143,6 @@ public class TeamsRecord extends UpdatableRecordImpl<TeamsRecord> {
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
         setArchivedAt(archivedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

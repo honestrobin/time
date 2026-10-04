@@ -223,6 +223,6 @@ public class EinvoiceTransmissionsRecord extends UpdatableRecordImpl<EinvoiceTra
         setAttempts(attempts);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

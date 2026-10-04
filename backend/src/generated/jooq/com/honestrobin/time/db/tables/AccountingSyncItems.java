@@ -27,10 +27,10 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -269,7 +269,7 @@ public class AccountingSyncItems extends TableImpl<AccountingSyncItemsRecord> {
      */
     @Override
     public AccountingSyncItems where(Condition condition) {
-        return new AccountingSyncItems(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new AccountingSyncItems(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -336,7 +336,7 @@ public class AccountingSyncItems extends TableImpl<AccountingSyncItemsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public AccountingSyncItems whereExists(Select<?> select) {
+    public AccountingSyncItems whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -344,7 +344,7 @@ public class AccountingSyncItems extends TableImpl<AccountingSyncItemsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public AccountingSyncItems whereNotExists(Select<?> select) {
+    public AccountingSyncItems whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

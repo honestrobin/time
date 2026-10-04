@@ -5,8 +5,8 @@ import com.honestrobin.time.db.Tables.AUDIT_LOG
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.platform.db.TenantAwareTransactionManager
 import com.honestrobin.time.platform.security.Current
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.jooq.DSLContext
 import org.jooq.impl.DSL

@@ -127,6 +127,6 @@ public class UserRecoveryCodesRecord extends UpdatableRecordImpl<UserRecoveryCod
         setCodeHash(codeHash);
         setUsedAt(usedAt);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

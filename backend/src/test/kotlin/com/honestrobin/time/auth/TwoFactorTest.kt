@@ -22,7 +22,7 @@ class TwoFactorTest : IntegrationTest() {
         val valid = (-1..1).map { Totp.code(secret, Totp.step(Instant.now()) + it) }
         c.post("/api/v1/me/two_factor/enable", mapOf("code" to listOf("000000", "111111", "222222").first { it !in valid })).expectError(422, "validation_failed")
         val step = Totp.step(Instant.now())
-        val codes = c.post("/api/v1/me/two_factor/enable", mapOf("code" to Totp.code(secret, step))).expect(200)["recovery_codes"].map { it.asText() }
+        val codes = c.post("/api/v1/me/two_factor/enable", mapOf("code" to Totp.code(secret, step))).expect(200)["recovery_codes"].values().map { it.asText() }
         assertThat(codes).hasSize(10).allMatch { it.matches(Regex("[a-z2-9]{5}-[a-z2-9]{5}")) }
         return Triple(secret, step, codes)
     }

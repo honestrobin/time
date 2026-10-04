@@ -319,6 +319,6 @@ public class SubscriptionsRecord extends UpdatableRecordImpl<SubscriptionsRecord
         setCanceledAt(canceledAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

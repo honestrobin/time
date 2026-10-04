@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.4.20"
     kotlin("plugin.spring") version "2.4.20"
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
@@ -13,13 +13,13 @@ group = "com.honestrobin.time"
 version = (findProperty("honestrobinVersion") as String?) ?: "0.1.0-SNAPSHOT"
 
 java {
-    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
+    toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(JvmTarget.JVM_25)
         freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
     }
 }
@@ -51,35 +51,26 @@ sourceSets {
 val codegenImplementation: Configuration by configurations.getting
 val codegenRuntimeOnly: Configuration by configurations.getting
 
-// Spring Boot's BOM still pins Kotlin 1.9; keep the libraries in step with the compiler plugin.
+// Keep the Kotlin libraries in step with the compiler plugin (Spring Boot's BOM has 2.3).
 extra["kotlin.version"] = "2.4.20"
 
-// Spring Boot 3.5 gets no more free releases (its support ended on 30 June 2026), so its BOM no
-// longer brings security fixes. Until the move to Spring Boot 4: Jackson's denial-of-service
-// fixes (2.21.7), Tomcat 10.1.60, and commons-lang3 at the version our libraries ask for (the
-// BOM pinned it down to 3.17.0, which has CVE-2025-48924).
-extra["jackson-bom.version"] = "2.21.7"
-extra["tomcat.version"] = "10.1.60"
-extra["commons-lang3.version"] = "3.20.0"
-
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.8.17")
-    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-starter:16.12.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
+    implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.
-    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.22")
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.87")
     // Report exports to Excel (spec §12); streams rows, Apache-2.0.
     implementation("org.dhatim:fastexcel:0.20.2")
     // CSV imports (Harvest's own exports, spec §6.6), Apache-2.0.
@@ -97,18 +88,22 @@ dependencies {
     // JAXB for reading CII and writing UBL, version from the Spring Boot BOM.
     implementation("org.glassfish.jaxb:jaxb-runtime")
     implementation("io.micrometer:micrometer-registry-prometheus")
+    // Tracing for operators who turn it on (HONESTROBIN_TRACING_SAMPLING). Not the OpenTelemetry
+    // starter: it also brings an OTLP metrics exporter that would push to localhost and log errors.
+    implementation("org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp")
     // Also used directly: LISTEN for live updates (platform/live).
     implementation("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.security:spring-security-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     // Property-based tests for the time and money arithmetic.
-    testImplementation("io.kotest:kotest-property:5.9.1")
+    testImplementation("io.kotest:kotest-property:6.2.5")
     // The official EN 16931, XRechnung and Peppol BIS validation rules, to check our e-invoices (AT-5.1).
     testImplementation("com.helger.phive.rules:phive-rules-en16931:4.6.3")
     testImplementation("com.helger.phive.rules:phive-rules-xrechnung:4.6.3")
@@ -122,7 +117,7 @@ dependencies {
     codegenImplementation("org.jooq:jooq-meta")
     codegenImplementation("org.flywaydb:flyway-core")
     codegenImplementation("org.flywaydb:flyway-database-postgresql")
-    codegenImplementation("org.testcontainers:postgresql")
+    codegenImplementation("org.testcontainers:testcontainers-postgresql")
     codegenRuntimeOnly("org.postgresql:postgresql")
     codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
@@ -134,7 +129,7 @@ val jooqCodegen by tasks.registering(JavaExec::class) {
     mainClass.set("com.honestrobin.time.codegen.JooqCodegenKt")
     workingDir = projectDir
     jvmArgs("-Dorg.slf4j.simpleLogger.defaultLogLevel=warn")
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
     listOf("JOOQ_JDBC_URL", "JOOQ_JDBC_USER", "JOOQ_JDBC_PASSWORD", "DOCKER_HOST", "TESTCONTAINERS_RYUK_DISABLED")
         .forEach { name -> System.getenv(name)?.let { environment(name, it) } }
 }

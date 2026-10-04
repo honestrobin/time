@@ -29,10 +29,10 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -291,7 +291,7 @@ public class Integrations extends TableImpl<IntegrationsRecord> {
      */
     @Override
     public Integrations where(Condition condition) {
-        return new Integrations(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new Integrations(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -358,7 +358,7 @@ public class Integrations extends TableImpl<IntegrationsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Integrations whereExists(Select<?> select) {
+    public Integrations whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -366,7 +366,7 @@ public class Integrations extends TableImpl<IntegrationsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Integrations whereNotExists(Select<?> select) {
+    public Integrations whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

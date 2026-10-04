@@ -94,7 +94,7 @@ class WorldClockTest : IntegrationTest() {
             val week = admin.get("/api/v1/timesheets/week").expect(200)
             val expectedStart = LocalDate.parse(expectedDay).with(TemporalAdjusters.previousOrSame(DayOfWeek.of(weekStart)))
             assertThat(week["week_start"].asText()).describedAs("$zone, week starts on ${DayOfWeek.of(weekStart)}").isEqualTo(expectedStart.toString())
-            assertThat(week["days"].map { it.asText() }).hasSize(7).contains(expectedDay)
+            assertThat(week["days"].values().map { it.asText() }).hasSize(7).contains(expectedDay)
 
             // Yesterday here may still be today somewhere else; a timer only starts on the account's own today.
             admin.post("/api/v1/time_entries", mapOf("project_id" to project, "task_id" to task, "spent_date" to LocalDate.parse(expectedDay).minusDays(1).toString()))

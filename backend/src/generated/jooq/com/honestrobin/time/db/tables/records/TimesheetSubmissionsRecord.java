@@ -224,6 +224,6 @@ public class TimesheetSubmissionsRecord extends UpdatableRecordImpl<TimesheetSub
         setComment(comment);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

@@ -209,6 +209,6 @@ public class ArchivedDocumentsRecord extends UpdatableRecordImpl<ArchivedDocumen
         setData(data);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

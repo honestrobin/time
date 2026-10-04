@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.importers.harvest
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.module.kotlin.KotlinModule
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.net.URI
@@ -69,11 +69,11 @@ class HarvestClient(
     var requestCount = 0
         private set
 
-    val mapper: ObjectMapper = ObjectMapper()
-        .registerModule(KotlinModule.Builder().build())
-        .registerModule(JavaTimeModule())
-        .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    val mapper: ObjectMapper = JsonMapper.builder()
+        .addModule(KotlinModule.Builder().build())
+        .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .build()
 
     fun url(path: String, params: Map<String, Any?> = emptyMap()): String {
         val query = params.filterValues { it != null }.entries.joinToString("&") { (k, v) -> "$k=" + URLEncoder.encode(v.toString(), Charsets.UTF_8) }

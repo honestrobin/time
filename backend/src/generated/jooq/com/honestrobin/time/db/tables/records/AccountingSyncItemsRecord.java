@@ -239,6 +239,6 @@ public class AccountingSyncItemsRecord extends UpdatableRecordImpl<AccountingSyn
         setExternalId(externalId);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

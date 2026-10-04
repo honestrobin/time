@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.export
 
-import com.fasterxml.jackson.core.JsonToken
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
+import tools.jackson.core.JsonToken
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.cfg.JsonNodeFeature
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
 import com.honestrobin.time.db.Tables.FILES
@@ -46,11 +48,14 @@ class AccountImporter(
     private val dsl: DSLContext,
     private val storage: FileStorage,
     private val tx: TransactionTemplate,
-    mapper: ObjectMapper,
 ) {
-    // Decimals exactly as written: 1.0 stays 1.0, also inside jsonb values.
-    private val json: ObjectMapper = mapper.copy().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
-        .setNodeFactory(com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals(true))
+    // Rows are read as trees, with decimals exactly as written: 1.0 stays 1.0, also inside jsonb
+    // values.
+    private val json: ObjectMapper = JsonMapper.builder()
+        .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        .enable(JsonNodeFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
+        .build()
 
     /**
      * Reading budget for one zip: a crafted zip can claim small entries and inflate to terabytes,
@@ -202,10 +207,10 @@ class AccountImporter(
             batch.clear()
         }
         budget.wrap(zip.getInputStream(entry)).use { input ->
-            json.factory.createParser(input).use { p ->
+            json.createParser(input).use { p ->
                 if (p.nextToken() != JsonToken.START_ARRAY) throw BadRequestException("export_damaged", "data/${t.name}.json is not a list of rows")
                 while (p.nextToken() == JsonToken.START_OBJECT) {
-                    val row = prepare(json.readTree<ObjectNode>(p)) ?: continue
+                    val row = prepare((json.readTree(p) as ObjectNode)) ?: continue
                     batch += record(t, row)
                     count++
                     if (batch.size >= 500) flush()
@@ -219,7 +224,7 @@ class AccountImporter(
     @Suppress("UNCHECKED_CAST")
     private fun record(t: ExportTable, row: ObjectNode): TableRecord<*> {
         val r = dsl.newRecord(t.table) as TableRecord<*>
-        row.fieldNames().forEach { name ->
+        row.propertyNames().forEach { name ->
             val field = t.table.field(name) as Field<Any?>?
                 ?: throw BadRequestException("export_damaged", "data/${t.name}.json has an unknown column: $name")
             if (name in t.omit) return@forEach

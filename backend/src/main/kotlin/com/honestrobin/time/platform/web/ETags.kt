@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import org.springframework.core.MethodParameter
 import org.springframework.http.MediaType
 import org.springframework.http.converter.HttpMessageConverter
-import org.springframework.http.converter.json.MappingJacksonValue
 import org.springframework.http.server.ServerHttpRequest
 import org.springframework.http.server.ServerHttpResponse
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -48,8 +47,7 @@ class ETagAdvice : ResponseBodyAdvice<Any> {
         request: ServerHttpRequest,
         response: ServerHttpResponse,
     ): Any? {
-        val value = (body as? MappingJacksonValue)?.value ?: body
-        if (value is Versioned) response.headers.eTag = ETags.of(value.version)
+        if (body is Versioned) response.headers.eTag = ETags.of(body.version)
         return body
     }
 }

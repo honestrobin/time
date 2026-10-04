@@ -223,6 +223,6 @@ public class ProjectMembersRecord extends UpdatableRecordImpl<ProjectMembersReco
         setIsActive(isActive);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

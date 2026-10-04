@@ -127,6 +127,6 @@ public class InvoiceExpenseLinksRecord extends UpdatableRecordImpl<InvoiceExpens
         setInvoiceLineId(invoiceLineId);
         setExpenseId(expenseId);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

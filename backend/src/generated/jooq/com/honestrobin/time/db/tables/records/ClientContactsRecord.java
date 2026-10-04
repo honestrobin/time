@@ -207,6 +207,6 @@ public class ClientContactsRecord extends UpdatableRecordImpl<ClientContactsReco
         setIsInvoiceRecipient(isInvoiceRecipient);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

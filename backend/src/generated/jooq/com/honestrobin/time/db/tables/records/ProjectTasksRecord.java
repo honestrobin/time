@@ -223,6 +223,6 @@ public class ProjectTasksRecord extends UpdatableRecordImpl<ProjectTasksRecord> 
         setIsActive(isActive);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

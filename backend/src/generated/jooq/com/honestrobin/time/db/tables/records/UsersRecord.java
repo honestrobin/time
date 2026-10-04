@@ -271,6 +271,6 @@ public class UsersRecord extends UpdatableRecordImpl<UsersRecord> {
         setTotpPendingEncrypted(totpPendingEncrypted);
         setTotpEnabledAt(totpEnabledAt);
         setTotpLastStep(totpLastStep);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

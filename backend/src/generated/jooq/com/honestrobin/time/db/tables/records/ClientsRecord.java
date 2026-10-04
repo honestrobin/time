@@ -383,6 +383,6 @@ public class ClientsRecord extends UpdatableRecordImpl<ClientsRecord> {
         setArchivedAt(archivedAt);
         setPeppolReachable(peppolReachable);
         setPeppolCheckedAt(peppolCheckedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

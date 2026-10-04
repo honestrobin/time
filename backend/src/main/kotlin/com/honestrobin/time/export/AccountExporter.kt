@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.export
 
-import com.fasterxml.jackson.core.JsonEncoding
-import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
+import tools.jackson.core.JsonEncoding
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.SerializationFeature
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.CLIENTS
 import com.honestrobin.time.db.Tables.CLIENT_CONTACTS
@@ -74,7 +73,6 @@ class AccountExporter(
     private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val factory = JsonFactory()
 
     fun write(accountId: UUID, target: Path): ExportManifest {
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).fetchOne() ?: error("Account $accountId not visible")
@@ -91,7 +89,7 @@ class AccountExporter(
                     excluded = ExportFormat.EXCLUDED.mapKeys { it.key.name },
                 )
                 entry(zip, "README.txt") { out -> out.write(readme(manifest).toByteArray()); 0 }
-                entry(zip, "manifest.json") { out -> json.copy().enable(SerializationFeature.INDENT_OUTPUT).writeValue(NonClosing(out), manifest); 0 }
+                entry(zip, "manifest.json") { out -> json.writer(SerializationFeature.INDENT_OUTPUT).writeValue(NonClosing(out), manifest); 0 }
                 return manifest
             }
         }
@@ -111,8 +109,7 @@ class AccountExporter(
     private fun writeTable(t: ExportTable, accountId: UUID, out: OutputStream): Long {
         val fields = t.fields
         var rows = 0L
-        factory.createGenerator(NonClosing(out), JsonEncoding.UTF8).use { g ->
-            g.prettyPrinter = RowPerLinePrinter()
+        json.writer().with(RowPerLinePrinter()).createGenerator(NonClosing(out), JsonEncoding.UTF8).use { g ->
             g.writeStartArray()
             dsl.select(fields).from(t.table).where(t.rows(accountId))
                 .orderBy(t.table.primaryKey!!.fields)
@@ -120,7 +117,7 @@ class AccountExporter(
                     for (r in cursor) {
                         g.writeStartObject()
                         fields.forEachIndexed { i, f ->
-                            g.writeFieldName(f.name)
+                            g.writeName(f.name)
                             ExportCodec.write(g, r.get(i))
                         }
                         g.writeEndObject()

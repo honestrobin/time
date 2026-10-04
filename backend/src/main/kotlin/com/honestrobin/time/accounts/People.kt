@@ -30,7 +30,7 @@ import com.honestrobin.time.platform.web.Versioned
 import com.honestrobin.time.platform.web.Views
 import com.honestrobin.time.platform.web.clampLimit
 import com.fasterxml.jackson.annotation.JsonView
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag

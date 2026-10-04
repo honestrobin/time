@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.export
 
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import com.honestrobin.time.db.Public
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
@@ -167,7 +167,7 @@ class AccountDataTest : IntegrationTest() {
         assertThat(importer.get("/api/v1/expenses/${s.expense}/receipt").expect(200).bytes).isEqualTo(s.receipt)
 
         // Nobody but the importer is linked to a sign-in: the others are invited again.
-        assertThat(s.member.get("/api/v1/me")["accounts"].map { it["id"].asText() }).doesNotContain(accountId.toString())
+        assertThat(s.member.get("/api/v1/me")["accounts"].values().map { it["id"].asText() }).doesNotContain(accountId.toString())
         val people = importer.get("/api/v1/people").expect(200)["data"]
         assertThat(people.first { it["email"].asText() == s.member.email }["status"].asText()).isEqualTo("pending_invite")
 
@@ -180,7 +180,7 @@ class AccountDataTest : IntegrationTest() {
         val changed = setOf("memberships", "users", "audit_log", "files")
         for (name in m1.keys - changed) assertThat(m2[name]).withFailMessage { "$name differs after the round trip" }.isEqualTo(m1[name])
         fun rows(parts: Map<String, ByteArray>, name: String): List<JsonNode> = mapper.readTree(parts["data/$name.json"]).toList()
-        fun without(rows: List<JsonNode>, vararg columns: String) = rows.map { (it.deepCopy() as com.fasterxml.jackson.databind.node.ObjectNode).apply { remove(columns.toList()) } }
+        fun without(rows: List<JsonNode>, vararg columns: String) = rows.map { (it.deepCopy() as tools.jackson.databind.node.ObjectNode).apply { remove(columns.toList()) } }
         assertThat(without(rows(again, "memberships").filter { it["email"].asText() != importer.email }, "user_id", "status"))
             .isEqualTo(without(rows(before, "memberships"), "user_id", "status"))
         assertThat(rows(again, "users").map { it["email"].asText() }).containsExactly(importer.email)
@@ -207,7 +207,7 @@ class AccountDataTest : IntegrationTest() {
         send(rezip(parts)).expectError(400, "export_damaged")
         send(rezip(mapOf("hello.txt" to "hi".toByteArray()))).expectError(400, "not_an_export")
         val newer = unzip(zip).toMutableMap()
-        newer["manifest.json"] = mapper.writeValueAsBytes((mapper.readTree(newer["manifest.json"]) as com.fasterxml.jackson.databind.node.ObjectNode).put("version", 99))
+        newer["manifest.json"] = mapper.writeValueAsBytes((mapper.readTree(newer["manifest.json"]) as tools.jackson.databind.node.ObjectNode).put("version", 99))
         send(rezip(newer)).expectError(400, "export_too_new")
     }
 
@@ -220,14 +220,14 @@ class AccountDataTest : IntegrationTest() {
     }
 
     /** Changes a data file inside an export and fixes its checksum, as an attacker would. */
-    private fun tamper(zip: ByteArray, table: String, change: (com.fasterxml.jackson.databind.node.ArrayNode) -> Unit): ByteArray {
+    private fun tamper(zip: ByteArray, table: String, change: (tools.jackson.databind.node.ArrayNode) -> Unit): ByteArray {
         val parts = unzip(zip).toMutableMap()
-        val rows = mapper.readTree(parts["data/$table.json"]) as com.fasterxml.jackson.databind.node.ArrayNode
+        val rows = mapper.readTree(parts["data/$table.json"]) as tools.jackson.databind.node.ArrayNode
         change(rows)
         val bytes = mapper.writeValueAsBytes(rows)
         parts["data/$table.json"] = bytes
-        val manifest = mapper.readTree(parts["manifest.json"]) as com.fasterxml.jackson.databind.node.ObjectNode
-        manifest["tables"].forEach { if (it["name"].asText() == table) (it as com.fasterxml.jackson.databind.node.ObjectNode).put("sha256", sha256(bytes)) }
+        val manifest = mapper.readTree(parts["manifest.json"]) as tools.jackson.databind.node.ObjectNode
+        manifest["tables"].forEach { if (it["name"].asText() == table) (it as tools.jackson.databind.node.ObjectNode).put("sha256", sha256(bytes)) }
         parts["manifest.json"] = mapper.writeValueAsBytes(manifest)
         return rezip(parts)
     }
@@ -245,15 +245,15 @@ class AccountDataTest : IntegrationTest() {
         fun send(bytes: ByteArray) = attacker.request(HttpMethod.POST, "/api/v1/accounts/import", bytes, headers = mapOf("Content-Type" to "application/zip"))
 
         // A client row that names the victim's account.
-        send(tamper(zip, "clients") { rows -> (rows[0] as com.fasterxml.jackson.databind.node.ObjectNode).put("account_id", victim.accountId.toString()) })
+        send(tamper(zip, "clients") { rows -> (rows[0] as tools.jackson.databind.node.ObjectNode).put("account_id", victim.accountId.toString()) })
             .expectError(400, "export_damaged")
         // A time entry of the imported account on the victim's project.
-        send(tamper(zip, "time_entries") { rows -> (rows[0] as com.fasterxml.jackson.databind.node.ObjectNode).put("project_id", victimProject.toString()) })
+        send(tamper(zip, "time_entries") { rows -> (rows[0] as tools.jackson.databind.node.ObjectNode).put("project_id", victimProject.toString()) })
             .expectError(400, "export_damaged")
         assertThat(victim.get("/api/v1/clients")["data"]).hasSize(1)
 
         // A storage key pointing elsewhere is replaced, never used.
-        val imported = send(tamper(zip, "files") { rows -> (rows[0] as com.fasterxml.jackson.databind.node.ObjectNode).put("storage_key", "exports/${victim.accountId}/x.zip") }).expect(201)
+        val imported = send(tamper(zip, "files") { rows -> (rows[0] as tools.jackson.databind.node.ObjectNode).put("storage_key", "exports/${victim.accountId}/x.zip") }).expect(201)
         assertThat(imported["files"].asInt()).isEqualTo(1)
         val key = tx.system { dsl.select(com.honestrobin.time.db.Tables.FILES.STORAGE_KEY).from(com.honestrobin.time.db.Tables.FILES).where(com.honestrobin.time.db.Tables.FILES.ACCOUNT_ID.eq(accountId)).fetchOne()!!.value1() }
         assertThat(key).startsWith("$accountId/")

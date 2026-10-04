@@ -2,7 +2,7 @@
 package com.honestrobin.time.catalog
 
 import com.honestrobin.time.support.IntegrationTest
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -79,7 +79,7 @@ class RateVisibilityTest : IntegrationTest() {
 
     private fun scan(where: String, node: JsonNode, resource: String = "", path: String = "") {
         when {
-            node.isObject -> node.fields().forEach { (k, v) ->
+            node.isObject -> node.properties().forEach { (k, v) ->
                 val qualified = "$resource.$k"
                 if (sensitive.containsMatchIn(k) && qualified !in allowed && k !in allowedKeys) {
                     throw AssertionError("$where exposes '$k' at $path to a member without rate visibility: $node")

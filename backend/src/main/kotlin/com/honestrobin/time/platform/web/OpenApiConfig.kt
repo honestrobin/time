@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.platform.web
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.core.jackson.ModelResolver
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
@@ -15,9 +14,14 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class OpenApiConfig {
-    /** Makes the schema follow the API's snake_case JSON naming. */
+    /**
+     * Makes the schema follow the API's snake_case JSON naming. swagger-core still reads models
+     * with Jackson 2, so it gets its own mapper with the same naming as the app's Jackson 3 one.
+     */
     @Bean
-    fun modelResolver(objectMapper: ObjectMapper) = ModelResolver(objectMapper)
+    fun modelResolver() = ModelResolver(
+        io.swagger.v3.core.util.Json.mapper().copy().setPropertyNamingStrategy(com.fasterxml.jackson.databind.PropertyNamingStrategies.SNAKE_CASE),
+    )
 
     @Bean
     fun openApi(): OpenAPI = OpenAPI()

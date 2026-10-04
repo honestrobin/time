@@ -23,10 +23,10 @@ import org.jooq.PlainSQL;
 import org.jooq.QueryPart;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -201,7 +201,7 @@ public class AuditLog extends TableImpl<AuditLogRecord> {
      */
     @Override
     public AuditLog where(Condition condition) {
-        return new AuditLog(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new AuditLog(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -268,7 +268,7 @@ public class AuditLog extends TableImpl<AuditLogRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public AuditLog whereExists(Select<?> select) {
+    public AuditLog whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -276,7 +276,7 @@ public class AuditLog extends TableImpl<AuditLogRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public AuditLog whereNotExists(Select<?> select) {
+    public AuditLog whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

@@ -127,6 +127,6 @@ public class InvoiceTimeLinksRecord extends UpdatableRecordImpl<InvoiceTimeLinks
         setInvoiceLineId(invoiceLineId);
         setTimeEntryId(timeEntryId);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

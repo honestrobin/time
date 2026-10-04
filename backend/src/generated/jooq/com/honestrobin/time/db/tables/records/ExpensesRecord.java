@@ -337,6 +337,6 @@ public class ExpensesRecord extends UpdatableRecordImpl<ExpensesRecord> {
         setLockedReason(lockedReason);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

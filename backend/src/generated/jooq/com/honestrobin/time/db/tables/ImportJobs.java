@@ -31,10 +31,10 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -359,7 +359,7 @@ public class ImportJobs extends TableImpl<ImportJobsRecord> {
      */
     @Override
     public ImportJobs where(Condition condition) {
-        return new ImportJobs(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new ImportJobs(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -426,7 +426,7 @@ public class ImportJobs extends TableImpl<ImportJobsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public ImportJobs whereExists(Select<?> select) {
+    public ImportJobs whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -434,7 +434,7 @@ public class ImportJobs extends TableImpl<ImportJobsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public ImportJobs whereNotExists(Select<?> select) {
+    public ImportJobs whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

@@ -385,6 +385,6 @@ public class MembershipsRecord extends UpdatableRecordImpl<MembershipsRecord> {
         setHasAccessToAllFutureProjects(hasAccessToAllFutureProjects);
         setIsContractor(isContractor);
         setInvitedAt(invitedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

@@ -6,7 +6,7 @@ The self-hosted edition is the same code as Honest Robin Cloud, with every featu
 
 - Docker (or Podman) with Compose
 - About 1 GB of RAM for the app and 1 GB for Postgres at typical agency sizes
-- PostgreSQL 16 (included in the compose file, or bring your own)
+- PostgreSQL 18 (included in the compose file, or bring your own)
 
 ## Start
 
@@ -134,6 +134,28 @@ Any admin can download a full export of an account (Settings → Account → Exp
 ## Upgrades
 
 Pull the new version and restart: `git pull && docker compose -f deploy/docker-compose.yml up -d --build`. Database migrations run automatically on start. Read the release notes before a major version.
+
+### From PostgreSQL 16 to 18
+
+Instances set up before 4 October 2026 ran PostgreSQL 16. The app now needs 18 (its database
+library supports no older version), and the compose file keeps PostgreSQL 18's data in a new
+volume. Move the data across once, in this order, before the app starts on the new database:
+an empty database looks like a fresh instance, where the first person to sign up becomes admin.
+
+```sh
+C="docker compose -f deploy/docker-compose.yml"   # add -f deploy/docker-compose.https.yml if you use it
+$C stop app
+$C exec -T db pg_dumpall -U honestrobin > honestrobin-pg16.sql   # everything, the app's role included
+git pull
+$C up -d db                                                        # PostgreSQL 18, on the new volume
+$C exec -T db psql -U honestrobin -d postgres -q < honestrobin-pg16.sql
+$C up -d --build
+$C logs app | grep "Row-level security"                            # should say it's active
+```
+
+The restore reports that the role `honestrobin` and the database `honestrobin` already exist;
+that's expected. Sign in and check your data, then remove the old volume:
+`docker volume rm honestrobin-time_db`.
 
 ## Monitoring
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.importers.csv
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import com.honestrobin.time.analytics.Funnel
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.CLIENTS
@@ -208,9 +208,9 @@ class CsvImportService(
         val table = read(files.load(f.fileId).bytes)
         val saved = json.readTree(f.mapping.data())
         var kind = runCatching { CsvKind.valueOf(f.kind) }.getOrDefault(CsvFields.detect(table.columns))
-        var mapping: Map<String, String?> = saved["fields"]?.fields()?.asSequence()?.associate { it.key to it.value.takeIf { v -> !v.isNull }?.asText() } ?: emptyMap()
+        var mapping: Map<String, String?> = saved["fields"]?.properties()?.associate { it.key to it.value.takeIf { v -> !v.isNull }?.asText() } ?: emptyMap()
         var dateOrder = saved["date_order"]?.takeIf { !it.isNull }?.asText()?.let { runCatching { CsvValues.DateOrder.valueOf(it) }.getOrNull() }
-        var people: Map<String, String> = saved["people"]?.fields()?.asSequence()?.associate { it.key to it.value.asText() } ?: emptyMap()
+        var people: Map<String, String> = saved["people"]?.properties()?.associate { it.key to it.value.asText() } ?: emptyMap()
         if (input != null) {
             if (input.kind != null && input.kind != kind) {
                 kind = input.kind

@@ -224,6 +224,6 @@ public class AuditLogRecord extends UpdatableRecordImpl<AuditLogRecord> {
         setReason(reason);
         setIp(ip);
         setAt(at);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

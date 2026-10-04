@@ -39,7 +39,7 @@ class ApprovalsTest : IntegrationTest() {
         member.post("/api/v1/approvals/$submissionId/approve").expectError(403, "forbidden")
 
         val pending = manager.get("/api/v1/approvals").expect(200)
-        assertThat(pending.body.map { it["person"]["name"].asText() }).contains("Max Member")
+        assertThat(pending.body.values().map { it["person"]["name"].asText() }).contains("Max Member")
 
         val approved = manager.post("/api/v1/approvals/$submissionId/approve").expect(200)
         assertThat(approved["submission"]["state"].asText()).isEqualTo("approved")
@@ -58,7 +58,7 @@ class ApprovalsTest : IntegrationTest() {
         val unlock = audit["entries"].first { it["diff"].has("is_locked") }
         assertThat(unlock["reason"].asText()).isEqualTo("Client asked for a correction")
         assertThat(unlock["actor_user_id"].asText()).isEqualTo(admin.userId.toString())
-        assertThat(admin.get("/api/v1/audit_log", mapOf("entity_type" to "timesheet_submissions")).expect(200)["entries"].map { it["action"].asText() })
+        assertThat(admin.get("/api/v1/audit_log", mapOf("entity_type" to "timesheet_submissions")).expect(200)["entries"].values().map { it["action"].asText() })
             .contains("timesheet.reopen")
 
         member.patch("/api/v1/time_entries/${entry.id()}", mapOf("duration_seconds" to 3600)).expect(200)

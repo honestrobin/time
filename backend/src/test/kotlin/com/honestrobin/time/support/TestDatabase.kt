@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.support
 
-import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.DriverManager
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,8 +13,8 @@ object TestDatabase {
     private val external = System.getenv("HONESTROBIN_TEST_JDBC_URL")
     private val counter = AtomicInteger()
 
-    private val container: PostgreSQLContainer<*>? by lazy {
-        if (external != null) null else PostgreSQLContainer("postgres:16-alpine").withCommand("postgres", "-c", "max_connections=300", "-c", "fsync=off").also { it.start() }
+    private val container: PostgreSQLContainer? by lazy {
+        if (external != null) null else PostgreSQLContainer("postgres:18-alpine").withCommand("postgres", "-c", "max_connections=300", "-c", "fsync=off").also { it.start() }
     }
 
     val username: String get() = container?.username ?: System.getenv("HONESTROBIN_TEST_JDBC_USER") ?: "postgres"

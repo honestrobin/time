@@ -63,10 +63,10 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -908,7 +908,7 @@ public class Accounts extends TableImpl<AccountsRecord> {
      */
     @Override
     public Accounts where(Condition condition) {
-        return new Accounts(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new Accounts(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -975,7 +975,7 @@ public class Accounts extends TableImpl<AccountsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Accounts whereExists(Select<?> select) {
+    public Accounts whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -983,7 +983,7 @@ public class Accounts extends TableImpl<AccountsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Accounts whereNotExists(Select<?> select) {
+    public Accounts whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

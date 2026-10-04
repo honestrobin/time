@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.support
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.util.UUID

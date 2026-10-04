@@ -449,6 +449,6 @@ public class ProjectsRecord extends UpdatableRecordImpl<ProjectsRecord> {
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
         setArchivedAt(archivedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

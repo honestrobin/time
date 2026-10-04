@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.platform.mail
 
+import com.honestrobin.time.platform.forMessage
 import com.honestrobin.time.platform.HonestRobinProperties
 import jakarta.mail.internet.InternetAddress
 import org.slf4j.LoggerFactory
@@ -65,11 +66,11 @@ class Mailer(
         )
     }
 
-    fun message(key: String, locale: Locale, vararg args: Any?): String = messages.getMessage(key, args, locale)
+    fun message(key: String, locale: Locale, vararg args: Any?): String = messages.getMessage(key, args.forMessage(), locale)
 
     fun render(template: String, locale: Locale, model: Map<String, Any?>, args: Array<Any?> = emptyArray()): Triple<String, String, String> {
         val ctx = Context(locale, model + ("baseUrl" to props.baseUrl))
-        val subject = messages.getMessage("mail.$template.subject", args, locale)
+        val subject = messages.getMessage("mail.$template.subject", args.forMessage(), locale)
         return Triple(subject, textEngine.process("mail/$template", ctx), htmlEngine.process("mail/$template", ctx))
     }
 

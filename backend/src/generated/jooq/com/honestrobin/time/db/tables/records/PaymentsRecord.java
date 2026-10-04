@@ -240,6 +240,6 @@ public class PaymentsRecord extends UpdatableRecordImpl<PaymentsRecord> {
         setRecordedBy(recordedBy);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

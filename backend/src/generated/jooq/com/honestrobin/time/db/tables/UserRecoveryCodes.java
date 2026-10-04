@@ -26,13 +26,14 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.Internal;
 import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
@@ -216,7 +217,7 @@ public class UserRecoveryCodes extends TableImpl<UserRecoveryCodesRecord> {
      */
     @Override
     public UserRecoveryCodes where(Condition condition) {
-        return new UserRecoveryCodes(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new UserRecoveryCodes(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -283,7 +284,7 @@ public class UserRecoveryCodes extends TableImpl<UserRecoveryCodesRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public UserRecoveryCodes whereExists(Select<?> select) {
+    public UserRecoveryCodes whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -291,7 +292,7 @@ public class UserRecoveryCodes extends TableImpl<UserRecoveryCodesRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public UserRecoveryCodes whereNotExists(Select<?> select) {
+    public UserRecoveryCodes whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

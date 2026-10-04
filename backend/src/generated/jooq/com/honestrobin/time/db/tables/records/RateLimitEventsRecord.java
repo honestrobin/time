@@ -68,6 +68,6 @@ public class RateLimitEventsRecord extends TableRecordImpl<RateLimitEventsRecord
 
         setBucket(bucket);
         setAt(at);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }
