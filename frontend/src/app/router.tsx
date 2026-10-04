@@ -19,7 +19,7 @@ import { TasksPage } from "../features/tasks/TasksPage";
 import { PersonPage } from "../features/team/PersonPage";
 import { TeamPage } from "../features/team/TeamPage";
 import { TimePage } from "../features/time/TimePage";
-import { ApiError, getAccountId, queryClient } from "../lib/api";
+import { ApiError, queryClient } from "../lib/api";
 import { sendPageView } from "../lib/analytics";
 import { authConfigQuery, meQuery } from "../lib/session";
 import { ImportPage } from "../features/import/ImportPage";
@@ -172,12 +172,14 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 
-// Page views (Honest Robin Cloud only: the server hands out no key elsewhere).
+// Page views (Honest Robin Cloud only: the server hands out no key elsewhere), and only while
+// signed in: the account remembered from an earlier visit isn't used for someone signed out.
 router.subscribe("onResolved", () => {
   const match = router.state.matches.at(-1);
-  if (!match) return;
+  const me = queryClient.getQueryData(meQuery.queryKey);
+  if (!match || !me) return;
   const route = (router.routesById as Record<string, { fullPath?: string } | undefined>)[match.routeId]?.fullPath ?? "/";
-  sendPageView(queryClient.getQueryData(authConfigQuery.queryKey)?.analytics, getAccountId(), route);
+  sendPageView(queryClient.getQueryData(authConfigQuery.queryKey)?.analytics, me.current_account_id ?? null, route);
 });
 
 declare module "@tanstack/react-router" {
