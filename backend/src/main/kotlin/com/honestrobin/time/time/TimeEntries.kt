@@ -337,8 +337,13 @@ class TimeEntryService(
         }
         i.billable?.let {
             val a = requireAssignable(r.membershipId, r.projectId, r.taskId, requireActive = false)
-            r.billable = a.billable && it
-            reRate = true
+            val billable = a.billable && it
+            // Only a change moves the rate. The time dialog sends billable with every save, so
+            // re-rating on any save changed the money when someone only edited the notes.
+            if (billable != r.billable) {
+                r.billable = billable
+                reRate = true
+            }
         }
         patch.field("notes", { notes }) { r.notes = it?.trim()?.ifBlank { null } }
         patch.field("start_time", { startTime }) { r.startTime = it }
