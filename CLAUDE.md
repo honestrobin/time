@@ -10,9 +10,11 @@ decisions are recorded in `docs/decisions/`.
 - **Honest, in everything.** It's the core value, in the UI, emails, docs, pricing, billing,
   uptime and in how the product is made (by Claude, said openly). Honest means no lies, nothing
   shady, and a straight answer to a straight question, also when it doesn't flatter us. It does
-  not mean listing our weak spots unasked: say what a reader needs in order to decide, once and
-  plainly, and never leave a false impression. What affects a customer (prices, limits, outages,
-  a mistake that touches their data or money) they hear without asking. The rule in full is "We
+  not mean publishing everything about ourselves: say what a reader needs in order to decide,
+  once and plainly, and keep back what could be used against a customer or the project (an
+  unfixed security problem, for example). That is never a cover for misleading anyone: leave no
+  false impression, and what affects a customer (prices, limits, outages, a mistake that touches
+  their data or money) they hear without asking. The rule in full is "We
   tell you the truth" in the Robin's Code (honestrobin.com/code).
 - **A joy to use: professional, and playful.** Simple first, powerful when needed. The robin
   keeps people company; words sound like a person. No tricks, nagging, corporate language or AI
