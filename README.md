@@ -1,7 +1,8 @@
 # Honest Robin: Time
 
 Open-source time tracking and invoicing for freelancers and agencies. It works the way people who
-come from Harvest expect, moves your Harvest account over in minutes, and has e-invoicing built in.
+come from Harvest expect, brings your Harvest account over with one access token, and has
+e-invoicing built in.
 Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
 [Honest Robin](https://honestrobin.com) products: a joy to use, honest, and you come first.
 
