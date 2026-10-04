@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, Dialog, DialogActions, DurationField, MoneyField, SelectField, TextAreaField, TextField, useToast } from "../../design";
+import { Button, Checkbox, Dialog, DialogActions, DurationField, MoneyField, SelectField, TextAreaField, TextField, useConfirm, useToast } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { usePermissions } from "../../lib/session";
@@ -156,6 +156,13 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
       onOpenChange(false);
     },
   });
+  // Tracked time is money and there is no undo, so deleting an entry asks first.
+  const [confirmDelete, askDelete] = useConfirm({
+    title: t("time.deleteEntryTitle"),
+    body: t("time.deleteEntryBody"),
+    confirmLabel: t("time.deleteEntry"),
+    danger: true,
+  });
   const remove = useMutation({
     mutationFn: () => unwrap(api.DELETE("/api/v1/time_entries/{id}", { params: { path: { id: entry!.id } } })),
     onSuccess: async () => {
@@ -283,9 +290,10 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
               </div>
             )}
           </div>
+          {confirmDelete}
           <DialogActions>
             {entry && !entry.is_locked && (
-              <Button variant="danger" onClick={() => remove.mutate()} busy={remove.isPending} style={{ marginRight: "auto" }}>
+              <Button variant="danger" onClick={() => askDelete(() => remove.mutate())} busy={remove.isPending} style={{ marginRight: "auto" }}>
                 {t("app.delete")}
               </Button>
             )}

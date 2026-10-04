@@ -84,6 +84,9 @@
     },
     "clientNameOwnHint": "This is your own company's name. If you work for a client, type their name instead.",
     "hourlyRate": "Hourly rate",
-    "hourlyRateHint": "You can add it later. Time without a rate can't go on an invoice."
+    "hourlyRateHint": "You can add it later. Time without a rate can't go on an invoice.",
+    "deleteEntry": "Delete entry",
+    "deleteEntryTitle": "Delete this entry?",
+    "deleteEntryBody": "The time is gone for good, and it won't be on any invoice. If you only want to stop billing it, untick Billable instead."
   }
 }
