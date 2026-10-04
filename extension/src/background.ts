@@ -187,8 +187,10 @@ const FROM_PAGES = new Set<Request["type"]>(["state", "refresh", "assignments", 
 chrome.runtime.onMessage.addListener((request: Request, sender, respond: (r: Reply<unknown>) => void) => {
   if (sender.id !== chrome.runtime.id) return false;
   // Content scripts run inside other sites' pages; a page that took over its renderer could send
-  // anything they can. So signing in, out or with a token, and the recent list, need the popup.
-  if (sender.tab && !FROM_PAGES.has(request.type)) {
+  // anything they can. So signing in, out or with a token, and the recent list, need one of the
+  // extension's own pages (the popup, also when it's opened in a tab).
+  const ownPage = sender.url?.startsWith(chrome.runtime.getURL("")) === true;
+  if (!ownPage && !FROM_PAGES.has(request.type)) {
     respond({ ok: false, error: "Use the Honest Robin button in your browser's toolbar for this." });
     return false;
   }
