@@ -3,8 +3,9 @@
 The design philosophy of Honest Robin: Time, and of every Honest Robin product. The app doesn't
 meet all of it yet; where it falls short, that's a bug to fix.
 
-Too much work software got bloated and bossy. Ours should be fun again, so that people can get on
-with their work, their way.
+A lot of work software became awful to use. Ours should be a joy to use, and stay one, so that
+people can get on with their work, their way. We say joy, not fun: these are professional tools,
+not toys.
 
 ## Simple first, powerful when needed
 
