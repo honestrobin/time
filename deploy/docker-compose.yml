@@ -5,10 +5,19 @@
 # Settings: copy deploy/.env.example to deploy/.env and adjust.
 name: honestrobin-time
 
+# Logs rotate at 3 × 10 MB per container. Without SMTP the app writes sign-in emails to its log,
+# so it shouldn't keep them for ever.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: docker.io/library/postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: honestrobin
       POSTGRES_PASSWORD: ${HONESTROBIN_DB_PASSWORD:-honestrobin}
@@ -27,6 +36,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     restart: unless-stopped
+    logging: *logging
     # Java sizes itself from this (75%); without a cap it would take the whole machine's memory
     # into account, which matters on a server shared with other projects.
     mem_limit: ${HONESTROBIN_MEMORY:-1536m}

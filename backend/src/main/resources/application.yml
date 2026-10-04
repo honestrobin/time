@@ -100,6 +100,11 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    mail:
+      # Spring checks the SMTP server even when none is set (it then tries localhost), which made
+      # /actuator/health say DOWN on every instance without mail. Failed sends are logged instead.
+      enabled: false
   tracing:
     sampling:
       probability: ${HONESTROBIN_TRACING_SAMPLING:0.0}
