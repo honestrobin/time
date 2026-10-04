@@ -14,7 +14,7 @@ Signed-off-by: Your Name <you@example.com>
 
 `git commit -s` adds it for you. CI rejects pull requests with unsigned commits.
 
-Every source file starts with an SPDX header, for example `// SPDX-License-Identifier: AGPL-3.0-only`. Dependencies must have AGPL-compatible licences, and CI checks this too.
+Every source file starts with an SPDX header, for example `// SPDX-License-Identifier: AGPL-3.0-only`. The API client in `packages/api-client` is MIT instead, because it runs inside other people's software (decision record 0019). Dependencies must have AGPL-compatible licences, and CI checks this too.
 
 ## Commits
 

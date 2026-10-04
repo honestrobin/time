@@ -110,7 +110,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 ## License and trademarks
 
 The code is licensed under the [GNU AGPL v3](LICENSE), with no contributor licence agreement. The
-name and the robin are not part of the licence; [TRADEMARKS.md](TRADEMARKS.md) says what's fine.
+API client in `packages/api-client` is [MIT](packages/api-client/LICENSE), so it can go inside
+software under any licence. The name and the robin are not part of the licence; [TRADEMARKS.md](TRADEMARKS.md) says what's fine.
 
 Claude, Anthropic, Harvest, Jira, Trello, Asana, GitHub, Linear, QuickBooks, Xero, Stripe, Paddle,
 Storecove, Peppol and other names mentioned here are trademarks of their respective owners.

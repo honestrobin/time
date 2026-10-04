@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 // Typed client for the Honest Robin: Time REST API, generated from openapi.json (see README).
 import createClient, { type Middleware } from "openapi-fetch";
 import type { components, paths } from "./schema";
