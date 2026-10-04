@@ -113,9 +113,10 @@ class InvoiceSettingsService(
         patch.field("notes", { notes }) { a.invoiceNotes = it?.ifBlank { null } }
         patch.field("footer", { footer }) { a.invoiceFooter = it?.ifBlank { null } }
         patch.field("payment_instructions", { paymentInstructions }) {
-            // They tell clients where to pay: changing them is how payments get redirected.
+            // They tell clients where to pay: changing them is how payments get redirected. A browser
+            // session, not an API token: a token can be phished through device sign-in.
             val v = it?.ifBlank { null }
-            if (v != a.paymentInstructions) recentAuth.requireUnlessApiToken()
+            if (v != a.paymentInstructions) recentAuth.require()
             a.paymentInstructions = v
         }
         patch.field("default_tax1_name", { defaultTax1Name }) { a.defaultTax1Name = it?.ifBlank { null } }

@@ -135,7 +135,8 @@ class AccountService(private val dsl: DSLContext, private val recentAuth: Recent
         // Bank details print on every invoice: changing them is how payments get redirected.
         val iban = u.iban?.ifBlank { null }?.replace(" ", "")?.uppercase()
         val bic = u.bic?.ifBlank { null }?.uppercase()
-        if ((u.iban != null && iban != r.iban) || (u.bic != null && bic != r.bic)) recentAuth.requireUnlessApiToken()
+        // A browser session, not an API token: a token can be phished through device sign-in.
+        if ((u.iban != null && iban != r.iban) || (u.bic != null && bic != r.bic)) recentAuth.require()
         u.name?.let { r.name = it.trim() }
         u.timezone?.let { r.timezone = it }
         u.weekStart?.let { r.weekStart = it.toShort() }

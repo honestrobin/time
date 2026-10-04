@@ -24,9 +24,11 @@ curl -H "Authorization: Bearer hrt_…" https://your-instance.example/api/v1/me
 
 A few actions need more than a session cookie: creating API tokens, deleting the account,
 starting a full export, connecting Stripe, and changing the bank details or payment instructions
-printed on invoices. In the web app they ask for your password if you signed in more than ten
-minutes ago. With a token, exports and bank details work as usual; creating tokens, deleting
-the account and connecting Stripe need the web app.
+printed on invoices (the account's, or one invoice's, which also needs an admin). In the web app
+they ask for your password if you signed in more than ten minutes ago. With a token, exports
+work as usual; everything else in this list needs the web app. Changing where clients pay is
+kept off tokens on purpose: a token can be obtained by tricking someone into approving a device
+sign-in, and redirected payments are the costliest thing it could do.
 
 Two-factor sign-in doesn't change how tokens work: a token is already a second credential. In
 the web app, with two-factor sign-in on, `POST /api/v1/auth/login` (and the sign-in link, reset

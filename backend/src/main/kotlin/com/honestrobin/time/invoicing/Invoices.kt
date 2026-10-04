@@ -204,6 +204,7 @@ class InvoiceService(
     private val funnel: Funnel,
     private val events: org.springframework.context.ApplicationEventPublisher,
     private val clock: Clock,
+    private val recentAuth: com.honestrobin.time.platform.security.RecentAuth,
 ) {
     fun requireAccess(m: Member) {
         if (!m.isAdmin && !m.canManageInvoices) throw ForbiddenException("You don't have permission to manage invoices")
@@ -309,7 +310,9 @@ class InvoiceService(
             vatMode = input.vatMode
             exemptionReason = input.exemptionReason
             discountPercent = input.discountPercent
-            paymentInstructions = input.paymentInstructions ?: account.paymentInstructions ?: defaultPaymentInstructions(account.iban, account.bic)
+            val accountDefault = account.paymentInstructions ?: defaultPaymentInstructions(account.iban, account.bic)
+            if (input.paymentInstructions != null && input.paymentInstructions != accountDefault) requireMayRedirectPayments(m)
+            paymentInstructions = input.paymentInstructions ?: accountDefault
             footer = input.footer ?: account.invoiceFooter
             source = "native"
             createdBy = m.membershipId
@@ -324,6 +327,15 @@ class InvoiceService(
     }
 
     @Transactional
+    /**
+     * An invoice's own payment instructions tell its client where to pay, so changing them is held
+     * to the same rule as the account's: an admin, in the web app, who signed in recently.
+     */
+    private fun requireMayRedirectPayments(m: Member) {
+        m.requireAdmin()
+        recentAuth.require()
+    }
+
     fun update(m: Member, id: UUID, patch: Patch<InvoiceInput>): InvoiceView {
         m.requireWritable()
         requireAccess(m)
@@ -359,7 +371,10 @@ class InvoiceService(
         patch.field("vat_mode", { vatMode }) { r.vatMode = it }
         patch.field("exemption_reason", { exemptionReason }) { r.exemptionReason = it }
         patch.field("discount_percent", { discountPercent }) { r.discountPercent = it }
-        patch.field("payment_instructions", { paymentInstructions }) { r.paymentInstructions = it }
+        patch.field("payment_instructions", { paymentInstructions }) {
+            if (it != r.paymentInstructions) requireMayRedirectPayments(m)
+            r.paymentInstructions = it
+        }
         patch.field("footer", { footer }) { r.footer = it }
         validateHeader(r)
         r.store()

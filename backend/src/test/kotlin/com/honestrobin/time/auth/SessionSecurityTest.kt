@@ -43,14 +43,37 @@ class SessionSecurityTest : IntegrationTest() {
     }
 
     @Test
-    fun `API tokens may export and change bank details, but never delete the account`() {
+    fun `API tokens may export, but never change where money goes or delete the account`() {
         val admin = signup(accountName = "Token Works")
         val token = admin.post("/api/v1/me/api_tokens", mapOf("name" to "Backups", "scopes" to listOf("read", "write"))).expect(201)["token"].asText()
         val api = client().apply { bearer = token }
         api.post("/api/v1/exports").expect(202)
-        api.patch("/api/v1/account", mapOf("iban" to "DE89370400440532013000")).expect(200)
+        // A token can be phished through device sign-in (security review, 4 October 2026).
+        api.patch("/api/v1/account", mapOf("iban" to "DE89370400440532013000")).expectError(403, "forbidden")
+        api.patch("/api/v1/invoice_settings", mapOf("payment_instructions" to "Pay to my other account")).expectError(403, "forbidden")
+        api.patch("/api/v1/account", mapOf("name" to "Token Works Ltd")).expect(200)
         api.post("/api/v1/account/deletion", mapOf("confirm_name" to "Token Works")).expectError(403, "forbidden")
         api.post("/api/v1/auth/reauth", mapOf("password" to "correct horse battery")).expectError(403, "forbidden")
+    }
+
+    @Test
+    fun `an invoice's own payment instructions follow the same rule as the account's`() {
+        val admin = signup()
+        val client = createClient(admin)
+        val invoice = admin.post("/api/v1/invoices", mapOf("client_id" to client, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000)))).expect(201)
+        val id = invoice.id()
+        val invoicer = invite(admin, role = "manager", extra = mapOf("can_manage_invoices" to true))
+        // A manager who may invoice can edit the invoice, but not where it says to pay.
+        invoicer.patch("/api/v1/invoices/$id", mapOf("subject" to "September")).expect(200)
+        invoicer.patch("/api/v1/invoices/$id", mapOf("payment_instructions" to "Pay to my own account")).expectError(403, "forbidden")
+        invoicer.post("/api/v1/invoices", mapOf("client_id" to client, "payment_instructions" to "Pay to my own account")).expectError(403, "forbidden")
+        // Saving them unchanged is fine.
+        invoicer.patch("/api/v1/invoices/$id", mapOf("payment_instructions" to invoice["payment_instructions"].textValue())).expect(200)
+        // An admin needs a recent sign-in.
+        ageSignIn(admin, 11)
+        admin.patch("/api/v1/invoices/$id", mapOf("payment_instructions" to "New bank")).expectError(403, "reauth_required")
+        admin.post("/api/v1/auth/reauth", mapOf("password" to "correct horse battery")).expect(204)
+        admin.patch("/api/v1/invoices/$id", mapOf("payment_instructions" to "New bank")).expect(200)
     }
 
     @Test
