@@ -17,6 +17,7 @@ import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.mail.Mailer
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
+import com.honestrobin.time.platform.security.RecentAuth
 import com.honestrobin.time.platform.security.Role
 import com.honestrobin.time.platform.web.ConflictException
 import com.honestrobin.time.platform.web.ETags
@@ -53,6 +54,9 @@ import java.time.Clock
 import java.time.Instant
 import java.util.Locale
 import java.util.UUID
+
+/** An invitation link for an admin to pass on by hand, and when it stops working. */
+data class InviteLinkView(val url: String, val expiresAt: Instant)
 
 data class PersonView(
     /** The membership id: a person as seen by this account. */
@@ -111,6 +115,7 @@ class PeopleService(
     private val props: HonestRobinProperties,
     private val outbound: OutboundMail,
     private val seats: SeatGate,
+    private val recentAuth: RecentAuth,
     private val clock: Clock,
 ) {
     @Transactional(readOnly = true)
@@ -176,6 +181,31 @@ class PeopleService(
     /** Sends (or re-sends) the invitation email. */
     @Transactional
     fun invite(m: Member, id: UUID): PersonView {
+        val (r, token) = issueInvite(m, id)
+        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!!
+        mailer.send(
+            "invite", r.email, Locale.forLanguageTag(account.locale),
+            mapOf("name" to r.name, "inviter" to m.name, "account" to account.name, "link" to "${props.baseUrl}/auth/invite#$token"),
+            subjectArgs = arrayOf(m.name, account.name),
+        )
+        return views(listOf(r)).single()
+    }
+
+    /**
+     * The invitation link itself, for an admin to pass on when this server can't send email.
+     * A link is a sign-in credential, so it needs a recent sign-in and refuses API tokens. It goes
+     * through the same path as the email: it retires the earlier link, counts against the
+     * invitation limits and takes a seat. It is never written to the log.
+     */
+    @Transactional
+    fun inviteLink(m: Member, id: UUID): InviteLinkView {
+        m.requireAdmin()
+        recentAuth.require()
+        val (_, token) = issueInvite(m, id)
+        return InviteLinkView("${props.baseUrl}/auth/invite#$token", Instant.now(clock).plus(TokenPurpose.INVITE.ttl))
+    }
+
+    private fun issueInvite(m: Member, id: UUID): Pair<MembershipsRecord, String> {
         m.requireWritable()
         m.requireAdmin()
         val r = load(id)
@@ -183,17 +213,11 @@ class PeopleService(
         if (!r.isActive) throw ConflictException("inactive", "Reactivate this person before inviting them")
         outbound.checkInvite(m.accountId, m.userId, r)
         if (r.status != "invited") seats.requireSeat(m.accountId)
-        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!!
         val token = auth.issueToken(null, r.email, TokenPurpose.INVITE, membershipId = r.id)
         r.status = "invited"
         r.invitedAt = Instant.now(clock)
         r.store()
-        mailer.send(
-            "invite", r.email, Locale.forLanguageTag(account.locale),
-            mapOf("name" to r.name, "inviter" to m.name, "account" to account.name, "link" to "${props.baseUrl}/auth/invite#$token"),
-            subjectArgs = arrayOf(m.name, account.name),
-        )
-        return views(listOf(r)).single()
+        return r to token
     }
 
     fun load(id: UUID): MembershipsRecord = dsl.selectFrom(MEMBERSHIPS).where(MEMBERSHIPS.ID.eq(id)).fetchOne() ?: throw NotFoundException("Person")
@@ -337,4 +361,7 @@ class PeopleController(private val people: PeopleService, private val patches: P
 
     @PostMapping("/{id}/invite")
     fun invite(@PathVariable id: UUID) = people.invite(Current.member(), id)
+
+    @PostMapping("/{id}/invite_link")
+    fun inviteLink(@PathVariable id: UUID) = people.inviteLink(Current.member(), id)
 }

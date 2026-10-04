@@ -44,6 +44,29 @@ class PeopleTest : IntegrationTest() {
     }
 
     @Test
+    fun `an admin can get the invitation link to pass on, which retires the emailed one`() {
+        val admin = signup(accountName = "Initech")
+        val email = uniqueEmail("milton")
+        val person = admin.post("/api/v1/people", mapOf("name" to "Milton", "email" to email, "role" to "member")).expect(201)
+        val emailed = mail.linkToken(email)
+
+        val link = admin.post("/api/v1/people/${person.id()}/invite_link").expect(200)
+        assertThat(link["url"].asText()).contains("/auth/invite#")
+        assertThat(link["expires_at"].asText()).isNotBlank()
+        val token = link["url"].asText().substringAfter("#")
+        assertThat(token).isNotEqualTo(emailed)
+        // Same path as the email: only the newest link works.
+        client().post("/api/v1/auth/invite/lookup", mapOf("token" to emailed)).expectError(400, "invalid_link")
+        client().post("/api/v1/auth/invite/lookup", mapOf("token" to token)).expect(200)
+
+        // Someone who isn't an admin gets no link.
+        val member = client()
+        member.post("/api/v1/auth/invite/accept", mapOf("token" to token, "password" to "correct horse battery")).expect(200)
+        val other = admin.post("/api/v1/people", mapOf("name" to "Bob", "email" to uniqueEmail("bob"), "role" to "member", "send_invite" to false)).expect(201)
+        member.post("/api/v1/people/${other.id()}/invite_link").expect(403)
+    }
+
+    @Test
     fun `an existing user joins a second account with the same login`() {
         val first = signup()
         val second = signup()
