@@ -50,9 +50,11 @@ class AccountImporter(
     private val tx: TransactionTemplate,
 ) {
     // Rows are read as trees, with decimals exactly as written: 1.0 stays 1.0, also inside jsonb
-    // values.
+    // values. Each row is read from the middle of one stream, so what follows it isn't an error
+    // (Jackson 3 treats it as one by default).
     private val json: ObjectMapper = JsonMapper.builder()
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
         .enable(JsonNodeFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
         .build()
