@@ -32,13 +32,12 @@ Nothing about that is hidden:
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices are checked against the official validation rules.
 
-No person has read the code yet, and it hasn't had an independent security audit, so treat it as
-pre-release software: try it with made-up data, and don't run your business on it yet.
-
-The maintainer will not read every line before a release either. He knows the architecture, and
-he will test the product and review samples of the code. AI agents make most of the corrections
-and check our claims against the facts. He approves only the parts he has checked. Reports of
-anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
+Before a release the maintainer, who knows the architecture, will test the product and review
+samples of the code. AI agents make most of the corrections and check our claims against the
+facts. He approves only the parts he has checked. That review isn't done yet, and neither is an
+independent security audit, so treat Time as pre-release software: try it with made-up data, and
+don't run your business on it yet. Reports of anything that looks wrong are very welcome; see
+[SECURITY.md](SECURITY.md).
 
 ## What it does
 
