@@ -104,10 +104,12 @@ class JobsConfig {
         sessions: SessionService,
         limiter: com.honestrobin.time.platform.security.RateLimiter,
         devices: com.honestrobin.time.auth.DeviceAuthorizationService,
+        auth: com.honestrobin.time.auth.AuthService,
     ): RecurringTask<Void> =
         Tasks.recurring("session-cleanup", FixedDelay.of(Duration.ofHours(6))).execute { _, _ ->
             sessions.purgeExpired()
             limiter.purge()
             devices.purgeExpired()
+            auth.purgeOldLinks()
         }
 }

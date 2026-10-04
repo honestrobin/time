@@ -14,7 +14,7 @@
     "restored": "{{name}} restored",
     "deleted": "{{name}} deleted",
     "deleteTitle": "Delete {{name}}?",
-    "deleteBody": "The task is removed for good. A task that is used on projects can't be deleted; archive it instead.",
+    "deleteBody": "The task is removed. A record of it stays in the account's audit log. A task that is used on projects can't be deleted; archive it instead.",
     "empty": {
       "title": "No tasks yet",
       "body": "Create the tasks your team works on, then add them to projects.",

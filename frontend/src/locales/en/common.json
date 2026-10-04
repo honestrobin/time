@@ -215,7 +215,7 @@
       "deleteLead": "Deletes the account and everything in it after 14 days: time, expenses, invoices, receipts and people. Until then it's read-only, you can still export, and any admin can cancel.",
       "deleteButton": "Delete account…",
       "deleteDialogTitle": "Delete {{name}}?",
-      "deleteDialogBody": "In 14 days the account and all its data are deleted for good. Every admin gets an email, and any admin can cancel until then.",
+      "deleteDialogBody": "In 14 days the account and all its data are deleted for good, its audit log too. Every admin gets an email, and any admin can cancel until then. Backups made before then keep a copy until they are replaced.",
       "exportFirst": "Export the data first",
       "typeName": "Type {{name}} to confirm",
       "deleteConfirm": "Delete in 14 days",

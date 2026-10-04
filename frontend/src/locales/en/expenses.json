@@ -43,7 +43,7 @@
     "deleted": "Expense deleted",
     "delete": "Delete expense",
     "deleteTitle": "Delete this expense?",
-    "deleteBody": "The expense and its receipt are deleted. This can't be undone.",
+    "deleteBody": "The expense and its receipt are deleted. This can't be undone. A record of the expense, without the receipt, stays in the account's audit log.",
     "noAssignments": "You're not on any projects yet. Ask a manager to add you to a project, then add expenses to it.",
     "noCategories": "There are no expense categories yet. Ask an admin to add some in Settings.",
     "noCategoriesAdmin": "There are no expense categories yet. Add some under Settings, Expense categories."

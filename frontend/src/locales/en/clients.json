@@ -15,7 +15,7 @@
     "restored": "{{name}} restored",
     "deleted": "{{name}} deleted",
     "deleteTitle": "Delete {{name}}?",
-    "deleteBody": "The client and its contacts are removed for good. A client that has projects can't be deleted; archive it instead.",
+    "deleteBody": "The client and its contacts are removed. A record of them stays in the account's audit log, which admins can see, until the account is deleted. A client that has projects can't be deleted; archive it instead.",
     "empty": {
       "title": "No clients yet",
       "body": "Add your first client, then create projects for them.",

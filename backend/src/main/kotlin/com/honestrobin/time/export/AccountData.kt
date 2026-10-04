@@ -312,9 +312,14 @@ class AccountDeletionService(
             TenantAwareTransactionManager.setLocal("honestrobin.audit_disabled", "on")
             dsl.select(DSL.field("honestrobin_purge_audit({0})", Long::class.java, DSL.value(accountId))).fetchOne()
             dsl.deleteFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).execute()
-            // People who were only here have no reason to keep a sign-in on this instance.
-            dsl.deleteFrom(USERS).where(USERS.ID.`in`(people)).and(USERS.IS_INSTANCE_ADMIN.isFalse)
-                .andNotExists(DSL.selectOne().from(MEMBERSHIPS).where(MEMBERSHIPS.USER_ID.eq(USERS.ID))).execute()
+            // People who were only here have no reason to keep a sign-in on this instance, nor their
+            // sign-up and sign-in history in the audit log.
+            val gone = dsl.deleteFrom(USERS).where(USERS.ID.`in`(people)).and(USERS.IS_INSTANCE_ADMIN.isFalse)
+                .andNotExists(DSL.selectOne().from(MEMBERSHIPS).where(MEMBERSHIPS.USER_ID.eq(USERS.ID)))
+                .returning(USERS.ID).fetch(USERS.ID)
+            if (gone.isNotEmpty()) {
+                dsl.select(DSL.field("honestrobin_purge_user_audit({0})", Long::class.java, DSL.value(gone.toTypedArray()))).fetchOne()
+            }
             // The deletion itself is the one thing kept: who, when, nothing else.
             dsl.insertInto(AUDIT_LOG).set(AUDIT_LOG.ACTION, "accounts.purged").set(AUDIT_LOG.ENTITY_TYPE, "accounts").set(AUDIT_LOG.ENTITY_ID, accountId).execute()
         }

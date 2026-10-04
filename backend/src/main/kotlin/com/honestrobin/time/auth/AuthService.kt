@@ -418,6 +418,13 @@ class AuthService(
     private fun securityNotice(user: UsersRecord, event: String, arg: Any? = null, evenIfRolledBack: Boolean = false) =
         notices.send(user, event, arg, evenIfRolledBack)
 
+    /** Sign-in, reset, invitation and confirmation links, once used or expired for 30 days, go. */
+    @Transactional
+    fun purgeOldLinks(): Int {
+        val cutoff = Instant.now().minus(Duration.ofDays(30))
+        return dsl.deleteFrom(LOGIN_TOKENS).where(LOGIN_TOKENS.USED_AT.lt(cutoff)).or(LOGIN_TOKENS.EXPIRES_AT.lt(cutoff)).execute()
+    }
+
     private fun revokeOutstandingLinks(userId: UUID) {
         dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now())
             .where(LOGIN_TOKENS.USER_ID.eq(userId)).and(LOGIN_TOKENS.USED_AT.isNull).execute()

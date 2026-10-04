@@ -5,6 +5,7 @@ import tools.jackson.databind.JsonNode
 import com.honestrobin.time.db.Public
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
+import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.support.IntegrationTest
 import com.honestrobin.time.support.TestClient
 import org.assertj.core.api.Assertions.assertThat
@@ -150,6 +151,10 @@ class AccountDataTest : IntegrationTest() {
             assertThat(dsl.fetchExists(ACCOUNTS, ACCOUNTS.ID.eq(accountId))).isFalse()
             assertThat(dsl.selectFrom(AUDIT_LOG).where(AUDIT_LOG.ACCOUNT_ID.eq(accountId)).fetch()).isEmpty()
             assertThat(dsl.fetchExists(AUDIT_LOG, AUDIT_LOG.ACTION.eq("accounts.purged").and(AUDIT_LOG.ENTITY_ID.eq(accountId)))).isTrue()
+            // People who were only here go, and so does their own sign-up and sign-in history, which
+            // has no account id (security review, 4 October 2026).
+            assertThat(dsl.fetchExists(USERS, USERS.ID.eq(s.member.userId))).isFalse()
+            assertThat(dsl.fetchCount(AUDIT_LOG, AUDIT_LOG.ENTITY_TYPE.eq("users").and(AUDIT_LOG.ENTITY_ID.eq(s.member.userId)))).isZero()
         }
         assertThat(s.admin.get("/api/v1/account").status).isIn(401, 403, 404)
 

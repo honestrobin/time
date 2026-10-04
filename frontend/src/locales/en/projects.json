@@ -19,7 +19,7 @@
     "archivedBadge": "Archived",
     "archivedNotice": "This project is archived. No one can track time on it until you restore it.",
     "deleteTitle": "Delete {{name}}?",
-    "deleteBody": "The project is removed for good. A project with tracked time or expenses can't be deleted; archive it instead.",
+    "deleteBody": "The project is removed. A record of it stays in the account's audit log. A project with tracked time or expenses can't be deleted; archive it instead.",
     "discardChanges": "Discard changes",
     "tabs": {
       "overview": "Overview",
