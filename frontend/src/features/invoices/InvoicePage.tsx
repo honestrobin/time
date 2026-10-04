@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Checkbox, ConfirmDialog, Dialog, DialogActions, Menu, MoneyField, MoneyInput, SelectField, TextAreaField, TextField, useToast } from "../../design";
 import { api, errorInfo, openFile, unwrap } from "../../lib/api";
 import { formatDate, formatDateTime, formatMoney } from "../../lib/format";
+import { useAuthConfig } from "../../lib/session";
 import { invoiceTotals } from "../../lib/invoiceMath";
 import { displayState, invoiceKeys, invoiceQuery, stateBadge, type Invoice } from "./queries";
 import { AccountingStatus } from "./AccountingStatus";
@@ -285,6 +286,9 @@ function InvoiceEditor({ invoice }: { invoice: Invoice }) {
       {invoice.is_read_only && <p className="notice">{t("invoices.readOnly")}</p>}
       {invoice.state === "paid" && <p className="notice notice-ok">{t("invoices.paidNotice", { date: invoice.paid_at ? formatDate(invoice.paid_at.slice(0, 10)) : "" })}</p>}
       {invoice.state === "void" && <p className="notice">{t("invoices.voidNotice")}</p>}
+      {editable && invoice.state !== "draft" && invoice.sent_at && (
+        <p className="notice">{t("invoices.sentNotice", { date: formatDate(invoice.sent_at.slice(0, 10)) })}</p>
+      )}
 
       <form onSubmit={submit} className="stack invoice-form">
         <section className="form-grid invoice-header-grid">
@@ -591,6 +595,8 @@ function SendDialog({ invoice, onClose, onSent }: { invoice: Invoice; onClose: (
     },
   });
   const err = send.error ? errorInfo(send.error) : null;
+  // Without email set up the send would only fail at the end, so say it before anything is typed.
+  const noEmail = useAuthConfig()?.email_configured === false;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={invoice.number ? t("invoices.sendTitleNumber", { number: invoice.number }) : t("invoices.sendTitle")} description={invoice.state === "draft" ? t("invoices.sendLead") : undefined} wide>
       {!d ? (
@@ -603,6 +609,14 @@ function SendDialog({ invoice, onClose, onSent }: { invoice: Invoice; onClose: (
             send.mutate();
           }}
         >
+          {noEmail && (
+            <p className="notice notice-warn">
+              {t("invoices.sendForm.noEmail")}{" "}
+              <a href="https://github.com/honestrobin/time/blob/main/docs/self-host.md#configuration" target="_blank" rel="noreferrer">
+                {t("invoices.sendForm.noEmailHow")}
+              </a>
+            </p>
+          )}
           <TextField label={t("invoices.sendForm.to")} hint={t("invoices.sendForm.toHint")} value={to ?? d.to.join(", ")} onChange={setTo} error={err?.fields.to} autoFocus />
           <TextField label={t("invoices.sendForm.subject")} value={subject ?? d.subject} onChange={setSubject} />
           <TextAreaField label={t("invoices.sendForm.message")} value={message ?? d.message} onChange={setMessage} rows={7} />
@@ -611,7 +625,7 @@ function SendDialog({ invoice, onClose, onSent }: { invoice: Invoice; onClose: (
           {err && !Object.keys(err.fields).length && <p className="notice notice-error">{err.message}</p>}
           <DialogActions>
             <Button onClick={onClose}>{t("app.cancel")}</Button>
-            <Button type="submit" variant="primary" busy={send.isPending}>
+            <Button type="submit" variant="primary" busy={send.isPending} disabled={noEmail}>
               {t("invoices.sendForm.submit")}
             </Button>
           </DialogActions>

@@ -135,6 +135,7 @@
     "readOnly": "This invoice was imported from Harvest and is read-only.",
     "paidNotice": "Paid in full on {{date}}. A paid invoice can't be changed.",
     "voidNotice": "This invoice is void. It keeps its number but is not owed.",
+    "sentNotice": "Sent on {{date}}. You can still change it, and the client's online copy changes with it. If they need the new PDF, send it again.",
     "noLines": "No lines yet. Add one below.",
     "addLine": "Add line",
     "removeLine": "Remove line",
@@ -206,7 +207,9 @@
       "message": "Message",
       "attach": "Attach the PDF",
       "bcc": "Send me a copy",
-      "submit": "Send invoice"
+      "submit": "Send invoice",
+      "noEmail": "This server can't send email yet. Mark the invoice as sent and send the PDF yourself, or set up email first.",
+      "noEmailHow": "How to set up email"
     },
     "einvoice": {
       "title": "E-invoice",
