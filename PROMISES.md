@@ -99,7 +99,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 
 | Promise | Status | Guarded by |
 |---|---|---|
-| Your data is stored in the EU: Honest Robin Cloud runs on Hetzner's servers in Nuremberg, Germany. Traffic goes through Cloudflare, an American company, on the way. | By hand | |
+| Your data is stored in the EU: Honest Robin Cloud runs on Hetzner's servers in Nuremberg, Germany. On its way there it passes through Cloudflare, an American company, which doesn't store it. | By hand | |
 | Every company that touches your data is listed, with its country, and the list is checked against the hosts the code may reach. | Not built | |
 
 ## You can see how it's made
