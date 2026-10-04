@@ -32,7 +32,7 @@ All settings are environment variables.
 | `HONESTROBIN_SMTP_HOST` / `_PORT` / `_USER` / `_PASSWORD` | unset | Outgoing mail. Without SMTP, nothing is emailed: unless sign-up is open, sign-in links, password resets, invitations and email confirmations go to the application log, so you can still get in; invoices can't be sent by email (mark them as sent instead), reminders wait, and other emails are only noted as not sent, with no addresses or text. |
 | `HONESTROBIN_MAIL_FROM` | `Honest Robin <no-reply@localhost>` | Sender address |
 | `HONESTROBIN_MAIL_LIMITS_INVITES_PER_DAY` / `_INVOICE_RECIPIENTS_PER_DAY` | 50 / 300 where sign-up is open, otherwise no limit | Invitations, and invoice email recipients (reminders included), per workspace and per person in 24 hours, so open sign-up can't be used to send mass mail from your domain. `0` means no limit. Add them to the app's `environment` in `docker-compose.yml` to change them. |
-| `HONESTROBIN_SECRETS_KEY_FILE` | `/data/secrets.key` | Key that encrypts stored integration credentials. Generated on first start. |
+| `HONESTROBIN_SECRETS_KEY_FILE` | `/data/secrets.key` | Key that encrypts two-factor secrets, integration credentials and import tokens. Generated on first start; back it up with the database. If it goes missing while the database holds secrets, the app won't start until it's restored, rather than make a new key that can't read them. |
 | `HONESTROBIN_SECRETS_KEY` | unset | The same key as base64, if you prefer an environment variable to a file |
 | `HONESTROBIN_STORAGE_PATH` | `/data/files` | Receipts, invoice PDFs and exports (local driver) |
 | `HONESTROBIN_LOG_FORMAT` | plain | `ecs` or `logstash` for structured JSON logs |
