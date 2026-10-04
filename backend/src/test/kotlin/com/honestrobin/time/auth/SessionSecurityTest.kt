@@ -77,6 +77,28 @@ class SessionSecurityTest : IntegrationTest() {
     }
 
     @Test
+    fun `a burst of wrong passwords neither holds every database connection nor fails the app`() {
+        // Security review, 4 October 2026: each failed sign-in held a connection while hashing and
+        // needed a second to record the failure, so a burst could stall every request.
+        val admin = signup()
+        val clearIp = { tx.system { dsl.deleteFrom(RATE_LIMIT_EVENTS).where(RATE_LIMIT_EVENTS.BUCKET.eq("login:ip:127.0.0.1")).execute() } }
+        clearIp()
+        try {
+            val statuses = java.util.concurrent.ConcurrentLinkedQueue<Int>()
+            val threads = (1..30).map {
+                Thread.ofVirtual().start {
+                    statuses += client().post("/api/v1/auth/login", mapOf("email" to uniqueEmail("burst"), "password" to "not the password")).status
+                }
+            }
+            threads.forEach { it.join(Duration.ofSeconds(60)) }
+            assertThat(statuses).hasSize(30).allMatch { it in setOf(401, 429, 503) }
+            assertThat(admin.get("/api/v1/me").status).isEqualTo(200)
+        } finally {
+            clearIp()
+        }
+    }
+
+    @Test
     fun `changing the password ends earlier sign-in links and tells the person`() {
         val admin = signup()
         client().post("/api/v1/auth/magic_link", mapOf("email" to admin.email)).expect(202)

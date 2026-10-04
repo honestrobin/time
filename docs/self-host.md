@@ -156,8 +156,9 @@ $C logs app | grep "Row-level security"                            # should say 
 ```
 
 The restore reports that the role `honestrobin` and the database `honestrobin` already exist;
-that's expected. Sign in and check your data, then remove the old volume:
-`docker volume rm honestrobin-time_db`.
+that's expected. Sign in and check your data, then remove the old volume and the dump, which is a
+full copy of the database, password hashes included:
+`docker volume rm honestrobin-time_db && rm honestrobin-pg16.sql`.
 
 ## Monitoring
 

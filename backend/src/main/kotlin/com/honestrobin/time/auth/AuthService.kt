@@ -80,6 +80,7 @@ class AuthService(
     private val twoFactor: TwoFactorService,
     private val setup: FirstUserSetup,
     private val notices: SecurityNotices,
+    private val tx: com.honestrobin.time.platform.db.Tx,
 ) {
     @Transactional(readOnly = true)
     fun hasAnyUser(): Boolean = dsl.fetchExists(USERS)
@@ -131,17 +132,23 @@ class AuthService(
         SignedIn(user.id, sessions.create(user.id, ip, userAgent), accountId)
     }
 
-    @Transactional
+    /**
+     * Not one transaction: the password check (argon2: slow, and 19 MiB each) runs between two short
+     * ones, so a burst of wrong passwords can't hold every database connection while hashing, and
+     * each failure is recorded on a connection of its own.
+     */
     fun login(email: String, password: String, ip: String?, userAgent: String?): SignedIn {
         val normalised = normaliseEmail(email)
         throttle.check(normalised, ip)
-        val user = findUser(normalised)
+        val user = tx.run { findUser(normalised) }
         if (!passwords.matches(password, user?.passwordHash) || user == null) {
             throttle.failed(normalised, ip)
             throw ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Email or password is incorrect")
         }
-        throttle.succeeded(normalised)
-        return signIn(user, ip, userAgent)
+        return tx.run {
+            throttle.succeeded(normalised)
+            signIn(user, ip, userAgent)
+        }
     }
 
     /** Always succeeds from the caller's point of view, so it does not reveal which emails exist. */
