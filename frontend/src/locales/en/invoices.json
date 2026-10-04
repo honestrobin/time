@@ -292,7 +292,7 @@
     "lead": "Let clients pay invoices by card and other methods from the invoice page. Payments go straight to your own Stripe account and the invoice is marked paid.",
     "connected": "Stripe connected",
     "connectedNotice": "Stripe is connected. Invoices you send now offer online payment.",
-    "connectError": "Stripe was not connected. Try again, or connect with your own key.",
+    "connectError": "Stripe was not connected. Start again here, and finish within half an hour in this same browser. Or connect with your own key.",
     "status": "Connected to Stripe account {{name}}.",
     "viaConnect": "Authorised through Stripe Connect.",
     "viaKey": "Connected with your own key.",

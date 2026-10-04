@@ -32,6 +32,9 @@ class SessionSecurityTest : IntegrationTest() {
         admin.patch("/api/v1/account", mapOf("iban" to "GB33BUKB20201555555555")).expectError(403, "reauth_required")
         admin.patch("/api/v1/invoice_settings", mapOf("payment_instructions" to "Pay to my other account")).expectError(403, "reauth_required")
         admin.post("/api/v1/payments/stripe/connect").expectError(403, "reauth_required")
+        // Connected books and Peppol act in the account's name too (security review, 4 October 2026).
+        admin.post("/api/v1/accounting/qbo/connect").expectError(403, "reauth_required")
+        admin.post("/api/v1/einvoicing/peppol", emptyMap<String, Any>()).expectError(403, "reauth_required")
         // Everything else carries on, including saving bank details unchanged.
         admin.patch("/api/v1/account", mapOf("name" to "Kauri Works Ltd")).expect(200)
         admin.patch("/api/v1/account", mapOf("iban" to "")).expect(200)
@@ -53,6 +56,9 @@ class SessionSecurityTest : IntegrationTest() {
         api.patch("/api/v1/invoice_settings", mapOf("payment_instructions" to "Pay to my other account")).expectError(403, "forbidden")
         api.patch("/api/v1/account", mapOf("name" to "Token Works Ltd")).expect(200)
         api.post("/api/v1/account/deletion", mapOf("confirm_name" to "Token Works")).expectError(403, "forbidden")
+        api.post("/api/v1/payments/stripe/connect").expectError(403, "forbidden")
+        api.post("/api/v1/accounting/xero/connect").expectError(403, "forbidden")
+        api.post("/api/v1/einvoicing/peppol", emptyMap<String, Any>()).expectError(403, "forbidden")
         api.post("/api/v1/auth/reauth", mapOf("password" to "correct horse battery")).expectError(403, "forbidden")
     }
 

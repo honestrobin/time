@@ -321,7 +321,7 @@
     "notConnected": "Not connected. You sign in to {{name}} and choose the company; Honest Robin only adds invoices, payments and customers.",
     "connect": "Connect {{name}}",
     "connected": "Connected. Now choose how invoices are booked.",
-    "connectFailed": "Connecting didn't work. Try again.",
+    "connectFailed": "Connecting didn't finish. Start again here, and finish within half an hour in this same browser.",
     "connectedTo": "Connected to {{org}}.",
     "disconnect": "Disconnect",
     "booking": "How invoices are booked",

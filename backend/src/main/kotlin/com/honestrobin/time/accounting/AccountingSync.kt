@@ -22,11 +22,12 @@ import com.honestrobin.time.invoicing.PaymentRecorded
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.Money
 import com.honestrobin.time.platform.crypto.SecretBox
-import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
+import com.honestrobin.time.platform.security.OAuthStates
+import com.honestrobin.time.platform.security.RecentAuth
 import com.honestrobin.time.platform.web.ConflictException
 import com.honestrobin.time.platform.web.NotFoundException
 import com.honestrobin.time.platform.web.ValidationException
@@ -107,6 +108,7 @@ class AccountingService(
     private val secrets: SecretBox,
     private val props: HonestRobinProperties,
     private val json: ObjectMapper,
+    private val oauth: OAuthStates,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val providers = providers.associateBy { it.kind }
@@ -169,26 +171,28 @@ class AccountingService(
         m.requireAdmin()
         val p = provider(kind)
         if (!p.configured) throw ConflictException("not_available", "${p.label} isn't set up on this instance. The admin of the instance registers an app with ${p.label} first (see docs/self-host.md).")
-        val token = Tokens.generate(24)
+        val (state, pending) = oauth.start(m)
         tx.run {
             val r = integration(kind) ?: dsl.newRecord(INTEGRATIONS).apply { accountId = m.accountId; this.kind = kind; mode = "connect"; status = "error" }
-            r.settings = settingsWith(r, "oauth_state", token)
+            r.settings = settingsWith(r, OAuthStates.KEY, pending)
             r.store()
         }
-        return p.authorizeUrl("${m.accountId}.$token", redirectUri(kind))
+        return p.authorizeUrl(state, redirectUri(kind))
     }
 
-    /** The provider sends the admin back here; returns where to send them in the app. */
+    /**
+     * The provider sends the admin back here; returns where to send them in the app. Only the
+     * browser session that started connecting, still an admin, can finish it.
+     */
     fun callback(kind: String, params: Map<String, String>): String {
         val back = "${props.baseUrl}/settings/accounting"
         val p = providers[kind] ?: return "$back?accounting=error"
-        val (accountPart, token) = params["state"]?.split('.', limit = 2)?.takeIf { it.size == 2 } ?: return "$back?accounting=error"
-        val accountId = runCatching { UUID.fromString(accountPart) }.getOrNull() ?: return "$back?accounting=error"
+        val (accountId, token) = oauth.parse(params["state"]) ?: return "$back?accounting=error"
         val code = params["code"] ?: return "$back?accounting=error"
         return DbContext.forAccount(accountId) {
             val r = tx.run { integration(kind) } ?: return@forAccount "$back?accounting=error"
-            val expected = r.settings?.data()?.let { runCatching { json.readValue<Map<String, Any?>>(it)["oauth_state"] }.getOrNull() }
-            if (expected == null || !java.security.MessageDigest.isEqual(expected.toString().toByteArray(), token.toByteArray())) return@forAccount "$back?accounting=error"
+            val pending = r.settings?.data()?.let { runCatching { json.readValue<Map<String, Any?>>(it)[OAuthStates.KEY] }.getOrNull() }
+            if (!oauth.matches(pending, accountId, token)) return@forAccount "$back?accounting=error"
             try {
                 val t = p.exchange(code, redirectUri(kind), params)
                 tx.run {
@@ -196,7 +200,10 @@ class AccountingService(
                     saveTokens(row, t)
                     row.status = "connected"
                     row.lastError = null
+                    row.connectedBy = (pending as Map<*, *>)["membership_id"]?.toString()?.let(UUID::fromString)
                     row.connectedAt = Instant.now()
+                    // "oauth_state" held the raw state before 4 October 2026.
+                    row.settings = settingsWith(row, OAuthStates.KEY, null)
                     row.settings = settingsWith(row, "oauth_state", null)
                     row.store()
                 }
@@ -474,13 +481,17 @@ class AccountingJobsConfig {
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "accounting", description = "Pushing invoices and payments to QuickBooks Online and Xero")
-class AccountingController(private val accounting: AccountingService) {
+class AccountingController(private val accounting: AccountingService, private val recentAuth: RecentAuth) {
     @GetMapping("/accounting")
     fun connections() = accounting.connections(Current.member())
 
     @PostMapping("/accounting/{kind}/connect")
     @Operation(summary = "Start connecting: returns the provider's page to authorise Honest Robin")
-    fun connect(@PathVariable kind: String) = mapOf("url" to accounting.connectUrl(Current.member(), kind))
+    fun connect(@PathVariable kind: String): Map<String, String> {
+        // The account's invoices and payments go to the connected books.
+        recentAuth.require()
+        return mapOf("url" to accounting.connectUrl(Current.member(), kind))
+    }
 
     @DeleteMapping("/accounting/{kind}")
     fun disconnect(@PathVariable kind: String): ResponseEntity<Unit> {

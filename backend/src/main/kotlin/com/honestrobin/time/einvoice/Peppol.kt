@@ -15,6 +15,7 @@ import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
+import com.honestrobin.time.platform.security.RecentAuth
 import com.honestrobin.time.platform.web.ApiException
 import com.honestrobin.time.platform.web.ConflictException
 import com.honestrobin.time.platform.web.NotFoundException
@@ -372,13 +373,17 @@ class PeppolService(
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "einvoicing", description = "Sending e-invoices over Peppol")
-class PeppolController(private val peppol: PeppolService) {
+class PeppolController(private val peppol: PeppolService, private val recentAuth: RecentAuth) {
     @GetMapping("/einvoicing/peppol")
     fun status() = peppol.status(Current.member())
 
     @PostMapping("/einvoicing/peppol")
     @Operation(summary = "Connect Peppol sending: your own Storecove API key, or Honest Robin's contract where offered")
-    fun connect(@RequestBody body: PeppolConnectInput) = peppol.connect(Current.member(), body)
+    fun connect(@RequestBody body: PeppolConnectInput): PeppolStatus {
+        // Invoices go out over Peppol in the account's name.
+        recentAuth.require()
+        return peppol.connect(Current.member(), body)
+    }
 
     @DeleteMapping("/einvoicing/peppol")
     fun disconnect(): ResponseEntity<Unit> {

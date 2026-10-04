@@ -2,7 +2,9 @@
 package com.honestrobin.time.accounting
 
 import com.honestrobin.time.db.Tables.ACCOUNTING_SYNC_ITEMS
+import com.honestrobin.time.db.Tables.AUDIT_LOG
 import com.honestrobin.time.db.Tables.EXTERNAL_LINKS
+import com.honestrobin.time.db.Tables.INTEGRATIONS
 import com.honestrobin.time.support.IntegrationTest
 import com.honestrobin.time.support.MockAccounting
 import com.honestrobin.time.support.TestClient
@@ -19,10 +21,56 @@ class AccountingSyncTest : IntegrationTest() {
         val url = admin.post("/api/v1/accounting/$kind/connect").expect(200)["url"].asText()
         assertThat(url).contains("client_id=${MockAccounting.CLIENT_ID}")
         val state = java.net.URLDecoder.decode(Regex("state=([^&]+)").find(url)!!.groupValues[1], Charsets.UTF_8)
-        val bad = client().get("/api/v1/public/accounting/$kind/callback", mapOf("code" to "good-code", "state" to "${admin.accountId}.wrong", "realmId" to MockAccounting.REALM))
+        val bad = admin.get("/api/v1/public/accounting/$kind/callback", mapOf("code" to "good-code", "state" to "${admin.accountId}.wrong", "realmId" to MockAccounting.REALM))
         assertThat(bad.headers["Location"]!!.single()).endsWith("accounting=error")
-        val ok = client().get("/api/v1/public/accounting/$kind/callback", mapOf("code" to "good-code", "state" to state, "realmId" to MockAccounting.REALM))
+        // The provider sends back the browser that started, signed in as the admin.
+        val ok = admin.get("/api/v1/public/accounting/$kind/callback", mapOf("code" to "good-code", "state" to state, "realmId" to MockAccounting.REALM))
         assertThat(ok.headers["Location"]!!.single()).endsWith("accounting=connected&provider=$kind")
+    }
+
+    private fun startConnect(admin: TestClient, kind: String): String {
+        val url = admin.post("/api/v1/accounting/$kind/connect").expect(200)["url"].asText()
+        return java.net.URLDecoder.decode(Regex("state=([^&]+)").find(url)!!.groupValues[1], Charsets.UTF_8)
+    }
+
+    private fun finish(c: TestClient, state: String) =
+        c.get("/api/v1/public/accounting/qbo/callback", mapOf("code" to "good-code", "state" to state, "realmId" to MockAccounting.REALM)).headers["Location"]!!.single()
+
+    private fun connected(admin: TestClient) = admin.get("/api/v1/accounting").expect(200).body.first { it["kind"].asText() == "qbo" }["connected"].asBoolean()
+
+    @Test
+    fun `only the browser that started connecting can finish it, and only for half an hour`() {
+        // Security review, 4 October 2026: someone could start connecting in their own workspace,
+        // then get another business's admin to authorise it, attaching those books to theirs.
+        val starter = signup(accountName = "Starter Ltd")
+        val state = startConnect(starter, "qbo")
+        val someoneElse = signup(accountName = "Other Books Ltd")
+        assertThat(finish(someoneElse, state)).endsWith("accounting=error")
+        assertThat(finish(client(), state)).endsWith("accounting=error")
+        // The same person signed in elsewhere is another browser.
+        val elsewhere = client()
+        elsewhere.post("/api/v1/auth/login", mapOf("email" to starter.email, "password" to "correct horse battery")).expect(200)
+        elsewhere.accountId = starter.accountId
+        assertThat(finish(elsewhere, state)).endsWith("accounting=error")
+        assertThat(connected(starter)).isFalse()
+
+        // What's kept is a hash, so the audit log and exports hold nothing usable.
+        val token = state.substringAfter('.')
+        val settings = tx.system { dsl.select(INTEGRATIONS.SETTINGS).from(INTEGRATIONS).where(INTEGRATIONS.ACCOUNT_ID.eq(starter.accountId)).fetchOne()!!.value1().data() }
+        assertThat(settings).doesNotContain(token)
+        val audit = tx.system { dsl.select(AUDIT_LOG.DIFF).from(AUDIT_LOG).where(AUDIT_LOG.ACCOUNT_ID.eq(starter.accountId)).fetch().map { it.value1().data() } }
+        assertThat(audit).noneMatch { it.contains(token) }
+
+        // After half an hour the state no longer works, even in the right browser.
+        val expired = mapper.readTree(settings).also { (it["oauth"] as tools.jackson.databind.node.ObjectNode).put("expires_at", java.time.Instant.now().minusSeconds(1).toString()) }
+        tx.system { dsl.update(INTEGRATIONS).set(INTEGRATIONS.SETTINGS, org.jooq.JSONB.valueOf(mapper.writeValueAsString(expired))).where(INTEGRATIONS.ACCOUNT_ID.eq(starter.accountId)).execute() }
+        assertThat(finish(starter, state)).endsWith("accounting=error")
+
+        // A fresh start in the right browser works, once.
+        val again = startConnect(starter, "qbo")
+        assertThat(finish(starter, again)).endsWith("accounting=connected&provider=qbo")
+        assertThat(connected(starter)).isTrue()
+        assertThat(finish(starter, again)).endsWith("accounting=error")
     }
 
     private fun invoice(admin: TestClient, client: UUID, percent: Int = 19): UUID {

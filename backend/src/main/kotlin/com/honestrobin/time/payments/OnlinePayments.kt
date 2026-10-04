@@ -11,12 +11,12 @@ import com.honestrobin.time.db.tables.records.IntegrationsRecord
 import com.honestrobin.time.invoicing.InvoiceService
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.crypto.SecretBox
-import com.honestrobin.time.platform.crypto.Tokens
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.RecentAuth
 import com.honestrobin.time.platform.security.Member
+import com.honestrobin.time.platform.security.OAuthStates
 import com.honestrobin.time.platform.web.BadRequestException
 import com.honestrobin.time.platform.web.ConflictException
 import com.honestrobin.time.platform.web.NotFoundException
@@ -73,6 +73,7 @@ class OnlinePaymentService(
     private val json: ObjectMapper,
     private val funnel: Funnel,
     private val events: org.springframework.context.ApplicationEventPublisher,
+    private val oauth: OAuthStates,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -118,25 +119,26 @@ class OnlinePaymentService(
         m.requireWritable()
         m.requireAdmin()
         if (!settings.connectEnabled) throw ConflictException("connect_unavailable", "Stripe Connect is not set up on this instance. Connect with your own key instead.")
-        val state = tx.run {
-            val token = Tokens.generate(24)
+        val (state, pending) = oauth.start(m)
+        tx.run {
             val r = integration() ?: dsl.newRecord(INTEGRATIONS).apply { accountId = m.accountId; kind = "stripe"; mode = "connect"; status = "error" }
-            r.settings = JSONB.valueOf(json.writeValueAsString(mapOf("oauth_state" to token, "oauth_by" to m.membershipId.toString())))
+            r.settings = JSONB.valueOf(json.writeValueAsString(mapOf(OAuthStates.KEY to pending)))
             r.store()
-            "${m.accountId}.$token"
         }
         return "${settings.connectBaseUrl}/oauth/authorize?response_type=code&scope=read_write&client_id=${settings.connectClientId}" +
             "&state=$state&redirect_uri=${java.net.URLEncoder.encode("${props.baseUrl}/api/v1/public/stripe/callback", Charsets.UTF_8)}"
     }
 
-    /** Stripe sends the owner back here after they authorise; returns where to send the browser. */
+    /**
+     * Stripe sends the owner back here after they authorise; returns where to send the browser.
+     * Only the browser session that started connecting, still an admin, can finish it.
+     */
     fun connectCallback(state: String, code: String?, error: String?): String {
-        val (accountId, token) = state.split(".", limit = 2).takeIf { it.size == 2 } ?: return "${props.baseUrl}/settings/payments?stripe=error"
-        val account = runCatching { UUID.fromString(accountId) }.getOrNull() ?: return "${props.baseUrl}/settings/payments?stripe=error"
+        val (account, token) = oauth.parse(state) ?: return "${props.baseUrl}/settings/payments?stripe=error"
         return DbContext.forAccount(account) {
             val r = tx.run { integration() } ?: return@forAccount "${props.baseUrl}/settings/payments?stripe=error"
-            val expected = json.readTree(r.settings.data())["oauth_state"]?.asText()
-            if (expected == null || expected != token || code == null || error != null) return@forAccount "${props.baseUrl}/settings/payments?stripe=error"
+            val pending = json.readValue(r.settings.data(), Map::class.java)[OAuthStates.KEY]
+            if (!oauth.matches(pending, account, token) || code == null || error != null) return@forAccount "${props.baseUrl}/settings/payments?stripe=error"
             val stripeAccount = try {
                 stripe.oauthToken(code)
             } catch (e: StripeException) {
@@ -150,6 +152,7 @@ class OnlinePaymentService(
                 r.displayName = stripeAccount
                 r.credentialsEncrypted = null
                 r.settings = JSONB.valueOf("{}")
+                r.connectedBy = (pending as Map<*, *>)["membership_id"]?.toString()?.let(UUID::fromString)
                 r.connectedAt = Instant.now()
                 r.lastError = null
                 r.store()

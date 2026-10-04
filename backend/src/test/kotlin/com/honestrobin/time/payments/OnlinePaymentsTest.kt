@@ -31,7 +31,7 @@ class OnlinePaymentsTest : IntegrationTest() {
         val url = admin.post("/api/v1/payments/stripe/connect").expect(200)["url"].asText()
         val state = Regex("state=([^&]+)").find(url)!!.groupValues[1]
         MockStripe.connectedAccount = acct
-        assertThat(client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=connected")
+        assertThat(admin.get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=connected")
     }
 
     private fun signed(payload: String, secret: String): Map<String, String> {
@@ -88,15 +88,20 @@ class OnlinePaymentsTest : IntegrationTest() {
         assertThat(url).contains("client_id=${MockStripe.CLIENT_ID}").contains("scope=read_write")
         val state = Regex("state=([^&]+)").find(url)!!.groupValues[1]
 
-        val bad = client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "expired"))
+        val bad = admin.get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "expired"))
         assertThat(bad.status).isEqualTo(302)
         assertThat(bad.headers["Location"]!!.single()).endsWith("stripe=error")
         MockStripe.connectedAccount = "acct_connect_${UUID.randomUUID().toString().take(8)}"
-        val ok = client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code"))
+        // Only the browser that started can finish (security review, 4 October 2026): otherwise
+        // another business's admin could be led to attach their Stripe account to this workspace.
+        assertThat(signup(accountName = "Other Co").get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=error")
+        assertThat(client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=error")
+        assertThat(admin.get("/api/v1/payments/stripe")["connected"].asBoolean()).isFalse()
+        val ok = admin.get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code"))
         assertThat(ok.headers["Location"]!!.single()).endsWith("stripe=connected")
         assertThat(admin.get("/api/v1/payments/stripe")["mode"].asText()).isEqualTo("connect")
         // A state can't be used twice.
-        assertThat(client().get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=error")
+        assertThat(admin.get("/api/v1/public/stripe/callback", mapOf("state" to state, "code" to "good-code")).headers["Location"]!!.single()).endsWith("stripe=error")
 
         val (invoice, token) = sentInvoice(admin, currency = "JPY", unitPrice = 50_000)
         MockStripe.calls.clear()
