@@ -52,7 +52,9 @@ class HarvestAuthException(message: String) : RuntimeException(message)
 /**
  * Minimal Harvest API v2 client: bearer token + Harvest-Account-Id + descriptive User-Agent,
  * cursor pagination via `links.next`, 429 handling with Retry-After, and exponential backoff
- * with jitter for server and network errors.
+ * with jitter for server and network errors. The token only ever goes to [baseUrl]'s address:
+ * a page link elsewhere isn't followed, and API calls follow no redirects (security review,
+ * 4 October 2026).
  */
 class HarvestClient(
     private val baseUrl: String,
@@ -63,8 +65,13 @@ class HarvestClient(
     private val reports: RateLimiter,
     private val sleeper: Sleeper,
     private val maxAttempts: Int = 6,
-    private val http: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build(),
+    /** Receipts larger than this aren't imported; the same limit as uploading one. */
+    private val maxReceiptBytes: Long = 25L * 1024 * 1024,
+    private val http: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NEVER).build(),
+    /** Receipt links are pre-signed and may redirect; no token goes with them. */
+    private val downloads: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build(),
 ) {
+    private val origin = origin(URI.create(baseUrl))
     private val log = LoggerFactory.getLogger(javaClass)
     var requestCount = 0
         private set
@@ -81,13 +88,15 @@ class HarvestClient(
     }
 
     fun get(url: String): JsonNode {
+        val uri = URI.create(url)
+        if (origin(uri) != origin) throw HarvestApiException(0, "Harvest pointed to another address (${uri.host}); the token isn't sent there")
         val isReport = url.contains("/reports/")
         var attempt = 0
         while (true) {
             attempt++
             (if (isReport) reports else general).acquire()
             requestCount++
-            val request = HttpRequest.newBuilder(URI.create(url))
+            val request = HttpRequest.newBuilder(uri)
                 .header("Authorization", "Bearer $token")
                 .header("Harvest-Account-Id", accountId)
                 .header("User-Agent", userAgent)
@@ -149,17 +158,31 @@ class HarvestClient(
 
     fun <T> single(path: String, type: Class<T>): T = mapper.treeToValue(get(url(path)), type)
 
-    /** Downloads a receipt. Receipt URLs are pre-signed, so no Harvest headers are sent. */
+    private fun origin(u: URI) = Triple(u.scheme?.lowercase(), u.host?.lowercase(), if (u.port != -1) u.port else if (u.scheme.equals("http", true)) 80 else 443)
+
+    /**
+     * Downloads a receipt, up to [maxReceiptBytes]. Receipt URLs are pre-signed, so no Harvest
+     * headers are sent.
+     */
     fun download(url: String): Pair<ByteArray, String?> {
         var attempt = 0
+        val tooLarge = "The receipt is larger than ${maxReceiptBytes / (1024 * 1024)} MB, the most a receipt can be; it wasn't imported"
         while (true) {
             attempt++
             try {
-                val res = http.send(
+                val res = downloads.send(
                     HttpRequest.newBuilder(URI.create(url)).header("User-Agent", userAgent).timeout(Duration.ofSeconds(60)).GET().build(),
-                    HttpResponse.BodyHandlers.ofByteArray(),
+                    HttpResponse.BodyHandlers.ofInputStream(),
                 )
-                if (res.statusCode() in 200..299) return res.body() to res.headers().firstValue("Content-Type").orElse(null)
+                res.body().use { body ->
+                    if (res.statusCode() in 200..299) {
+                        if (res.headers().firstValueAsLong("Content-Length").orElse(-1) > maxReceiptBytes) throw HarvestApiException(413, tooLarge)
+                        // Read one byte past the limit, never the whole of an endless answer.
+                        val bytes = body.readNBytes((maxReceiptBytes + 1).toInt())
+                        if (bytes.size > maxReceiptBytes) throw HarvestApiException(413, tooLarge)
+                        return bytes to res.headers().firstValue("Content-Type").orElse(null)
+                    }
+                }
                 if (res.statusCode() < 500 || attempt >= 3) throw HarvestApiException(res.statusCode(), "Receipt download failed with HTTP ${res.statusCode()}")
             } catch (e: IOException) {
                 if (attempt >= 3) throw HarvestApiException(0, "Receipt download failed: ${e.message}")
