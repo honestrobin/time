@@ -81,6 +81,9 @@
       "dayView": "Day view",
       "weekView": "Week view",
       "stop": "Stop the running timer"
-    }
+    },
+    "clientNameOwnHint": "This is your own company's name. If you work for a client, type their name instead.",
+    "hourlyRate": "Hourly rate",
+    "hourlyRateHint": "You can add it later. Time without a rate can't go on an invoice."
   }
 }

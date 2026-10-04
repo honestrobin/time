@@ -16,8 +16,8 @@ function fakeCatalog(clients: Named[] = [], tasks: CatalogTask[] = []) {
       calls.push(`task ${name}${isDefault ? " (default)" : ""}`);
       return { id: `t${++n}`, name };
     },
-    createProject: async (clientId, name, taskIds) => {
-      calls.push(`project ${name} for ${clientId} with ${taskIds ? taskIds.join(",") : "defaults"}`);
+    createProject: async (clientId, name, taskIds, hourlyRate) => {
+      calls.push(`project ${name} for ${clientId} with ${taskIds ? taskIds.join(",") : "defaults"}${hourlyRate ? ` at ${hourlyRate}` : ""}`);
       return { id: `p${++n}`, tasks: (taskIds ?? []).map((task_id) => ({ task_id })) };
     },
     addTaskToProject: async (projectId, taskId) => {
@@ -35,6 +35,12 @@ describe("ensureWork", () => {
     const result = await ensureWork(work({ projectName: " Website ", clientName: "Acme", taskName: "General" }), ops);
     expect(calls).toEqual(["task General (default)", "client Acme", "project Website for c2 with t1"]);
     expect(result).toEqual({ projectId: "p3", taskId: "t1" });
+  });
+
+  it("gives a new project the hourly rate typed in the dialog", async () => {
+    const { ops, calls } = fakeCatalog([{ id: "c9", name: "Acme" }]);
+    await ensureWork(work({ projectName: "Logo", clientId: "c9", hourlyRate: 8500 }), ops);
+    expect(calls).toEqual(["project Logo for c9 with defaults at 8500"]);
   });
 
   it("reuses a client and a task whose names already exist, ignoring case", async () => {

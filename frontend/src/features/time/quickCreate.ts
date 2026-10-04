@@ -27,6 +27,8 @@ export interface WorkInput {
   taskName: string;
   /** The existing project's tasks, so a typed name that's already there is simply picked. */
   projectTasks?: { task_id: string; name: string }[];
+  /** For a new project: its hourly rate in minor units, or null to leave it without one. */
+  hourlyRate?: number | null;
 }
 
 export interface CatalogOps {
@@ -35,8 +37,13 @@ export interface CatalogOps {
   tasks: CatalogTask[];
   createClient: (name: string) => Promise<Named>;
   createTask: (name: string, isDefault: boolean) => Promise<Named>;
-  /** No task ids means the account's default tasks. */
-  createProject: (clientId: string, name: string, taskIds: string[] | undefined) => Promise<{ id: string; tasks: { task_id: string }[] }>;
+  /** No task ids means the account's default tasks. No rate leaves the project without one. */
+  createProject: (
+    clientId: string,
+    name: string,
+    taskIds: string[] | undefined,
+    hourlyRate?: number | null,
+  ) => Promise<{ id: string; tasks: { task_id: string }[] }>;
   addTaskToProject: (projectId: string, taskId: string) => Promise<unknown>;
 }
 
@@ -67,7 +74,7 @@ export async function ensureWork(w: WorkInput, ops: CatalogOps): Promise<{ proje
   // the one chosen here.
   const defaults = ops.tasks.filter((t) => t.is_default && t.is_active).map((t) => t.id);
   const taskIds = [...new Set([...defaults, ...(taskId ? [taskId] : [])])];
-  const project = await ops.createProject(clientId, w.projectName.trim(), taskIds.length ? taskIds : undefined);
+  const project = await ops.createProject(clientId, w.projectName.trim(), taskIds.length ? taskIds : undefined, w.hourlyRate ?? null);
   return { projectId: project.id, taskId: taskId ?? project.tasks[0]?.task_id };
 }
 

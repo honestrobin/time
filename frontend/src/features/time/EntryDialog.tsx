@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, Dialog, DialogActions, DurationField, SelectField, TextAreaField, TextField, useToast } from "../../design";
+import { Button, Checkbox, Dialog, DialogActions, DurationField, MoneyField, SelectField, TextAreaField, TextField, useToast } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { usePermissions } from "../../lib/session";
@@ -51,6 +51,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
   const [newTask, setNewTask] = useState(false);
   const [taskChoice, setTaskChoice] = useState<string | undefined>();
   const [taskName, setTaskName] = useState<string | undefined>();
+  const [hourlyRate, setHourlyRate] = useState<number | null>(null);
   const [formError, setFormError] = useState<{ client?: string; task?: string }>({});
 
   // Projects may have changed since the list was loaded: a new one, or a manager added you.
@@ -72,6 +73,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
     setNewTask(false);
     setTaskChoice(undefined);
     setTaskName(undefined);
+    setHourlyRate(null);
     setFormError({});
   }, [open, entry, initial?.projectId, initial?.taskId]);
 
@@ -86,13 +88,17 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
   const clientNameValue = clientName ?? (clients.length === 0 ? (account.data?.name ?? "") : "");
   const projectTask = taskChoice ?? tasks.find((x) => x.is_default)?.id ?? (taskList.isSuccess && tasks.length === 0 ? NEW : undefined);
   const taskNameValue = taskName ?? (tasks.length === 0 ? t("time.defaultTaskName") : "");
+  // A new project is billed in its client's currency; a new client gets the account's.
+  const rateCurrency =
+    (client && client !== NEW ? clientList.data?.data.find((c) => c.id === client)?.currency : undefined) ?? account.data?.default_currency ?? "";
 
   const catalog: CatalogOps = {
     clients,
     tasks,
     createClient: (name) => unwrap(api.POST("/api/v1/clients", { body: { name, currency: account.data?.default_currency } })),
     createTask: (name, isDefault) => unwrap(api.POST("/api/v1/tasks", { body: { name, is_default: isDefault } })),
-    createProject: (clientId, name, taskIds) => unwrap(api.POST("/api/v1/projects", { body: { client_id: clientId, name, task_ids: taskIds } })),
+    createProject: (clientId, name, taskIds, rate) =>
+      unwrap(api.POST("/api/v1/projects", { body: { client_id: clientId, name, task_ids: taskIds, hourly_rate: rate ?? undefined } })),
     addTaskToProject: (id, taskId) => unwrap(api.POST("/api/v1/projects/{id}/tasks", { params: { path: { id } }, body: { task_id: taskId } })),
   };
 
@@ -108,6 +114,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
         taskId: creatingProject && projectTask && projectTask !== NEW ? projectTask : null,
         taskName: creatingProject && projectTask !== NEW ? "" : taskNameValue,
         projectTasks: project?.tasks,
+        hourlyRate: creatingProject ? hourlyRate : null,
       },
       catalog,
     );
@@ -236,8 +243,25 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
                   error={formError.task}
                 />
               </div>
-              {client === NEW && <TextField label={t("time.clientName")} value={clientNameValue} onChange={setClientName} required />}
+              {client === NEW && (
+                <TextField
+                  label={t("time.clientName")}
+                  value={clientNameValue}
+                  onChange={setClientName}
+                  hint={clients.length === 0 && clientName === undefined ? t("time.clientNameOwnHint") : undefined}
+                  required
+                />
+              )}
               {projectTask === NEW && <TextField label={t("time.taskName")} value={taskNameValue} onChange={setTaskName} required />}
+              {perms.canSeeRates && rateCurrency && (
+                <MoneyField
+                  label={t("time.hourlyRate")}
+                  hint={t("time.hourlyRateHint")}
+                  value={hourlyRate}
+                  onChange={setHourlyRate}
+                  currency={rateCurrency}
+                />
+              )}
             </>
           )}
           {creatingTask && <TextField label={t("time.taskName")} value={taskNameValue} onChange={setTaskName} required autoFocus={newTask} />}
