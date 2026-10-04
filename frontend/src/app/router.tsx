@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
+import { PageLoading } from "../design";
 import { LoginPage } from "../features/auth/LoginPage";
 import { ForgotPasswordPage, MagicLinkPage, ResetPasswordPage, VerifyEmailPage } from "../features/auth/RecoveryPages";
 import { SignupPage } from "../features/auth/SignupPage";
@@ -184,7 +185,8 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export const router = createRouter({ routeTree, defaultPreload: "intent" });
+// A page that takes more than a moment to load shows "Loading…" instead of a blank screen.
+export const router = createRouter({ routeTree, defaultPreload: "intent", defaultPendingComponent: PageLoading });
 
 // Page views (Honest Robin Cloud only: the server hands out no key elsewhere), and only while
 // signed in: the account remembered from an earlier visit isn't used for someone signed out.

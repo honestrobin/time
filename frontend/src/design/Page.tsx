@@ -34,6 +34,17 @@ export function EmptyState({ title, body, action, robin }: { title: ReactNode; b
   );
 }
 
+/** Shown while a page or its data loads, so a slow start isn't a blank screen. */
+export function PageLoading() {
+  const { t } = useTranslation();
+  return (
+    <div className="page-loading" role="status">
+      <span className="spinner" aria-hidden="true" />
+      {t("app.loading")}
+    </div>
+  );
+}
+
 export function LoadingRow({ colSpan }: { colSpan: number }) {
   const { t } = useTranslation();
   return (
