@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Button, Select } from "../../design";
+import { Button, PageLoading, Select } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { addDays, startOfWeek } from "../../lib/dates";
 import { formatDate } from "../../lib/format";
@@ -85,7 +85,7 @@ export function TimePage() {
           </Button>
         </div>
       </header>
-      {account.loaded && (mode === "day" ? <DayView date={date} /> : <WeekView date={weekStart} personId={personId} />)}
+      {!account.loaded ? <PageLoading /> : mode === "day" ? <DayView date={date} /> : <WeekView date={weekStart} personId={personId} />}
     </div>
   );
 }
