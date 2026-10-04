@@ -2,8 +2,8 @@
 
 **Status: feature-complete for version 1, not yet released.** Everything in the
 [specification](docs/spec.md) is built and tested (milestones M0–M6). Before a first release, it
-is being tried out with real teams, and the integrations below are checked against the real
-services.
+needs trying out by real teams, and the integrations below need checking against the real
+services. So far only the maintainer has used it.
 
 ## What's in version 1
 
@@ -41,6 +41,8 @@ services.
   **VERIFY** in the code.
 - Check the extension's button placement on the five live sites. The selectors are data the
   instance serves, so later fixes don't need a store review.
+- Run the Harvest import against a real Harvest account. It's tested against a stand-in for
+  Harvest's API, and its speed target (250,000 entries in 15 minutes) hasn't been measured.
 - Check the CSV import's header names against a real Harvest export; the mapping screen covers
   differences in the meantime.
 - Sign in to Harvest with OAuth, which needs a registered Harvest app (today: a personal access

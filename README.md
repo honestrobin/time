@@ -20,14 +20,16 @@ took four days.
 
 Nothing about that is hidden:
 
-- **Every commit** is co-authored by Claude. The first one gathers the four days it took to build
-  version 1; the work since is in the history, change by change.
+- **Every commit Claude wrote** says so, in a co-author line. The only others are automatic
+  dependency updates. The first commit gathers the four days it took to build version 1; the work
+  since is in the history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
   with the reasoning and what was left open.
-- **Every claim is tested.** About 40,000 lines of Kotlin, TypeScript and SQL, covered by around 170
+- **Every claim is tested.** About 40,000 lines of Kotlin, TypeScript and SQL, covered by around 190
   backend tests in two editions, frontend and extension tests, and end-to-end tests that run the
   packaged app and the browser extension in a real browser. Import totals are checked against
-  Harvest's own reports, and e-invoices against the official validation rules.
+  Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
+  e-invoices against the official validation rules.
 
 It hasn't had an independent security audit yet, so treat it as pre-release software. Reports of
 anything that looks wrong are very welcome; see [SECURITY.md](SECURITY.md).
