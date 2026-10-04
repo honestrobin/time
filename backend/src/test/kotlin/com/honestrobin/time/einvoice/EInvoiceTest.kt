@@ -95,7 +95,7 @@ class EInvoiceTest : IntegrationTest() {
         val s = setup()
         val invoice = issuedInvoice(s)
         val ready = s.admin.get("/api/v1/invoices/$invoice/einvoice/readiness").expect(200).body
-        assertThat(ready.map { it["format"].asText() to it["ready"].asBoolean() }).containsExactly("facturx" to true, "xrechnung" to true, "peppol" to true)
+        assertThat(ready.values().map { it["format"].asText() to it["ready"].asBoolean() }).containsExactly("facturx" to true, "xrechnung" to true, "peppol" to true)
 
         val xrechnung = s.admin.get("/api/v1/invoices/$invoice/einvoice", mapOf("format" to "xrechnung")).expect(200)
         assertThat(xrechnung.headers["Content-Disposition"]!!.single()).contains("-xrechnung.xml")
@@ -137,15 +137,15 @@ class EInvoiceTest : IntegrationTest() {
         val s = setup()
         val draft = s.admin.post("/api/v1/invoices", mapOf("client_id" to s.client, "vat_mode" to "reverse_charge", "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 1000)))).expect(201).id()
         val notReady = s.admin.get("/api/v1/invoices/$draft/einvoice/readiness").expect(200).body.associateBy { it["format"].asText() }
-        assertThat(notReady["facturx"]!!["problems"].map { it["message"].asText() }).anyMatch { it.contains("a draft has no number") }
-        assertThat(notReady["xrechnung"]!!["problems"].map { it["field"].asText() }).contains("buyer_reference")
+        assertThat(notReady["facturx"]!!["problems"].values().map { it["message"].asText() }).anyMatch { it.contains("a draft has no number") }
+        assertThat(notReady["xrechnung"]!!["problems"].values().map { it["field"].asText() }).contains("buyer_reference")
         s.admin.get("/api/v1/invoices/$draft/einvoice", mapOf("format" to "xrechnung")).expectError(422, "einvoice_incomplete")
 
         // Reverse charge needs the client's VAT ID.
         s.admin.patch("/api/v1/clients/${s.client}", mapOf("vat_id" to "")).expect(200)
         s.admin.post("/api/v1/invoices/$draft/mark_sent").let { assertThat(it.status).isIn(200, 422) }
         val rc = s.admin.get("/api/v1/invoices/$draft/einvoice/readiness").expect(200).body.first { it["format"].asText() == "facturx" }
-        assertThat(rc["problems"].map { it["field"].asText() }).contains("vat_id")
+        assertThat(rc["problems"].values().map { it["field"].asText() }).contains("vat_id")
     }
 
     @Test

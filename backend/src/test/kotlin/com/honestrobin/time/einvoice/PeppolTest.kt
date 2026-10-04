@@ -99,7 +99,7 @@ class PeppolTest : IntegrationTest() {
         assertThat(MockStorecove.calls.last { it.path.endsWith("/document_submissions") }.authorization).isEqualTo("Bearer ${MockStorecove.PLATFORM_KEY}")
         val event = """{"event_type":"document_submission","event":"failed","document_guid":"${sent["provider_ref"].asText()}","details":"Rejected by receiver"}"""
         client().request(HttpMethod.POST, "/webhooks/storecove", event, headers = mapOf("X-Webhook-Secret" to MockStorecove.PLATFORM_WEBHOOK_SECRET)).expect(200)
-        assertThat(s.admin.get("/api/v1/invoices/$invoice/einvoice/transmissions").body.map { it["status"].asText() }).containsExactly("failed", "failed")
+        assertThat(s.admin.get("/api/v1/invoices/$invoice/einvoice/transmissions").body.values().map { it["status"].asText() }).containsExactly("failed", "failed")
     }
 
     @Test

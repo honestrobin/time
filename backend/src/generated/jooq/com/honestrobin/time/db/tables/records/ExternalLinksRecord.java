@@ -192,6 +192,6 @@ public class ExternalLinksRecord extends UpdatableRecordImpl<ExternalLinksRecord
         setMeta(meta);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

@@ -191,6 +191,6 @@ public class DeviceAuthorizationsRecord extends UpdatableRecordImpl<DeviceAuthor
         setCreatedAt(createdAt);
         setExpiresAt(expiresAt);
         setApprovedAt(approvedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

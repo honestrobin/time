@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.platform.web
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Component
 
 /**
@@ -31,7 +31,7 @@ class Patches(private val mapper: ObjectMapper) {
         } catch (e: Exception) {
             throw BadRequestException("bad_request", e.message?.substringBefore("\n") ?: "Malformed request")
         }
-        return Patch(value, body.fieldNames().asSequence().toSet())
+        return Patch(value, body.propertyNames().toSet())
     }
 
     final inline fun <reified T> parse(body: JsonNode): Patch<T> = parse(body, T::class.java)

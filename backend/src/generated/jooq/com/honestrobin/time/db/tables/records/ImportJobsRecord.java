@@ -400,6 +400,6 @@ public class ImportJobsRecord extends UpdatableRecordImpl<ImportJobsRecord> {
         setFinishedAt(finishedAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

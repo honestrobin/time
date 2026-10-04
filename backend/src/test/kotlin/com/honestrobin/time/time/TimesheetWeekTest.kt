@@ -40,7 +40,7 @@ class TimesheetWeekTest : IntegrationTest() {
         admin.post("/api/v1/timesheets/week/rows", mapOf("start" to "2026-09-07", "project_id" to project, "task_id" to taskB)).expect(200)
 
         val copied = admin.post("/api/v1/timesheets/week/copy_previous", mapOf("start" to "2026-09-21")).expect(200)
-        assertThat(copied["rows"].map { it["task"]["id"].asText() }).containsExactlyInAnyOrder(taskA.toString(), taskB.toString())
+        assertThat(copied["rows"].values().map { it["task"]["id"].asText() }).containsExactlyInAnyOrder(taskA.toString(), taskB.toString())
         assertThat(copied["total"].asLong()).isZero()
 
         val removed = admin.delete("/api/v1/timesheets/week/rows?start=2026-09-21&project_id=$project&task_id=$taskB").expect(200)

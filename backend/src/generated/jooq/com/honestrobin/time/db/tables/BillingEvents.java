@@ -26,13 +26,14 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.Internal;
 import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
@@ -211,7 +212,7 @@ public class BillingEvents extends TableImpl<BillingEventsRecord> {
      */
     @Override
     public BillingEvents where(Condition condition) {
-        return new BillingEvents(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new BillingEvents(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -278,7 +279,7 @@ public class BillingEvents extends TableImpl<BillingEventsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public BillingEvents whereExists(Select<?> select) {
+    public BillingEvents whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -286,7 +287,7 @@ public class BillingEvents extends TableImpl<BillingEventsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public BillingEvents whereNotExists(Select<?> select) {
+    public BillingEvents whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

@@ -61,7 +61,7 @@ guarantee is yours: you can export everything and run the same software yourself
 
 ## Run it yourself
 
-You need Docker. The only other dependency, PostgreSQL 16, comes with it.
+You need Docker. The only other dependency, PostgreSQL 18, comes with it.
 
 ```sh
 git clone https://github.com/honestrobin/time.git
@@ -75,7 +75,7 @@ invitation. To run it on your own domain with HTTPS, and for settings, backups a
 
 ## Develop
 
-You need JDK 21 (Gradle can download it), Node 24 with pnpm, and Docker or Podman for the test database.
+You need JDK 25 (Gradle can download it), Node 24 with pnpm, and Docker or Podman for the test database.
 
 ```sh
 pnpm install
@@ -86,7 +86,7 @@ pnpm --filter @honestrobin/web dev       # the web app on :5173
 
 | Path | What |
 |---|---|
-| `backend/` | Kotlin, Spring Boot 3, jOOQ, Flyway, PostgreSQL with row-level security |
+| `backend/` | Kotlin, Spring Boot 4, jOOQ, Flyway, PostgreSQL with row-level security |
 | `frontend/` | React and TypeScript web app |
 | `extension/` | Browser extension for Chrome and Firefox |
 | `packages/api-client/` | TypeScript client generated from the OpenAPI document |

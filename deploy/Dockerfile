@@ -13,7 +13,7 @@ COPY packages/api-client packages/api-client
 COPY frontend frontend
 RUN pnpm --filter @honestrobin/web build
 
-FROM docker.io/library/eclipse-temurin:21-jdk AS backend
+FROM docker.io/library/eclipse-temurin:25-jdk AS backend
 WORKDIR /src
 COPY gradlew settings.gradle.kts gradle.properties ./
 COPY gradle gradle
@@ -25,8 +25,8 @@ COPY --from=web /src/frontend/dist frontend/dist
 ARG HONESTROBIN_VERSION=0.1.0-SNAPSHOT
 RUN ./gradlew --no-daemon :backend:bootJar -PhonestrobinVersion=${HONESTROBIN_VERSION} -x test
 
-# Java 25 runs the Java 21 bytecode; since Java 24, virtual threads no longer pin their carrier
-# inside synchronized code, which on Java 21 could stall every request on a small machine.
+# Java 25: since Java 24, virtual threads no longer pin their carrier inside synchronized code,
+# which on Java 21 could stall every request on a small machine (decision records 0007, 0018).
 FROM docker.io/library/eclipse-temurin:25-jre AS runtime
 RUN groupadd --system --gid 10001 honestrobin \
  && useradd --system --uid 10001 --gid honestrobin --home /data honestrobin \

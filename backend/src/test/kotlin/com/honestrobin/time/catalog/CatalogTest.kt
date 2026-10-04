@@ -22,7 +22,7 @@ class CatalogTest : IntegrationTest() {
 
         admin.post("/api/v1/clients", mapOf("name" to "globex")).expectError(422, "validation_failed")
         admin.patch("/api/v1/clients/$id", mapOf("is_active" to false)).expect(200)
-        assertThat(admin.get("/api/v1/clients", mapOf("is_active" to true)).expect(200)["data"].map { it["id"].asText() }).doesNotContain(id.toString())
+        assertThat(admin.get("/api/v1/clients", mapOf("is_active" to true)).expect(200)["data"].values().map { it["id"].asText() }).doesNotContain(id.toString())
 
         createProject(admin, clientId = id)
         admin.delete("/api/v1/clients/$id").expectError(409, "client_in_use")
@@ -35,11 +35,11 @@ class CatalogTest : IntegrationTest() {
         val design = createTask(admin, name = "Design", isDefault = true)
         createTask(admin, name = "Sales")
         val project = admin.post("/api/v1/projects", mapOf("client_id" to createClient(admin), "name" to "Website")).expect(201)
-        assertThat(project["tasks"].map { it["task_id"].asText() }).containsExactly(design.toString())
+        assertThat(project["tasks"].values().map { it["task_id"].asText() }).containsExactly(design.toString())
         val members = project["members"].associate { it["membership_id"].asText() to it["is_manager"].asBoolean() }
         assertThat(members[membershipId(admin).toString()]).isTrue()
         assertThat(members[auto.membershipId.toString()]).isFalse()
-        assertThat(auto.get("/api/v1/me/assignments").expect(200).body.map { it["project_name"].asText() }).containsExactly("Website")
+        assertThat(auto.get("/api/v1/me/assignments").expect(200).body.values().map { it["project_name"].asText() }).containsExactly("Website")
     }
 
     @Test

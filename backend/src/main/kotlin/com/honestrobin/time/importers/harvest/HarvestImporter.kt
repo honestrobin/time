@@ -2,8 +2,8 @@
 package com.honestrobin.time.importers.harvest
 
 import com.honestrobin.time.analytics.Funnel
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.ARCHIVED_DOCUMENTS
 import com.honestrobin.time.db.Tables.CLIENTS
@@ -181,8 +181,8 @@ class HarvestImporter(
             try {
                 syncSteps.forEach { (_, _, body) -> body(run) }
                 tx.run {
-                    val stats = json.readTree(job.stats.data()) as com.fasterxml.jackson.databind.node.ObjectNode
-                    stats.set<JsonNode>("last_sync", json.valueToTree(run.progress.counts))
+                    val stats = json.readTree(job.stats.data()) as tools.jackson.databind.node.ObjectNode
+                    stats.set("last_sync", json.valueToTree<JsonNode>(run.progress.counts))
                     dsl.update(IMPORT_JOBS).set(IMPORT_JOBS.LAST_SYNCED_AT, started).set(IMPORT_JOBS.ERROR, null as String?)
                         .set(IMPORT_JOBS.STATS, JSONB.valueOf(json.writeValueAsString(stats)))
                         .where(IMPORT_JOBS.ID.eq(jobId)).and(IMPORT_JOBS.STATUS.eq("syncing")).execute()

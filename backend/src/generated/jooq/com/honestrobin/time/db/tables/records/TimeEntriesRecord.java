@@ -449,6 +449,6 @@ public class TimeEntriesRecord extends UpdatableRecordImpl<TimeEntriesRecord> {
         setLockedReason(lockedReason);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

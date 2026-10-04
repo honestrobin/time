@@ -191,6 +191,6 @@ public class FilesRecord extends UpdatableRecordImpl<FilesRecord> {
         setSha256(sha256);
         setUploadedBy(uploadedBy);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

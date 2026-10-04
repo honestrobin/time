@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.reports
 
+import com.honestrobin.time.platform.forMessage
 import com.honestrobin.time.accounts.AccountSettingsRepository
 import com.honestrobin.time.db.Tables.CLIENTS
 import com.honestrobin.time.db.Tables.EXPENSES
@@ -336,7 +337,7 @@ class ReportExportService(
 }
 
 class Labels(private val messages: MessageSource, private val locale: Locale) {
-    operator fun invoke(key: String, vararg args: Any?): String = messages.getMessage(key, args, key, locale) ?: key
+    operator fun invoke(key: String, vararg args: Any?): String = messages.getMessage(key, args.forMessage(), key, locale) ?: key
     fun yesNo(b: Boolean) = invoke(if (b) "report.yes" else "report.no")
 }
 

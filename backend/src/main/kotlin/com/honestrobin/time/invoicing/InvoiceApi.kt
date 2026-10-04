@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.invoicing
 
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.platform.db.DbContext

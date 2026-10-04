@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.importers.harvest
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import com.honestrobin.time.db.Tables.CLIENTS
 import com.honestrobin.time.db.Tables.EXTERNAL_LINKS
 import com.honestrobin.time.db.Tables.IMPORT_JOBS

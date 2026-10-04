@@ -223,6 +223,6 @@ public class ApiTokensRecord extends UpdatableRecordImpl<ApiTokensRecord> {
         setExpiresAt(expiresAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

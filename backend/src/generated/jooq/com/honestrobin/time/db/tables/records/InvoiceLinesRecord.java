@@ -352,6 +352,6 @@ public class InvoiceLinesRecord extends UpdatableRecordImpl<InvoiceLinesRecord> 
         setUpdatedAt(updatedAt);
         setTaskId(taskId);
         setMembershipId(membershipId);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

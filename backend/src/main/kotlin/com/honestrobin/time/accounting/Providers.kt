@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.accounting
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
@@ -178,10 +178,10 @@ class QboProvider(private val settings: QboSettings, json: ObjectMapper) : HttpP
     private fun query(t: OAuthTokens, q: String): JsonNode = api(t, "GET", "/query?query=${enc(q)}")["QueryResponse"] ?: json.createObjectNode()
 
     override fun options(tokens: OAuthTokens) = ProviderOptions(
-        taxCodes = query(tokens, "select * from TaxCode").path("TaxCode").map { Choice(it["Id"].asText(), it["Name"].asText()) },
-        items = query(tokens, "select * from Item where Type = 'Service'").path("Item").map { Choice(it["Id"].asText(), it["Name"].asText()) },
+        taxCodes = query(tokens, "select * from TaxCode").path("TaxCode").values().map { Choice(it["Id"].asText(), it["Name"].asText()) },
+        items = query(tokens, "select * from Item where Type = 'Service'").path("Item").values().map { Choice(it["Id"].asText(), it["Name"].asText()) },
         salesAccounts = emptyList(),
-        paymentAccounts = query(tokens, "select * from Account where AccountType = 'Bank'").path("Account").map { Choice(it["Id"].asText(), it["Name"].asText()) },
+        paymentAccounts = query(tokens, "select * from Account where AccountType = 'Bank'").path("Account").values().map { Choice(it["Id"].asText(), it["Name"].asText()) },
     )
 
     override fun findOrCreateCustomer(tokens: OAuthTokens, customer: CustomerData): String {

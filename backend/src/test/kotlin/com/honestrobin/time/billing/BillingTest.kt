@@ -72,7 +72,7 @@ class BillingTest : IntegrationTest() {
         assertThat(free["plan"].asText()).isEqualTo("free")
         assertThat(free["seats_used"].asInt()).isEqualTo(1)
         assertThat(free["billing_available"].asBoolean()).isTrue()
-        assertThat(free["prices"].map { it["per_seat_per_month_minor"].asLong() }).containsExactly(850, 700)
+        assertThat(free["prices"].values().map { it["per_seat_per_month_minor"].asLong() }).containsExactly(850, 700)
 
         // A second person needs a subscription; adding them without an invitation is fine.
         admin.post("/api/v1/people", mapOf("name" to "Aroha", "email" to uniqueEmail("aroha"), "role" to "member")).expectError(402, "subscription_required")

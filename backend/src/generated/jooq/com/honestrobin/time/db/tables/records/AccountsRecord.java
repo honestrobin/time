@@ -785,6 +785,6 @@ public class AccountsRecord extends UpdatableRecordImpl<AccountsRecord> {
         setInvoiceContactEmail(invoiceContactEmail);
         setInvoiceContactPhone(invoiceContactPhone);
         setRequireTwoFactor(requireTwoFactor);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

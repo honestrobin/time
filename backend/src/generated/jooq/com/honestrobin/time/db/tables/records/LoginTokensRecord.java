@@ -191,6 +191,6 @@ public class LoginTokensRecord extends UpdatableRecordImpl<LoginTokensRecord> {
         setExpiresAt(expiresAt);
         setUsedAt(usedAt);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

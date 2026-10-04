@@ -69,9 +69,9 @@ class HarvestImportTest : IntegrationTest() {
         val verification = job["verification"]
         assertThat(verification["all_match"].asBoolean()).describedAs(verification.toString()).isTrue()
         assertThat(verification["entries"].asInt()).isEqualTo(f.timeEntries.size)
-        assertThat(verification["rows"].map { it["status"].asText() }).isNotEmpty().allMatch { it == "match" || it == "rounding" }
+        assertThat(verification["rows"].values().map { it["status"].asText() }).isNotEmpty().allMatch { it == "match" || it == "rounding" }
         // Clients bill in four currencies, including one with no decimals.
-        assertThat(verification["rows"].map { it["currency"].asText() }.toSet()).contains("USD", "EUR", "GBP", "JPY")
+        assertThat(verification["rows"].values().map { it["currency"].asText() }.toSet()).contains("USD", "EUR", "GBP", "JPY")
 
         // People are added but not invited; nobody gets an email until an admin chooses.
         val people = admin.get("/api/v1/people").expect(200)
@@ -84,7 +84,7 @@ class HarvestImportTest : IntegrationTest() {
             val running = f.timeEntries.firstOrNull { it["is_running"] == true }
             if (running != null) {
                 val issues = admin.get("/api/v1/imports/${job.id()}/issues").expect(200)
-                assertThat(issues.body.map { it["reason"].asText() }).anyMatch { it.contains("running in Harvest") }
+                assertThat(issues.body.values().map { it["reason"].asText() }).anyMatch { it.contains("running in Harvest") }
             }
             val locked = dsl.fetchCount(TIME_ENTRIES, TIME_ENTRIES.ACCOUNT_ID.eq(account).and(TIME_ENTRIES.IS_LOCKED.isTrue))
             assertThat(locked).isEqualTo(f.timeEntries.count { it["is_locked"] == true || it["is_billed"] == true })

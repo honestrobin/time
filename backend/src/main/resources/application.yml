@@ -35,8 +35,9 @@ spring:
     mapper:
       default-view-inclusion: true
     default-property-inclusion: always
-    serialization:
-      write-dates-as-timestamps: false
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
     deserialization:
       fail-on-unknown-properties: false
   messages:

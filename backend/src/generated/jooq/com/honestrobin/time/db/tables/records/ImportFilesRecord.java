@@ -176,6 +176,6 @@ public class ImportFilesRecord extends UpdatableRecordImpl<ImportFilesRecord> {
         setMapping(mapping);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

@@ -6,7 +6,7 @@ import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
-import org.springframework.boot.autoconfigure.jooq.DefaultConfigurationCustomizer
+import org.springframework.boot.jooq.autoconfigure.DefaultConfigurationCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.transaction.PlatformTransactionManager

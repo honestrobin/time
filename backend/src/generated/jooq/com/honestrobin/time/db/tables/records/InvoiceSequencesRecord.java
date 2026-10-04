@@ -223,6 +223,6 @@ public class InvoiceSequencesRecord extends UpdatableRecordImpl<InvoiceSequences
         setIsDefault(isDefault);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

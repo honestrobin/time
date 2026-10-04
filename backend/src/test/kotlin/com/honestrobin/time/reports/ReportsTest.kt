@@ -4,7 +4,7 @@ package com.honestrobin.time.reports
 import com.honestrobin.time.support.IntegrationTest
 import com.honestrobin.time.support.TestClient
 import com.honestrobin.time.support.TestResponse
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -70,7 +70,7 @@ class ReportsTest : IntegrationTest() {
     fun `the time report groups by client, project, task and person with rounded hours and amounts per currency`() {
         val f = fixture()
         val byClient = f.admin.get("/api/v1/reports/time", september + ("group_by" to "client")).expect(200)
-        assertThat(byClient["rows"].map { it["name"].asText() }).containsExactly("Fjord & Pine", "Maple Labs")
+        assertThat(byClient["rows"].values().map { it["name"].asText() }).containsExactly("Fjord & Pine", "Maple Labs")
         assertThat(byClient.row("Fjord & Pine")["seconds"].asLong()).isEqualTo(4500 + 1800L)
         assertThat(byClient.row("Fjord & Pine")["billable_seconds"].asLong()).isEqualTo(4500L)
         assertThat(byClient.row("Fjord & Pine").amount("EUR")).isEqualTo(12_500)
@@ -79,21 +79,21 @@ class ReportsTest : IntegrationTest() {
         assertThat(byClient["seconds"].asLong()).isEqualTo(13_500)
         assertThat(byClient["billable_seconds"].asLong()).isEqualTo(11_700)
         assertThat(byClient["entry_count"].asInt()).isEqualTo(3)
-        assertThat(byClient["amounts"].map { it["currency"].asText() }).containsExactly("EUR", "USD")
+        assertThat(byClient["amounts"].values().map { it["currency"].asText() }).containsExactly("EUR", "USD")
         assertThat(byClient.amount("EUR")).isEqualTo(12_500)
         assertThat(byClient["cost_currency"].asText()).isEqualTo("EUR")
         assertThat(byClient["rounding_minutes"].asInt()).isEqualTo(15)
 
         val byProject = f.admin.get("/api/v1/reports/time", september + ("group_by" to "project")).expect(200)
-        assertThat(byProject["rows"].map { it["client_name"].asText() }).containsExactlyInAnyOrder("Fjord & Pine", "Maple Labs")
+        assertThat(byProject["rows"].values().map { it["client_name"].asText() }).containsExactlyInAnyOrder("Fjord & Pine", "Maple Labs")
 
         // Development spans both currencies; its non-billable euro work adds no amount.
         val byTask = f.admin.get("/api/v1/reports/time", september + ("group_by" to "task")).expect(200)
         assertThat(byTask.row("Development")["seconds"].asLong()).isEqualTo(9000L)
-        assertThat(byTask.row("Development")["amounts"].map { it["currency"].asText() }).containsExactly("USD")
+        assertThat(byTask.row("Development")["amounts"].values().map { it["currency"].asText() }).containsExactly("USD")
 
         val byPerson = f.admin.get("/api/v1/reports/time", september + ("group_by" to "person")).expect(200)
-        assertThat(byPerson["rows"].map { it["name"].asText() to it["seconds"].asLong() }).containsExactly("Ada Admin" to 6300L, "Mo Member" to 7200L)
+        assertThat(byPerson["rows"].values().map { it["name"].asText() to it["seconds"].asLong() }).containsExactly("Ada Admin" to 6300L, "Mo Member" to 7200L)
 
         // Filters.
         fun total(params: Map<String, Any?>) = f.admin.get("/api/v1/reports/time", september + params).expect(200)["seconds"].asLong()
@@ -129,26 +129,26 @@ class ReportsTest : IntegrationTest() {
         val f = fixture()
         val mine = f.member.get("/api/v1/reports/time", september + ("group_by" to "client")).expect(200)
         assertThat(mine["seconds"].asLong()).isEqualTo(7200)
-        assertThat(mine["rows"].map { it["name"].asText() }).containsExactly("Maple Labs")
+        assertThat(mine["rows"].values().map { it["name"].asText() }).containsExactly("Maple Labs")
         assertThat(mine.raw).doesNotContain("billable_amount").doesNotContain("cost_amount")
 
         val manager = invite(f.admin, role = "manager", name = "Mia Manager")
         f.admin.post("/api/v1/projects/${f.projectA}/members", mapOf("membership_id" to manager.membershipId, "is_manager" to true)).expect(201)
         val managed = manager.get("/api/v1/reports/time", september + ("group_by" to "project")).expect(200)
-        assertThat(managed["rows"].map { it["id"].asText() }).containsExactly(f.projectA.toString())
+        assertThat(managed["rows"].values().map { it["id"].asText() }).containsExactly(f.projectA.toString())
         assertThat(managed["seconds"].asLong()).isEqualTo(6300)
 
         val detailed = f.member.get("/api/v1/reports/detailed", september).expect(200)
-        assertThat(detailed["data"].map { it["id"].asText() }).containsExactly(f.memberDev.toString())
+        assertThat(detailed["data"].values().map { it["id"].asText() }).containsExactly(f.memberDev.toString())
     }
 
     @Test
     fun `the detailed report pages entries oldest first, and bulk edit changes the unlocked ones`() {
         val f = fixture()
         val page1 = f.admin.get("/api/v1/reports/detailed", september + ("limit" to 2)).expect(200)
-        assertThat(page1["data"].map { it["id"].asText() }).containsExactly(f.adminDesign.toString(), f.adminDev.toString())
+        assertThat(page1["data"].values().map { it["id"].asText() }).containsExactly(f.adminDesign.toString(), f.adminDev.toString())
         val page2 = f.admin.get("/api/v1/reports/detailed", september + mapOf("limit" to 2, "cursor" to page1["next_cursor"].asText())).expect(200)
-        assertThat(page2["data"].map { it["id"].asText() }).containsExactly(f.memberDev.toString())
+        assertThat(page2["data"].values().map { it["id"].asText() }).containsExactly(f.memberDev.toString())
         assertThat(page2["next_cursor"].isNull).isTrue()
 
         // Invoice Maple Labs, which locks Mo's entry.
@@ -159,7 +159,7 @@ class ReportsTest : IntegrationTest() {
             mapOf("ids" to listOf(f.adminDesign, f.adminDev, f.memberDev, stranger), "billable" to false),
         ).expect(200)
         assertThat(result["updated"].asInt()).isEqualTo(2)
-        assertThat(result["skipped"].map { it["id"].asText() to it["code"].asText() })
+        assertThat(result["skipped"].values().map { it["id"].asText() to it["code"].asText() })
             .containsExactlyInAnyOrder(f.memberDev.toString() to "invoiced", stranger.toString() to "not_found")
         assertThat(f.admin.get("/api/v1/time_entries/${f.adminDesign}")["billable"].asBoolean()).isFalse()
 
@@ -191,7 +191,7 @@ class ReportsTest : IntegrationTest() {
         f.admin.post("/api/v1/expenses", mapOf("project_id" to f.projectA, "category_id" to travel, "spent_date" to "2026-09-10", "amount" to 4_250)).expect(201)
 
         val report = f.admin.get("/api/v1/reports/uninvoiced", september).expect(200)
-        assertThat(report["clients"].map { it["client"]["name"].asText() }).containsExactly("Fjord & Pine", "Maple Labs")
+        assertThat(report["clients"].values().map { it["client"]["name"].asText() }).containsExactly("Fjord & Pine", "Maple Labs")
         val fjord = report["clients"][0]
         assertThat(fjord["currency"].asText()).isEqualTo("EUR")
         // Only billable time counts: the non-billable half hour is not waiting to be invoiced.
@@ -200,11 +200,11 @@ class ReportsTest : IntegrationTest() {
         assertThat(fjord["expense_amount"].asLong()).isEqualTo(4_250)
         assertThat(fjord["oldest_date"].asText()).isEqualTo("2026-09-10")
         assertThat(fjord["projects"].single()["entry_count"].asInt()).isEqualTo(1)
-        assertThat(report["totals"].map { it["currency"].asText() to it["amount"].asLong() }).containsExactly("EUR" to 12_500L, "USD" to 16_000L)
+        assertThat(report["totals"].values().map { it["currency"].asText() to it["amount"].asLong() }).containsExactly("EUR" to 12_500L, "USD" to 16_000L)
 
         f.admin.post("/api/v1/invoices", mapOf("client_id" to f.eurClient, "from_time" to september + ("include_expenses" to true))).expect(201)
         val after = f.admin.get("/api/v1/reports/uninvoiced", september).expect(200)
-        assertThat(after["clients"].map { it["client"]["name"].asText() }).containsExactly("Maple Labs")
+        assertThat(after["clients"].values().map { it["client"]["name"].asText() }).containsExactly("Maple Labs")
 
         // Members see their own uninvoiced hours, without amounts.
         val mine = f.member.get("/api/v1/reports/uninvoiced", september).expect(200)
@@ -220,7 +220,7 @@ class ReportsTest : IntegrationTest() {
         createProject(f.admin)
 
         val report = f.admin.get("/api/v1/reports/budget").expect(200)
-        assertThat(report["rows"].map { it["project"]["id"].asText() }).containsExactly(f.projectA.toString(), f.projectB.toString())
+        assertThat(report["rows"].values().map { it["project"]["id"].asText() }).containsExactly(f.projectA.toString(), f.projectB.toString())
         val a = report["rows"][0]["budget"]
         assertThat(a["spent_seconds"].asLong()).isEqualTo(6300)
         assertThat(a["percent_used"].asDouble()).isEqualTo(43.8)
@@ -230,7 +230,7 @@ class ReportsTest : IntegrationTest() {
 
         // Mo is on both projects, but only the time budget is shown to everyone.
         val mine = f.member.get("/api/v1/reports/budget").expect(200)
-        assertThat(mine["rows"].map { it["project"]["id"].asText() }).containsExactly(f.projectA.toString())
+        assertThat(mine["rows"].values().map { it["project"]["id"].asText() }).containsExactly(f.projectA.toString())
         assertThat(mine.raw).doesNotContain("spent_amount")
 
         assertThat(f.admin.get("/api/v1/reports/budget", mapOf("client_id" to f.usdClient))["rows"]).hasSize(1)
@@ -246,16 +246,16 @@ class ReportsTest : IntegrationTest() {
         f.member.post("/api/v1/expenses", mapOf("project_id" to f.projectB, "category_id" to travel, "spent_date" to "2026-09-12", "amount" to 9_900)).expect(201)
 
         val byCategory = f.admin.get("/api/v1/reports/expenses", september + ("group_by" to "category")).expect(200)
-        assertThat(byCategory["rows"].map { it["name"].asText() }).containsExactly("Meals", "Travel")
+        assertThat(byCategory["rows"].values().map { it["name"].asText() }).containsExactly("Meals", "Travel")
         val travelRow = byCategory.row("Travel")
         assertThat(travelRow["count"].asInt()).isEqualTo(2)
-        assertThat(travelRow["amounts"].map { it["currency"].asText() to it["amount"].asLong() }).containsExactly("EUR" to 4_250L, "USD" to 9_900L)
+        assertThat(travelRow["amounts"].values().map { it["currency"].asText() to it["amount"].asLong() }).containsExactly("EUR" to 4_250L, "USD" to 9_900L)
         val meal = byCategory.row("Meals")["amounts"].single()
         assertThat(meal["billable_amount"].asLong()).isEqualTo(0)
         assertThat(byCategory["count"].asInt()).isEqualTo(3)
 
         val byPerson = f.admin.get("/api/v1/reports/expenses", september + ("group_by" to "person")).expect(200)
-        assertThat(byPerson["rows"].map { it["name"].asText() }).containsExactly("Ada Admin", "Mo Member")
+        assertThat(byPerson["rows"].values().map { it["name"].asText() }).containsExactly("Ada Admin", "Mo Member")
         assertThat(f.admin.get("/api/v1/reports/expenses", september + mapOf("group_by" to "project", "billable" to true))["count"].asInt()).isEqualTo(2)
         // Members see their own spend, amounts included (ADR 0008).
         val mine = f.member.get("/api/v1/reports/expenses", september).expect(200)

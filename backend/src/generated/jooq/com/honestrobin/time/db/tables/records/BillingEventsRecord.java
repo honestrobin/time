@@ -111,6 +111,6 @@ public class BillingEventsRecord extends UpdatableRecordImpl<BillingEventsRecord
         setEventType(eventType);
         setAccountId(accountId);
         setReceivedAt(receivedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

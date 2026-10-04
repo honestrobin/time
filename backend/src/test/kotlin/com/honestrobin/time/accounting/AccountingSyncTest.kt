@@ -54,7 +54,7 @@ class AccountingSyncTest : IntegrationTest() {
         assertThat(failed["last_error"].asText()).contains("tax code for VAT S 19%")
 
         val options = admin.get("/api/v1/accounting/qbo/options").expect(200)
-        assertThat(options["our_taxes"].map { it["id"].asText() }).contains("S:19")
+        assertThat(options["our_taxes"].values().map { it["id"].asText() }).contains("S:19")
         admin.patch("/api/v1/accounting/qbo/mapping", mapOf("tax_codes" to mapOf("S:19" to "TAX19"), "item_id" to "1", "payment_account" to "35")).expect(200)
         accounting.processAccount(admin.accountId!!)
         assertThat(items(first, admin).single()["status"].asText()).isEqualTo("done")
@@ -67,7 +67,7 @@ class AccountingSyncTest : IntegrationTest() {
         // A payment follows its invoice.
         admin.post("/api/v1/invoices/$first/payments", mapOf("amount" to 10_000, "paid_on" to "2026-10-02")).expect(201)
         accounting.processAccount(admin.accountId!!)
-        assertThat(items(first, admin).map { it["entity_type"].asText() to it["status"].asText() }).containsExactly("invoice" to "done", "payment" to "done")
+        assertThat(items(first, admin).values().map { it["entity_type"].asText() to it["status"].asText() }).containsExactly("invoice" to "done", "payment" to "done")
         val payment = MockAccounting.created["qbo:Payment"]!!.last()["body"]
         assertThat(payment["TotalAmt"].decimalValue()).isEqualByComparingTo("100.00")
 
@@ -91,12 +91,12 @@ class AccountingSyncTest : IntegrationTest() {
         try {
             connect(admin, "xero")
             val options = admin.get("/api/v1/accounting/xero/options").expect(200)
-            assertThat(options["sales_accounts"].map { it["id"].asText() }).contains("200")
+            assertThat(options["sales_accounts"].values().map { it["id"].asText() }).contains("200")
             admin.patch("/api/v1/accounting/xero/mapping", mapOf("tax_codes" to mapOf("S:20" to "OUTPUT2"), "sales_account" to "200", "payment_account" to "acc-bank")).expect(200)
             val inv = invoice(admin, client, percent = 20)
             admin.post("/api/v1/invoices/$inv/payments", mapOf("amount" to 5_000, "paid_on" to "2026-10-02")).expect(201)
             accounting.processAccount(admin.accountId!!)
-            assertThat(items(inv, admin).map { it["status"].asText() }).containsExactly("done", "done")
+            assertThat(items(inv, admin).values().map { it["status"].asText() }).containsExactly("done", "done")
             val call = MockAccounting.calls.last { it.path == "/api.xro/2.0/Invoices" }
             assertThat(call.headers["Xero-tenant-id"]).isEqualTo(MockAccounting.XERO_TENANT)
             assertThat(call.headers["Idempotency-Key"]).isNotBlank()

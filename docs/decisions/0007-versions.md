@@ -1,6 +1,6 @@
 # 0007. Platform versions
 
-- Status: accepted
+- Status: accepted; the backend versions are superseded by 0018
 - Date: 2026-09-30
 - Spec reference: §3.1
 

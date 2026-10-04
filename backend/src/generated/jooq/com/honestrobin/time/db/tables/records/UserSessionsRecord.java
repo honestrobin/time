@@ -191,6 +191,6 @@ public class UserSessionsRecord extends UpdatableRecordImpl<UserSessionsRecord> 
         setLastSeenAt(lastSeenAt);
         setExpiresAt(expiresAt);
         setAuthenticatedAt(authenticatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

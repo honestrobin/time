@@ -145,6 +145,6 @@ public class BudgetAlertsRecord extends UpdatableRecordImpl<BudgetAlertsRecord> 
         setThreshold(threshold);
         setPeriodStart(periodStart);
         setNotifiedAt(notifiedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

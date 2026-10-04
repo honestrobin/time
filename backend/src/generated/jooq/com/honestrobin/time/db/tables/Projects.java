@@ -37,10 +37,10 @@ import org.jooq.QueryPart;
 import org.jooq.Record;
 import org.jooq.SQL;
 import org.jooq.Schema;
-import org.jooq.Select;
 import org.jooq.Stringly;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableLike;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -449,7 +449,7 @@ public class Projects extends TableImpl<ProjectsRecord> {
      */
     @Override
     public Projects where(Condition condition) {
-        return new Projects(getQualifiedName(), aliased() ? this : null, null, condition);
+        return new Projects(getQualifiedName(), aliased() ? this : null, null, Internal.condition(this, condition));
     }
 
     /**
@@ -516,7 +516,7 @@ public class Projects extends TableImpl<ProjectsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Projects whereExists(Select<?> select) {
+    public Projects whereExists(TableLike<?> select) {
         return where(DSL.exists(select));
     }
 
@@ -524,7 +524,7 @@ public class Projects extends TableImpl<ProjectsRecord> {
      * Create an inline derived table from this table
      */
     @Override
-    public Projects whereNotExists(Select<?> select) {
+    public Projects whereNotExists(TableLike<?> select) {
         return where(DSL.notExists(select));
     }
 }

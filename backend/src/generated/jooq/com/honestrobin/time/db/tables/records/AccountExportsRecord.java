@@ -271,6 +271,6 @@ public class AccountExportsRecord extends UpdatableRecordImpl<AccountExportsReco
         setExpiresAt(expiresAt);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

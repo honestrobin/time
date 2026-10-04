@@ -4,7 +4,7 @@
 
 ```sh
 # a throwaway Postgres on port 5433
-docker run -d --name honestrobin-pg -e POSTGRES_USER=honestrobin -e POSTGRES_PASSWORD=honestrobin -e POSTGRES_DB=honestrobin -p 5433:5432 postgres:16-alpine
+docker run -d --name honestrobin-pg -e POSTGRES_USER=honestrobin -e POSTGRES_PASSWORD=honestrobin -e POSTGRES_DB=honestrobin -p 5433:5432 postgres:18-alpine
 HONESTROBIN_DB_URL=jdbc:postgresql://localhost:5433/honestrobin HONESTROBIN_SIGNUP_MODE=open ./gradlew :backend:bootRun
 ```
 

@@ -168,7 +168,7 @@ class AuthFlowTest : IntegrationTest() {
         api.patch("/api/v1/me", mapOf("name" to "Nope")).expectError(403, "insufficient_scope")
 
         val listed = c.get("/api/v1/me/api_tokens").expect(200)
-        assertThat(listed.body.map { it["token_hint"].asText() }).containsExactly(token.takeLast(4))
+        assertThat(listed.body.values().map { it["token_hint"].asText() }).containsExactly(token.takeLast(4))
 
         c.delete("/api/v1/me/api_tokens/${created["api_token"]["id"].asText()}").expect(204)
         api.get("/api/v1/me").expectError(401, "invalid_token")

@@ -98,7 +98,7 @@ class CsvImportTest : IntegrationTest() {
         val first = upload(admin, "zeiten.csv", csv)
         val id = first["job_id"].asText()
         // Nothing is recognised: the preview asks for the columns.
-        assertThat(first["problems"].map { it["message"].asText() }).anyMatch { it.contains("Choose the column") }
+        assertThat(first["problems"].values().map { it["message"].asText() }).anyMatch { it.contains("Choose the column") }
 
         val mapping = mapOf("kind" to "TIME", "mapping" to mapOf(
             "date" to "Datum", "client" to "Kunde", "project" to "Projekt", "task" to "Tätigkeit", "hours" to "Stunden", "person" to "Mitarbeiter",
@@ -107,9 +107,9 @@ class CsvImportTest : IntegrationTest() {
         val preview = admin.post("/api/v1/imports/$id/csv/preview", mapping).expect(200)
         assertThat(preview["date_order"].asText()).isEqualTo("DMY")
         assertThat(preview["valid"].asInt()).isEqualTo(3)
-        assertThat(preview["problems"].map { it["row"].asInt() to it["message"].asText() }).containsExactly(5 to "\"31.02.2026\" isn't a date")
+        assertThat(preview["problems"].values().map { it["row"].asInt() to it["message"].asText() }).containsExactly(5 to "\"31.02.2026\" isn't a date")
         assertThat(preview["total_hours"].decimalValue()).isEqualByComparingTo("3.75")
-        assertThat(preview["creates"]["people"].map { it["name"].asText() to it["email"].asText(null) })
+        assertThat(preview["creates"]["people"].values().map { it["name"].asText() to it["email"].asText(null) })
             .containsExactlyInAnyOrder("Anna Schmidt" to "anna@mueller.example", "Jonas Weber" to null)
 
         val result = admin.post("/api/v1/imports/$id/csv/commit", emptyMap<String, Any>()).expect(200)
@@ -125,7 +125,7 @@ class CsvImportTest : IntegrationTest() {
         }
         // The file can't be imported twice from the same upload.
         admin.post("/api/v1/imports/$id/csv/commit", emptyMap<String, Any>()).expectError(409, "not_in_preview")
-        assertThat(admin.get("/api/v1/imports/$id/issues").expect(200).body.map { it["external_id"].asText() }).containsExactly("5")
+        assertThat(admin.get("/api/v1/imports/$id/issues").expect(200).body.values().map { it["external_id"].asText() }).containsExactly("5")
     }
 
     @Test
@@ -151,7 +151,7 @@ class CsvImportTest : IntegrationTest() {
         admin.post("/api/v1/imports/${clients["job_id"].asText()}/csv/commit", emptyMap<String, Any>()).expect(200)
         val contacts = upload(admin, "contacts.csv", "Client,Title,First Name,Last Name,Email,Office Phone\nFjord & Pine,Finance,Ingrid,Berg,ingrid@fjord.example,+47 555 0100\nNew Client Ltd,,Sam,Lee,,\n")
         assertThat(contacts["kind"].asText()).isEqualTo("CONTACTS")
-        assertThat(contacts["creates"]["clients"].map { it.asText() }).containsExactly("New Client Ltd")
+        assertThat(contacts["creates"]["clients"].values().map { it.asText() }).containsExactly("New Client Ltd")
         admin.post("/api/v1/imports/${contacts["job_id"].asText()}/csv/commit", emptyMap<String, Any>()).expect(200)
         val projects = upload(admin, "projects.csv", "Client,Project,Project Code,Billable?,Project Notes\nFjord & Pine,Brand refresh,FP-1,Yes,Logo and type\nTui Studio,Internal,,No,\n")
         assertThat(projects["kind"].asText()).isEqualTo("PROJECTS")

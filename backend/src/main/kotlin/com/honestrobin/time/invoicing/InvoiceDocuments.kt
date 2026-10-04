@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.invoicing
 
+import com.honestrobin.time.platform.forMessage
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.CLIENTS
 import com.honestrobin.time.db.Tables.INVOICE_LINES
@@ -69,7 +70,7 @@ class InvoicePdf(
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(r.accountId)).fetchOne()!!
         val client = dsl.selectFrom(CLIENTS).where(CLIENTS.ID.eq(r.clientId)).fetchOne()!!
         val locale = Locale.forLanguageTag(account.locale)
-        fun msg(key: String, vararg args: Any?) = messages.getMessage("invoice.$key", args, locale)
+        fun msg(key: String, vararg args: Any?) = messages.getMessage("invoice.$key", args.forMessage(), locale)
         val money = money(r.currency, locale)
         val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
         val lines = dsl.selectFrom(INVOICE_LINES).where(INVOICE_LINES.INVOICE_ID.eq(r.id)).orderBy(INVOICE_LINES.POSITION).fetch()

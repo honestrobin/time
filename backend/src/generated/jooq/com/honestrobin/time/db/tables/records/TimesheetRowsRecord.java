@@ -160,6 +160,6 @@ public class TimesheetRowsRecord extends UpdatableRecordImpl<TimesheetRowsRecord
         setProjectId(projectId);
         setTaskId(taskId);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

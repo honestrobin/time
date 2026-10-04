@@ -833,6 +833,6 @@ public class InvoicesRecord extends UpdatableRecordImpl<InvoicesRecord> {
         setGrouping(grouping);
         setViewCount(viewCount);
         setLastViewedAt(lastViewedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

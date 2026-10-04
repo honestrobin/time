@@ -115,7 +115,7 @@ class TimerTest : IntegrationTest() {
         member.post("/api/v1/time_entries", mapOf("project_id" to assigned, "task_id" to otherTask, "duration_seconds" to 60))
             .expectError(422, "validation_failed")
         member.post("/api/v1/time_entries", mapOf("project_id" to assigned, "task_id" to task, "duration_seconds" to 60)).expect(201)
-        assertThat(member.get("/api/v1/me/assignments").expect(200).body.map { it["project_id"].asText() }).containsExactly(assigned.toString())
+        assertThat(member.get("/api/v1/me/assignments").expect(200).body.values().map { it["project_id"].asText() }).containsExactly(assigned.toString())
     }
 
     @Test

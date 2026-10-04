@@ -127,6 +127,6 @@ public class TeamMembershipsRecord extends UpdatableRecordImpl<TeamMembershipsRe
         setTeamId(teamId);
         setMembershipId(membershipId);
         setCreatedAt(createdAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

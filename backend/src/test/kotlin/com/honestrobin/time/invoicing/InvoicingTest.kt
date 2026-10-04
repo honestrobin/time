@@ -167,7 +167,7 @@ class InvoicingTest : IntegrationTest() {
         // 123,450 at 20 % = 24,690; 4,999 at 5 % = 249.95 -> 250; zero rated 10,000 -> 0.
         assertThat(standard["tax1"].asLong()).isEqualTo(24_690 + 250)
         assertThat(standard["total"].asLong()).isEqualTo(123_450 + 4_999 + 10_000 + 24_940)
-        assertThat(standard["vat_breakdown"].map { it["category"].asText() + "/" + it["percent"].decimalValue().stripTrailingZeros().toPlainString() })
+        assertThat(standard["vat_breakdown"].values().map { it["category"].asText() + "/" + it["percent"].decimalValue().stripTrailingZeros().toPlainString() })
             .containsExactly("S/5", "S/20", "Z/0")
 
         s.admin.post("/api/v1/invoices", mapOf("client_id" to s.client, "vat_mode" to "reverse_charge")).expectError(422, "validation_failed")
@@ -189,7 +189,7 @@ class InvoicingTest : IntegrationTest() {
         entry(s, LocalDate.of(2026, 6, 1), 7200)
         val inv = s.admin.post("/api/v1/invoices", mapOf("client_id" to s.client, "from_time" to mapOf("grouping" to "project"))).expect(201)
         val defaults = s.admin.get("/api/v1/invoices/${inv.id()}/send").expect(200)
-        assertThat(defaults["to"].map { it.asText() }).containsExactly("billing-${s.client}@client.example")
+        assertThat(defaults["to"].values().map { it.asText() }).containsExactly("billing-${s.client}@client.example")
         // A draft's default texts already carry the number it will get.
         assertThat(defaults["subject"].asText()).startsWith("Invoice 1 from")
 

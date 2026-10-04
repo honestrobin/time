@@ -95,6 +95,6 @@ public class AccountMilestonesRecord extends UpdatableRecordImpl<AccountMileston
         setAccountId(accountId);
         setKey(key);
         setReachedAt(reachedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }

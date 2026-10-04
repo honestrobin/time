@@ -15,7 +15,7 @@ x-logging: &logging
 
 services:
   db:
-    image: docker.io/library/postgres:16-alpine
+    image: docker.io/library/postgres:18-alpine
     restart: unless-stopped
     logging: *logging
     environment:
@@ -23,7 +23,9 @@ services:
       POSTGRES_PASSWORD: ${HONESTROBIN_DB_PASSWORD:-honestrobin}
       POSTGRES_DB: honestrobin
     volumes:
-      - db:/var/lib/postgresql/data
+      # PostgreSQL 18 keeps its data under /var/lib/postgresql/18. A new volume, so an instance that
+      # ran PostgreSQL 16 can't start empty on its old one: see docs/self-host.md, Upgrades.
+      - postgres18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honestrobin -d honestrobin"]
       interval: 5s
@@ -61,5 +63,5 @@ services:
       - data:/data
 
 volumes:
-  db:
+  postgres18:
   data:

@@ -191,6 +191,6 @@ public class ExpenseCategoriesRecord extends UpdatableRecordImpl<ExpenseCategori
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
         setArchivedAt(archivedAt);
-        resetChangedOnNotNull();
+        resetTouchedOnNotNull();
     }
 }
