@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.4.20"
     kotlin("plugin.spring") version "2.4.20"
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
@@ -75,11 +75,11 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.8.17")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
     implementation("com.github.kagkarlsson:db-scheduler-spring-boot-starter:16.12.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.
-    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.22")
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.87")
     // Report exports to Excel (spec §12); streams rows, Apache-2.0.
     implementation("org.dhatim:fastexcel:0.20.2")
     // CSV imports (Harvest's own exports, spec §6.6), Apache-2.0.
@@ -108,7 +108,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:junit-jupiter")
     // Property-based tests for the time and money arithmetic.
-    testImplementation("io.kotest:kotest-property:5.9.1")
+    testImplementation("io.kotest:kotest-property:6.2.5")
     // The official EN 16931, XRechnung and Peppol BIS validation rules, to check our e-invoices (AT-5.1).
     testImplementation("com.helger.phive.rules:phive-rules-en16931:4.6.3")
     testImplementation("com.helger.phive.rules:phive-rules-xrechnung:4.6.3")
@@ -124,7 +124,7 @@ dependencies {
     codegenImplementation("org.flywaydb:flyway-database-postgresql")
     codegenImplementation("org.testcontainers:postgresql")
     codegenRuntimeOnly("org.postgresql:postgresql")
-    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
 }
 
 val jooqCodegen by tasks.registering(JavaExec::class) {
