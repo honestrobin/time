@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, Kbd, Menu } from "../../design";
@@ -21,6 +21,7 @@ export function AppShell() {
   const me = useMe();
   const perms = usePermissions();
   const navigate = useNavigate();
+  const pathname = useLocation({ select: (l) => l.pathname });
   const qc = useQueryClient();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const current = me.accounts.find((a) => a.id === me.current_account_id);
@@ -58,12 +59,21 @@ export function AppShell() {
         <nav className="nav" aria-label={t("nav.mainNavigation")}>
           {sections.map((section) => (
             <NavSection key={section.id} heading={section.heading ? t(section.heading) : undefined}>
-              {section.items.map((item) => (
-                <Link key={item.to} to={item.to} className="nav-link" activeProps={{ className: "nav-link active" }}>
-                  <span>{t(item.label)}</span>
-                  {item.key && <Kbd>{item.key.toUpperCase()}</Kbd>}
-                </Link>
-              ))}
+              {section.items.map((item) => {
+                const alsoActive = item.alsoActive?.some((p) => pathname.startsWith(p));
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={alsoActive ? "nav-link active" : "nav-link"}
+                    activeProps={{ className: "active" }}
+                    aria-current={alsoActive ? "page" : undefined}
+                  >
+                    <span>{t(item.label)}</span>
+                    {item.key && <Kbd>{item.key.toUpperCase()}</Kbd>}
+                  </Link>
+                );
+              })}
             </NavSection>
           ))}
         </nav>

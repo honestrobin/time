@@ -26,7 +26,7 @@ export function TimerStrip() {
     <div className="timer-strip" role="status" aria-live="off">
       <span className="timer-line" aria-hidden />
       <span className="timer-dot" aria-hidden />
-      <Link to="/time/day/$date" params={{ date: entry.spent_date }} className="timer-what">
+      <Link to="/day/$date" params={{ date: entry.spent_date }} className="timer-what">
         <strong>{entry.project.name}</strong>
         <span className="muted">
           {entry.task.name}

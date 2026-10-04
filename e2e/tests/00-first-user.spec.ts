@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
-import { PASSWORD, snap } from "./helpers";
+import { atHome, PASSWORD, snap } from "./helpers";
 
 // A retry would find the instance already set up and skip, hiding the failure.
 test.describe.configure({ retries: 0 });
@@ -26,7 +26,7 @@ test("first user sets up the instance and becomes admin", async ({ page, request
   await page.getByLabel("Workspace name").fill("Owner & Co");
   await page.getByRole("button", { name: "Create workspace" }).click();
 
-  await expect(page).toHaveURL(/\/time$/);
+  await expect(page).toHaveURL(atHome);
   await expect(page.getByRole("button", { name: /Owner & Co/ })).toBeVisible();
   await snap(page, "time-empty");
 
@@ -46,7 +46,7 @@ test("sign out and back in", async ({ page }) => {
   await page.getByLabel("Email").fill("owner@example.test");
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(/\/time$/);
+  await expect(page).toHaveURL(atHome);
 
   await page.getByRole("button", { name: /Owner & Co/ }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();

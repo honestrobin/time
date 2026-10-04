@@ -273,7 +273,7 @@ function WeekDetail({ item }: { item: Item }) {
         <span className="spacer muted" style={{ fontSize: "var(--text-sm)" }}>
           {formatDate(from)} – {formatDate(to)}
         </span>
-        <Link to="/time/week/$date" params={{ date: from }} search={{ person: membershipId }} style={{ fontSize: "var(--text-sm)" }}>
+        <Link to="/week/$date" params={{ date: from }} search={{ person: membershipId }} style={{ fontSize: "var(--text-sm)" }}>
           {t("approvals.openTimesheet")}
         </Link>
       </div>

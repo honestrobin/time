@@ -191,7 +191,7 @@ class ApprovalService(
         val settings = accounts.get(m.accountId)
         mailer.send(
             "timesheet-rejected", row.value1(), Locale.forLanguageTag(settings.locale),
-            mapOf("name" to row.value2(), "manager" to m.name, "week" to s.weekStartDate.toString(), "comment" to s.comment, "link" to "${props.baseUrl}/time/week/${s.weekStartDate}"),
+            mapOf("name" to row.value2(), "manager" to m.name, "week" to s.weekStartDate.toString(), "comment" to s.comment, "link" to "${props.baseUrl}/week/${s.weekStartDate}"),
             subjectArgs = arrayOf(s.weekStartDate.toString()),
         )
     }

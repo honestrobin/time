@@ -82,7 +82,7 @@ class TimesheetReminderService(
             if (incomplete) {
                 mailer.send(
                     "timesheet-reminder", p.value1(), Locale.forLanguageTag(account.locale),
-                    mapOf("name" to p.value2(), "account" to account.name, "week" to lastWeek.toString(), "link" to "${props.baseUrl}/time/week/$lastWeek"),
+                    mapOf("name" to p.value2(), "account" to account.name, "week" to lastWeek.toString(), "link" to "${props.baseUrl}/week/$lastWeek"),
                     subjectArgs = arrayOf(lastWeek.toString()),
                 )
                 sent++

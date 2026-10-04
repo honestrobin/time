@@ -65,7 +65,7 @@ test("the extension signs in with a code approved in the web app", async () => {
 });
 
 test("a timer started in the extension shows in the web app within 2 s, and the other way round (AT-4.1)", async () => {
-  await app.goto("/time");
+  await app.goto("/");
   await expect(app.locator(".timer-strip")).toHaveCount(0);
 
   await popup.getByLabel("Notes").fill("From the toolbar");

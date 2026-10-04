@@ -131,8 +131,8 @@ test("M1 pages render with data and without raw translation keys", async ({ page
 
   const heading = (name: string | RegExp) => () => expect(page.getByRole("heading", { name }).first()).toBeVisible();
 
-  await visit(page, `/time/day/${day(0)}`, "m1-time-day", () => expect(page.getByText("Homepage wireframes")).toBeVisible());
-  await visit(page, `/time/week/${day(0)}`, "m1-time-week", () => expect(page.getByText("Website relaunch").first()).toBeVisible());
+  await visit(page, `/day/${day(0)}`, "m1-time-day", () => expect(page.getByText("Homepage wireframes")).toBeVisible());
+  await visit(page, `/week/${day(0)}`, "m1-time-week", () => expect(page.getByText("Website relaunch").first()).toBeVisible());
   await visit(page, "/projects", "m1-projects", heading("Projects"));
   await visit(page, "/projects/new", "m1-project-new", heading("New project"));
 

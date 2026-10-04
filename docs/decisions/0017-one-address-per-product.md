@@ -17,6 +17,10 @@ address for each. Until now the browser extension assumed `app.honestrobin.com`.
    `https://time.honestrobin.com`.
 3. **A sign-in shared by all products**, when there is one, gets a subdomain of its own (for
    example `account.honestrobin.com`), rather than putting the products under one address.
+4. **A product's main page is the root of its address.** Time's day view is at `/`, a day at
+   `/day/<date>` and a week at `/week/<date>`. The earlier `/time`, `/time/day/<date>` and
+   `/time/week/<date>` redirect to them, because emails already sent and earlier builds of the
+   extension link there.
 
 ## Why
 
@@ -25,6 +29,8 @@ address for each. Until now the browser extension assumed `app.honestrobin.com`.
 - Each product can run on its own servers and be released on its own schedule.
 - The app assumes it lives at the root of its address. Paths such as `/time` would need a base
   path in the web app, the API, cookies and the extension.
+- The subdomain already names the product: `time.honestrobin.com/time` said it twice (the
+  maintainer, 4 October 2026).
 - Changing an extension's host permission after it's published makes every user approve the new
   address again. The extension isn't published yet, so changing it now costs nothing.
 

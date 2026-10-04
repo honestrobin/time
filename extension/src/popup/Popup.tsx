@@ -177,7 +177,7 @@ function Header({ account, onSignOut, instanceUrl }: { account?: string; onSignO
         </span>
       )}
       {instanceUrl && (
-        <button className="link" onClick={() => void chrome.tabs.create({ url: `${instanceUrl}/time` })}>
+        <button className="link" onClick={() => void chrome.tabs.create({ url: `${instanceUrl}/` })}>
           Open
         </button>
       )}

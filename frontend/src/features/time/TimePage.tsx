@@ -23,13 +23,13 @@ export function TimePage() {
   const location = useLocation();
   const params = useParams({ strict: false }) as { date?: string };
   const search = location.search as { person?: string };
-  const mode: "day" | "week" = location.pathname.startsWith("/time/week") ? "week" : "day";
+  const mode: "day" | "week" = location.pathname.startsWith("/week/") ? "week" : "day";
   const date = params.date ?? account.today;
   const weekStart = startOfWeek(date, account.weekStart);
   const personId = search.person;
 
   const go = (m: "day" | "week", d: string, person = personId) =>
-    void navigate({ to: m === "day" ? "/time/day/$date" : "/time/week/$date", params: { date: d }, search: person ? { person } : {} });
+    void navigate({ to: m === "day" ? "/day/$date" : "/week/$date", params: { date: d }, search: person ? { person } : {} });
   const step = mode === "day" ? 1 : 7;
   const prev = () => go(mode, addDays(mode === "day" ? date : weekStart, -step));
   const next = () => go(mode, addDays(mode === "day" ? date : weekStart, step));
@@ -66,10 +66,10 @@ export function TimePage() {
             </div>
           )}
           <div className="segmented" role="navigation" aria-label={t("time.title")}>
-            <Link to="/time/day/$date" params={{ date: mode === "week" ? (account.today >= weekStart && account.today <= addDays(weekStart, 6) ? account.today : weekStart) : date }} aria-current={mode === "day" ? "page" : undefined}>
+            <Link to="/day/$date" params={{ date: mode === "week" ? (account.today >= weekStart && account.today <= addDays(weekStart, 6) ? account.today : weekStart) : date }} aria-current={mode === "day" ? "page" : undefined}>
               {t("time.day")}
             </Link>
-            <Link to="/time/week/$date" params={{ date: weekStart }} aria-current={mode === "week" ? "page" : undefined}>
+            <Link to="/week/$date" params={{ date: weekStart }} aria-current={mode === "week" ? "page" : undefined}>
               {t("time.week")}
             </Link>
           </div>

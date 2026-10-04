@@ -3,6 +3,9 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export const PASSWORD = "correct horse battery";
 
+/** Time is the home page: signed in, people land on "/". */
+export const atHome = (url: URL) => url.pathname === "/";
+
 export function uniqueEmail(prefix = "user") {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}@example.test`;
 }
@@ -45,13 +48,13 @@ export async function freshWorkspace(page: Page, request: APIRequestContext, nam
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByLabel("Workspace name").fill(name);
     await page.getByRole("button", { name: "Create workspace" }).click();
-    await expect(page).toHaveURL(/\/time/);
+    await expect(page).toHaveURL(atHome);
   } else {
     await page.goto("/login");
     await page.getByLabel("Email").fill("owner@example.test");
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page).toHaveURL(/\/time/);
+    await expect(page).toHaveURL(atHome);
     const created = await call(page, "POST", "/api/v1/accounts", { name, default_currency: "EUR" });
     await page.evaluate((id) => localStorage.setItem("honestrobin.account", id), created.id);
     await page.reload();

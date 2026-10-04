@@ -69,11 +69,31 @@ const appRoute = createRoute({
   },
 });
 
-const indexRoute = createRoute({
+// Time is the home page: the address already says which product this is.
+const timeRoute = createRoute({ getParentRoute: () => appRoute, path: "/", component: TimePage });
+const timeDayRoute = createRoute({ getParentRoute: () => appRoute, path: "/day/$date", component: TimePage });
+const timeWeekRoute = createRoute({ getParentRoute: () => appRoute, path: "/week/$date", component: TimePage });
+// Where Time used to live. Emails already sent, bookmarks and older browser extensions still
+// link here, so these addresses keep working.
+const oldTimeRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/time" });
+  path: "/time",
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/", search, replace: true });
+  },
+});
+const oldTimeDayRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/time/day/$date",
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/day/$date", params, search, replace: true });
+  },
+});
+const oldTimeWeekRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/time/week/$date",
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/week/$date", params, search, replace: true });
   },
 });
 
@@ -84,9 +104,6 @@ const resetRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/r
 const inviteRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/invite", component: InvitePage });
 const verifyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/verify", component: VerifyEmailPage });
 
-const timeRoute = createRoute({ getParentRoute: () => appRoute, path: "/time", component: TimePage });
-const timeDayRoute = createRoute({ getParentRoute: () => appRoute, path: "/time/day/$date", component: TimePage });
-const timeWeekRoute = createRoute({ getParentRoute: () => appRoute, path: "/time/week/$date", component: TimePage });
 const expensesRoute = createRoute({ getParentRoute: () => appRoute, path: "/expenses", component: ExpensesPage });
 const projectsRoute = createRoute({ getParentRoute: () => appRoute, path: "/projects", component: ProjectsPage });
 const projectNewRoute = createRoute({ getParentRoute: () => appRoute, path: "/projects/new", component: ProjectNewPage });
@@ -139,10 +156,12 @@ const routeTree = rootRoute.addChildren([
   verifyRoute,
   publicInvoiceRoute,
   appRoute.addChildren([
-    indexRoute,
     timeRoute,
     timeDayRoute,
     timeWeekRoute,
+    oldTimeRoute,
+    oldTimeDayRoute,
+    oldTimeWeekRoute,
     expensesRoute,
     projectsRoute,
     projectNewRoute,

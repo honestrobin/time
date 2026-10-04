@@ -67,7 +67,7 @@ export function DayView({ date }: { date: string }) {
         {days.map((d) => {
           const total = entries.filter((e) => e.spent_date === d).reduce((s, e) => s + secondsOf(e), 0);
           return (
-            <Link key={d} to="/time/day/$date" params={{ date: d }} className="week-day" aria-current={d === date ? "date" : undefined}>
+            <Link key={d} to="/day/$date" params={{ date: d }} className="week-day" aria-current={d === date ? "date" : undefined}>
               <span className="d-name">
                 {formatWeekday(d)} {Number(d.slice(8))}
               </span>

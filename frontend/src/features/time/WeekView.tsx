@@ -117,7 +117,7 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
             <th>{t("time.project")}</th>
             {week.days.map((d) => (
               <th key={d} className={d === today ? "day today" : "day"}>
-                <Link to="/time/day/$date" params={{ date: d }} style={{ color: "inherit", textDecoration: "none" }}>
+                <Link to="/day/$date" params={{ date: d }} style={{ color: "inherit", textDecoration: "none" }}>
                   {formatWeekday(d)} {Number(d.slice(8))}
                 </Link>
               </th>
@@ -156,7 +156,7 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
                       />
                     ) : (
                       <Link
-                        to="/time/day/$date"
+                        to="/day/$date"
                         params={{ date: d }}
                         className="cell-static"
                         title={count > 1 ? t("time.multipleEntries", { count }) : undefined}

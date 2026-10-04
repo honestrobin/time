@@ -8,6 +8,8 @@ export interface NavItem {
   label: string;
   /** Single-key shortcut that jumps to the page. */
   key?: string;
+  /** Addresses under other paths that belong to the same page, e.g. Time's day and week views. */
+  alsoActive?: string[];
 }
 
 export interface NavSectionDef {
@@ -18,7 +20,7 @@ export interface NavSectionDef {
 
 export function navSections(perms: Perms, edition?: string): NavSectionDef[] {
   const work: NavItem[] = [
-    { to: "/time", label: "nav.time", key: "t" },
+    { to: "/", label: "nav.time", key: "t", alsoActive: ["/day/", "/week/"] },
     { to: "/expenses", label: "nav.expenses", key: "e" },
     { to: "/reports", label: "nav.reports", key: "r" },
   ];
