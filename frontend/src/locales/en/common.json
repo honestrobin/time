@@ -304,6 +304,8 @@
     "seatsValue": "{{used}} can sign in; billed for {{billed}}",
     "invitationsWaiting_one": "{{count}} invitation waiting: not billed until accepted",
     "invitationsWaiting_other": "{{count}} invitations waiting: not billed until accepted",
+    "invitationsBlocked_one": "{{count}} invitation is waiting. While the free plan is full, it can't be accepted, and the person is asked to talk to you. Starting Team again lets them in.",
+    "invitationsBlocked_other": "{{count}} invitations are waiting. While the free plan is full, they can't be accepted, and each person is asked to talk to you. Starting Team again lets them in.",
     "invitationsLater_one": "Starting Team is your yes to the invitation waiting: once it's accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
     "invitationsLater_other": "Starting Team is your yes to the {{count}} invitations waiting: as each is accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
     "price": "Price",

@@ -41,7 +41,6 @@ import org.jooq.impl.DSL
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.http.HttpStatus
-import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -183,7 +182,7 @@ class PeopleService(
             throw ValidationException("email", "Someone with this email is already in the account")
         }
         patch.value.teamIds?.let { setTeams(m, id, it) }
-        if (patch.value.isActive == false) stopRunningTimer(id)
+        if (patch.value.isActive == false) stopRunningTimer(id, timerStop(m))
         // Back with sign-in access: from now on they count as a seat.
         if (!wasActive && r.isActive && r.status == "active") events.publishEvent(SeatTaken(m.accountId))
         // No longer able to sign in: a lapsed account may now be back within the free plan.
@@ -334,10 +333,20 @@ class PeopleService(
         }
     }
 
-    private fun stopRunningTimer(membershipId: UUID) {
+    /**
+     * When a deactivated person's timer stops: now, or in a lapsed account the moment it turned
+     * read-only, because nobody could stop a timer after that (decision record 0021).
+     */
+    private fun timerStop(m: Member): Instant {
         val now = Instant.now(clock)
+        if (m.accountStatus != "lapsed") return now
+        val lapsedAt = dsl.select(ACCOUNTS.LAPSED_AT).from(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()?.value1()
+        return if (lapsedAt != null && lapsedAt.isBefore(now)) lapsedAt else now
+    }
+
+    private fun stopRunningTimer(membershipId: UUID, until: Instant) {
         dsl.selectFrom(TIME_ENTRIES).where(TIME_ENTRIES.MEMBERSHIP_ID.eq(membershipId)).and(TIME_ENTRIES.TIMER_STARTED_AT.isNotNull).fetch().forEach {
-            val elapsed = java.time.Duration.between(it.timerStartedAt, now).seconds.coerceAtLeast(0)
+            val elapsed = java.time.Duration.between(it.timerStartedAt, until).seconds.coerceAtLeast(0)
             it.durationSeconds = (it.durationSeconds + elapsed).coerceAtMost(86400L).toInt()
             it.timerStartedAt = null
             it.store()
@@ -370,16 +379,6 @@ class PeopleService(
             )
         }
     }
-}
-
-/**
- * Asks the seat gate before an accepted invitation lets someone sign in. Accepting happens in
- * AuthService, which can't depend on PeopleService (PeopleService depends on it), so this keeps
- * the people module the one place that asks the gate.
- */
-@Component
-class JoiningSeats(private val seats: SeatGate) {
-    fun require(accountId: UUID) = seats.requireSeatToJoin(accountId)
 }
 
 @RestController
