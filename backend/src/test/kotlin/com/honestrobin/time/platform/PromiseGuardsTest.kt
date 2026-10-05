@@ -53,7 +53,7 @@ class PromiseGuardsTest : IntegrationTest() {
             val token = admin.post("/api/v1/me/api_tokens", mapOf("name" to "Scripts", "scopes" to listOf("read", "write"))).expect(201)["token"].asText()
             val api = client().apply { bearer = token }
             val clientId = api.post("/api/v1/clients", mapOf("name" to "Kereru Books", "currency" to "EUR")).expect(201).id()
-            assertThat(api.get("/api/v1/clients").expect(200)["data"].map { it["id"].asText() }).contains(clientId.toString())
+            assertThat(api.get("/api/v1/clients").expect(200)["data"].values().map { it["id"].asText() }).contains(clientId.toString())
 
             // The audit log shows both changes, and what made them.
             val accountChanges = admin.get("/api/v1/audit_log", mapOf("entity_type" to "accounts")).expect(200)["entries"]
