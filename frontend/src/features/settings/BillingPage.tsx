@@ -64,6 +64,17 @@ export function BillingPage() {
                           total: formatMoney(p.per_seat_per_month_minor * seats * (p.interval === "year" ? 12 : 1), p.currency),
                         })}
                       </p>
+                      {s.invitations_pending > 0 && (
+                        // Invitations already waiting: starting Team is the yes to them, so they're shown here, with what each adds.
+                        <p className="muted small">
+                          {t("billing.invitationsLater", {
+                            count: s.invitations_pending,
+                            price: t(`team.seats.per.${p.interval}`, {
+                              price: formatMoney(p.per_seat_per_month_minor * (p.interval === "year" ? 12 : 1), p.currency),
+                            }),
+                          })}
+                        </p>
+                      )}
                       <Button variant={p.interval === "year" ? "primary" : "secondary"} onClick={() => checkout.mutate(p.interval)} busy={checkout.isPending && checkout.variables === p.interval}>
                         {t("billing.subscribe")}
                       </Button>

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Dialog, DialogActions, useToast } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { formatDate } from "../../lib/format";
+import { confirmQuery, type SeatPrice } from "../../lib/seats";
 
 export interface InviteLink {
   name: string;
@@ -14,11 +15,11 @@ export interface InviteLink {
 }
 
 /**
- * A new invitation link for the person; it retires any earlier one. [confirmNewSeat] is the admin's
- * yes to the price of one more person, where the plan asks for it (Seats.tsx).
+ * A new invitation link for the person; it retires any earlier one. [confirm] is the price of one
+ * more person the admin said yes to, where the plan asks for one (Seats.tsx).
  */
-export async function fetchInviteLink(id: string, name: string, confirmNewSeat: boolean): Promise<InviteLink> {
-  const res = await unwrap(api.POST("/api/v1/people/{id}/invite_link", { params: { path: { id }, query: { confirm_new_seat: confirmNewSeat } } }));
+export async function fetchInviteLink(id: string, name: string, confirm: SeatPrice | null): Promise<InviteLink> {
+  const res = await unwrap(api.POST("/api/v1/people/{id}/invite_link", { params: { path: { id }, query: confirmQuery(confirm) } }));
   return { name, url: res.url, expiresAt: res.expires_at };
 }
 

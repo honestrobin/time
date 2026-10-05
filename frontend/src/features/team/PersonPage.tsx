@@ -17,7 +17,7 @@ import {
 } from "../../design";
 import { ApiError, api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
-import { seatQuestion } from "../../lib/seats";
+import { confirmQuery, seatQuestion, type SeatPrice } from "../../lib/seats";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
@@ -142,8 +142,8 @@ function InvitationStrip({ person }: { person: Person }) {
   const emailWorks = useAuthConfig()?.email_configured !== false;
   const [link, setLink] = useState<InviteLink | null>(null);
   const invite = useMutation({
-    mutationFn: (confirmNewSeat: boolean) =>
-      unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id }, query: { confirm_new_seat: confirmNewSeat } } })),
+    mutationFn: (confirm: SeatPrice | null) =>
+      unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id }, query: confirmQuery(confirm) } })),
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people", "all"] });
@@ -152,7 +152,7 @@ function InvitationStrip({ person }: { person: Person }) {
   });
   // Without email the invitation can't be sent: the admin gets a new link to pass on instead.
   const getLink = useMutation({
-    mutationFn: (confirmNewSeat: boolean) => fetchInviteLink(person.id, person.name, confirmNewSeat),
+    mutationFn: (confirm: SeatPrice | null) => fetchInviteLink(person.id, person.name, confirm),
     onSuccess: (l) => {
       setLink(l);
       void qc.invalidateQueries({ queryKey: personQuery(person.id).queryKey });
@@ -172,19 +172,19 @@ function InvitationStrip({ person }: { person: Person }) {
             : t("team.notInvitedYet")}
           {action.error && !question && <span className="field-error" style={{ display: "block" }}>{errorInfo(action.error).message}</span>}
         </span>
-        <Button size="sm" busy={action.isPending} onClick={() => action.mutate(false)}>
+        <Button size="sm" busy={action.isPending} onClick={() => action.mutate(null)}>
           {!emailWorks ? t("team.getLink") : person.status === "invited" ? t("team.resendInvitation") : t("team.sendInvitation")}
         </Button>
         <InviteLinkDialog link={link} onClose={() => setLink(null)} />
       </div>
       {question?.kind === "subscribe" && <SubscribeNotice question={question} />}
       <ConfirmSeatDialog
-        question={question}
-        name={person.name}
-        confirmLabel={emailWorks ? t("team.sendInvitation") : t("team.getLink")}
+        error={action.error}
         busy={action.isPending}
+        name={person.name}
+        action={emailWorks ? "invite" : "link"}
         onCancel={() => action.reset()}
-        onConfirm={() => action.mutate(true)}
+        onConfirm={(price) => action.mutate(price)}
       />
     </>
   );
@@ -425,10 +425,10 @@ function AccessSection({ person }: { person: Person }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const toggle = useMutation({
-    mutationFn: ({ isActive, confirmNewSeat = false }: { isActive: boolean; confirmNewSeat?: boolean }) =>
+    mutationFn: ({ isActive, confirm = null }: { isActive: boolean; confirm?: SeatPrice | null }) =>
       unwrap(
         api.PATCH("/api/v1/people/{id}", {
-          params: { path: { id: person.id }, query: { confirm_new_seat: confirmNewSeat } },
+          params: { path: { id: person.id }, query: confirmQuery(confirm) },
           body: { is_active: isActive },
         }),
       ),
@@ -478,12 +478,12 @@ function AccessSection({ person }: { person: Person }) {
         </div>
       )}
       <ConfirmSeatDialog
-        question={question}
-        name={person.name}
-        confirmLabel={t("team.reactivate")}
+        error={toggle.error}
         busy={toggle.isPending}
+        name={person.name}
+        action="back"
         onCancel={() => toggle.reset()}
-        onConfirm={() => toggle.mutate({ isActive: true, confirmNewSeat: true })}
+        onConfirm={(price) => toggle.mutate({ isActive: true, confirm: price })}
       />
       <ConfirmDialog
         open={confirming}

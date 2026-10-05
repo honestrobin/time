@@ -19,11 +19,11 @@ import {
   useToast,
 } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
-import { seatQuestion } from "../../lib/seats";
+import { confirmQuery, seatQuestion, type SeatPrice } from "../../lib/seats";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
-import { SeatCost, SubscribeNotice } from "./Seats";
+import { ConfirmSeatDialog, SubscribeNotice } from "./Seats";
 import { asRole, byName, peopleQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
 
@@ -188,33 +188,32 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   // Without email the invitation can't be sent, so the admin gets its link to pass on instead.
   const handOver = form.sendInvite && !emailWorks;
 
-  // Someone this dialog already added while their invitation link is still to come, so trying
-  // again doesn't add them twice.
+  // Without email, the person is added first and their link fetched after. If the link waits for
+  // a yes to a price, or the subscription, this remembers whom the dialog added, so trying again
+  // updates them with what's in the form now instead of adding them twice.
   const added = useRef<Person | null>(null);
 
   const create = useMutation({
-    mutationFn: async (confirmNewSeat: boolean) => {
-      const person =
-        added.current ??
-        (await unwrap(
-          api.POST("/api/v1/people", {
-            params: { query: { confirm_new_seat: confirmNewSeat } },
-            body: {
-              name: form.name,
-              email: form.email,
-              role: form.role,
-              weekly_capacity_seconds: form.capacity ?? 0,
-              has_access_to_all_future_projects: form.futureProjects,
-              send_invite: form.sendInvite && emailWorks,
-              ...(perms.canSeeRates
-                ? { default_billable_rate: form.billableRate ?? undefined, cost_rate: form.costRate ?? undefined }
-                : {}),
-            },
-          }),
-        ));
-      if (!handOver) return { person, link: null };
+    mutationFn: async (confirm: SeatPrice | null) => {
+      const body = {
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        weekly_capacity_seconds: form.capacity ?? 0,
+        has_access_to_all_future_projects: form.futureProjects,
+        ...(perms.canSeeRates ? { default_billable_rate: form.billableRate ?? undefined, cost_rate: form.costRate ?? undefined } : {}),
+      };
+      if (!handOver) {
+        const person = await unwrap(
+          api.POST("/api/v1/people", { params: { query: confirmQuery(confirm) }, body: { ...body, send_invite: form.sendInvite && emailWorks } }),
+        );
+        return { person, link: null };
+      }
+      const person = added.current
+        ? await unwrap(api.PATCH("/api/v1/people/{id}", { params: { path: { id: added.current.id } }, body }))
+        : await unwrap(api.POST("/api/v1/people", { body: { ...body, send_invite: false } }));
       added.current = person;
-      return { person, link: await fetchInviteLink(person.id, person.name, confirmNewSeat) };
+      return { person, link: await fetchInviteLink(person.id, person.name, confirm) };
     },
     // Someone added without their link yet shows in the list as not invited.
     onError: () => {
@@ -237,18 +236,19 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   }, [open]);
 
   // Giving someone sign-in access may need a Team subscription or one more paid person: the
-  // server says which, with the price, before anything is sent.
+  // server says which, with the price, before anything is sent. One more paid person is asked in
+  // a dialog of its own, with the price on its button.
   const question = seatQuestion(create.error);
+  const asking = question?.kind === "confirm" || (create.isPending && create.variables !== null);
   const err = create.error && !question ? errorInfo(create.error) : null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    // With the price of one more person on screen, sending again is the admin's yes to it.
-    create.mutate(question?.kind === "confirm");
+    create.mutate(null);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} title={t("team.inviteTitle")}>
+      <Dialog open={open && !asking} onOpenChange={onOpenChange} title={t("team.inviteTitle")}>
       <form className="stack" onSubmit={submit}>
         {err && !Object.keys(err.fields).length && (
           <p className="notice notice-error" role="alert">
@@ -256,11 +256,6 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </p>
         )}
         {question?.kind === "subscribe" && <SubscribeNotice question={question} />}
-        {question?.kind === "confirm" && (
-          <p className="notice notice-warn" role="status">
-            <SeatCost question={question} name={form.name} />
-          </p>
-        )}
         <div className="form-grid">
           <TextField label={t("team.name")} value={form.name} onChange={set("name")} error={err?.fields.name} autoComplete="off" autoFocus required />
           <TextField label={t("team.email")} type="email" value={form.email} onChange={set("email")} error={err?.fields.email} autoComplete="off" required />
@@ -303,6 +298,14 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         </DialogActions>
       </form>
       </Dialog>
+      <ConfirmSeatDialog
+        error={create.error}
+        busy={create.isPending}
+        name={form.name}
+        action={handOver ? "link" : "invite"}
+        onCancel={() => create.reset()}
+        onConfirm={(price) => create.mutate(price)}
+      />
       <InviteLinkDialog link={link} onClose={() => setLink(null)} />
     </>
   );
