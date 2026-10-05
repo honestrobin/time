@@ -94,13 +94,40 @@ the meantime. Without `If-Match` the last write wins.
 |---|---|
 | 400 | `bad_request`, `bad_cursor`, `invalid_link`, `invalid_password`, `invalid_code`, `challenge_expired`, `not_an_export`, `export_damaged`, `export_too_large` |
 | 401 | `unauthenticated` |
-| 402 | `account_read_only` (lapsed or scheduled for deletion; reading and exports still work), `subscription_required` (cloud) |
+| 402 | `account_read_only` (lapsed or scheduled for deletion; reading and exports still work), `subscription_required` (cloud; see Seats) |
 | 403 | `forbidden`, `insufficient_scope`, `reauth_required` (web sessions: sign in again or confirm the password with `POST /api/v1/auth/reauth`), `two_factor_required` (the account requires two-factor sign-in, which this person hasn't set up) |
 | 404 | `not_found` |
-| 409 | `invoiced`, `entry_locked`, `week_submitted`, `week_approved`, and others named after the conflict |
+| 409 | `invoiced`, `entry_locked`, `week_submitted`, `week_approved`, `seat_confirmation_required` (cloud; see Seats), and others named after the conflict |
 | 412 | `stale` (the `If-Match` ETag is out of date) |
 | 422 | `validation_failed`, with `fields` |
 | 429 | `invite_limit`, `invite_cooldown`, `invoice_email_limit`, `too_many_signups`, `too_many_attempts`, `import_running`, `import_limit` |
+
+## Seats (Honest Robin Cloud)
+
+On Honest Robin Cloud you pay for each person who can sign in. An invitation is free until it's
+accepted. Four requests give someone sign-in access: `POST /api/v1/people` (with `send_invite`
+left on), `POST /api/v1/people/{id}/invite`, `POST /api/v1/people/{id}/invite_link`, and
+`PATCH /api/v1/people/{id}` with `"is_active": true` for a deactivated person who could sign in or
+had an invitation. None of them adds to the bill without asking first:
+
+- **On the free plan,** a person beyond it is refused with `402 subscription_required`. `details`
+  has `free_plan_seats` and the Team plan's list `prices` (`interval`, `currency`,
+  `per_seat_per_month_minor`), the same ones `GET /api/v1/billing/subscription` shows.
+- **On the Team plan,** the request is refused with `409 seat_confirmation_required` until you
+  confirm the price. `details` has `unit_price_minor`, `currency` and `interval` (the price of one
+  more person, per month or per year), `billing_starts` (`when_accepted` for an invitation, `now`
+  for someone coming back) and `seats_billed`. Send the same request again with
+  `?confirm_new_seat=true` to go ahead. Nothing is charged then: the person is billed, prorated,
+  from the moment they can sign in.
+
+Sending an invitation again doesn't ask again. The self-hosted edition has no seats, so it never
+asks, and `confirm_new_seat` changes nothing there.
+
+```sh
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Tui","email":"tui@example.com","role":"member"}' \
+  "https://your-instance.example/api/v1/people?confirm_new_seat=true"
+```
 
 ## Examples
 

@@ -5,6 +5,7 @@ import com.honestrobin.time.platform.mail.OutboundMail
 import com.honestrobin.time.analytics.Funnel
 import com.honestrobin.time.accounts.AccountService
 import com.honestrobin.time.accounts.NewAccount
+import com.honestrobin.time.accounts.SeatTaken
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.API_TOKENS
 import com.honestrobin.time.db.Tables.DEVICE_AUTHORIZATIONS
@@ -81,6 +82,7 @@ class AuthService(
     private val setup: FirstUserSetup,
     private val notices: SecurityNotices,
     private val tx: com.honestrobin.time.platform.db.Tx,
+    private val events: org.springframework.context.ApplicationEventPublisher,
 ) {
     @Transactional(readOnly = true)
     fun hasAnyUser(): Boolean = dsl.fetchExists(USERS)
@@ -313,6 +315,8 @@ class AuthService(
             .set(MEMBERSHIPS.NAME, user.name)
             .where(MEMBERSHIPS.ID.eq(membershipId))
             .execute()
+        // They can sign in from now on, so this is when their seat starts to count, not the invitation.
+        events.publishEvent(SeatTaken(row[MEMBERSHIPS.ACCOUNT_ID]))
         markEmailVerified(user.id)
         signIn(user.id, ip, userAgent, membershipId)
     }

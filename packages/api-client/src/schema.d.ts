@@ -6337,7 +6337,9 @@ export interface operations {
     };
     people_create: {
         parameters: {
-            query?: never;
+            query?: {
+                confirm_new_seat?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6383,7 +6385,9 @@ export interface operations {
     };
     people_update: {
         parameters: {
-            query?: never;
+            query?: {
+                confirm_new_seat?: boolean;
+            };
             header?: never;
             path: {
                 id: string;
@@ -6409,7 +6413,9 @@ export interface operations {
     };
     people_invite: {
         parameters: {
-            query?: never;
+            query?: {
+                confirm_new_seat?: boolean;
+            };
             header?: never;
             path: {
                 id: string;
@@ -6431,7 +6437,9 @@ export interface operations {
     };
     people_invite_link: {
         parameters: {
-            query?: never;
+            query?: {
+                confirm_new_seat?: boolean;
+            };
             header?: never;
             path: {
                 id: string;
