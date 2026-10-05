@@ -313,10 +313,10 @@ class PeppolService(
     /**
      * Removes the sender registered at Storecove, then forgets the connection. Left there, the
      * account's Peppol ID would stay registered with Storecove, and no other access point could
-     * register it.
+     * register it. Ending access only removes access, so it works while the account is read-only
+     * ("You can always leave").
      */
     fun disconnect(m: Member): Disconnected {
-        m.requireWritable()
         m.requireAdmin()
         val r = tx.run { integration() }
         val entity = r?.externalAccountId?.takeIf { r.status == "connected" }

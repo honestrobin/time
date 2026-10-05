@@ -254,7 +254,7 @@ class MoveOutTest : IntegrationTest() {
                 "delete the personal access token in Harvest",
                 "Invoice links: 1 issued invoice has a link",
                 "Invitation for Ana Pending: its link lets them join the account until",
-                "deactivates Ana Pending under Team, and the link stops working",
+                "withdraws it under Settings > Account > Move out, and the link stops working",
                 "stop for good when it's deleted",
                 "Invoice reminders: we email your clients about unpaid invoices",
                 "Not in this list: a Team subscription to Honest Robin Cloud.",
