@@ -343,17 +343,23 @@ class BillingService(
         }
     }
 
-    /** Accounts whose subscription ended and that have more people than the free plan: read-only, export still works. */
+    /**
+     * Accounts whose subscription ended: read-only while more people can sign in than the free plan
+     * holds (export still works), and active again once they're within it. The second half is the
+     * backstop for a free plan made larger, or a deactivation that raced another change
+     * (decision record 0021).
+     */
     fun lapseDue(): Int {
         val ended = tx.system {
             dsl.select(SUBSCRIPTIONS.ACCOUNT_ID).from(SUBSCRIPTIONS)
                 .where(SUBSCRIPTIONS.STATUS.`in`("canceled", "paused")).fetch(SUBSCRIPTIONS.ACCOUNT_ID)
         }
-        return ended.count { tx.system { lapseIfOverFree(it) } }
+        return ended.count { tx.system { lapseIfOverFree(it) || reactivateIfWithinFree(it) } }
     }
 
     private fun lapseIfOverFree(accountId: UUID): Boolean {
-        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).fetchOne() ?: return false
+        // Locked before counting, so a deactivation at the same moment counts after this, or before.
+        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).forUpdate().fetchOne() ?: return false
         if (account.status != "active" || seats.used(accountId) <= freePlan.seats) return false
         account.status = "lapsed"
         account.lapsedAt = Instant.now(clock)
@@ -368,13 +374,23 @@ class BillingService(
      */
     @org.springframework.context.event.EventListener
     fun onSeatFreed(e: SeatFreed) {
-        if (seats.used(e.accountId) <= freePlan.seats) reactivate(e.accountId)
+        reactivateIfWithinFree(e.accountId)
     }
 
-    private fun reactivate(accountId: UUID) {
+    /**
+     * Active again if a lapsed account is within the free plan. The account row is locked before
+     * counting: two deactivations at the same moment would otherwise each count the other's person
+     * as still there, and neither would make the account active again.
+     */
+    private fun reactivateIfWithinFree(accountId: UUID): Boolean {
+        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).forUpdate().fetchOne() ?: return false
+        if (account.status != "lapsed" || seats.used(accountId) > freePlan.seats) return false
+        return reactivate(accountId) > 0
+    }
+
+    private fun reactivate(accountId: UUID): Int =
         dsl.update(ACCOUNTS).set(ACCOUNTS.STATUS, "active").setNull(ACCOUNTS.LAPSED_AT)
             .where(ACCOUNTS.ID.eq(accountId)).and(ACCOUNTS.STATUS.eq("lapsed")).execute()
-    }
 
 }
 

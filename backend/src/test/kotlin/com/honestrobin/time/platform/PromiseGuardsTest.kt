@@ -130,18 +130,22 @@ private val PLAN_MARKERS = listOf(
     // A plan field on any record.
     ".plan", ".PLAN",
     // The seat gate: the one way the plan may change what someone can do.
-    "SeatGate", "requireSeat",
+    "SeatGate", "requireSeat", "requireSeatToJoin",
 )
 
 /** Main code outside the billing package that may name some of the markers, and why. */
 private val PLAN_ALLOWED = mapOf(
     "com/honestrobin/time/accounts/Seats.kt" to PlanAllowance(
-        setOf("SeatGate", "requireSeat"),
+        setOf("SeatGate", "requireSeat", "requireSeatToJoin"),
         "defines the seat gate, which the billing package answers from the subscription",
     ),
     "com/honestrobin/time/accounts/People.kt" to PlanAllowance(
         setOf("SeatGate", "requireSeat"),
         "asks the seat gate before someone gets sign-in access: an invitation, or coming back after being deactivated",
+    ),
+    "com/honestrobin/time/auth/AuthService.kt" to PlanAllowance(
+        setOf("SeatGate", "requireSeatToJoin"),
+        "asks the seat gate when an invitation is accepted, before the person can sign in",
     ),
     "com/honestrobin/time/export/ExportFormat.kt" to PlanAllowance(
         setOf("SUBSCRIPTIONS", "BILLING_EVENTS"),

@@ -26,8 +26,14 @@ you too": nothing you already have ever stops working):
    account_read_only`. Other read-only accounts (waiting to be deleted) don't change.
 2. **Back within the free plan, the account works again at once.** The deactivation tells billing
    in the same transaction (`SeatFreed`), and an account with no more people who can sign in than
-   the free plan holds is active again before the request returns. The seat job never lapses it
-   again unless someone can sign in beyond the free plan.
+   the free plan holds is active again before the request returns. The account row is locked
+   before counting, so two deactivations at the same moment can't each miss the other. The billing
+   job, every 15 minutes, is the backstop: it makes an ended subscription's account active again
+   when it's within the free plan (after a race, or when the free plan is made larger), and never
+   lapses it again unless someone can sign in beyond the free plan.
+   A deactivated person's running timer stops at the moment the account turned read-only, not
+   when they're deactivated: nobody could stop a timer in between, and those hours could
+   otherwise end up on an invoice.
 3. **Joining never turns an account read-only.** When someone accepts an invitation after the
    subscription ended (cancelled or paused), and the free plan has no room for them, the accept is
    refused with `409 invitation_needs_team_plan` and a plain message for the person invited: their
@@ -40,7 +46,8 @@ you too": nothing you already have ever stops working):
    never had a subscription doesn't turn read-only, so its invitations aren't refused either.
 5. **The billing page and the read-only notice say how,** with the free plan's size: "Keep up to N
    people who can sign in, or start Team again." Deactivating someone keeps everything they
-   tracked, and export works throughout.
+   tracked, and export works throughout. While the free plan is full, the billing page also says
+   that waiting invitations can't be accepted, so the admin isn't the last to know.
 
 ## Consequences
 
@@ -48,5 +55,8 @@ you too": nothing you already have ever stops working):
   It can still start Team again instead, and checkout counts the people who can sign in.
 - Two accepts at the same moment take turns (an advisory lock for each account), so they can't
   both take the last free seat.
+- Asking the seat gate from sign-in widens the guard `only the number of seats depends on the
+  plan`: `requireSeatToJoin` is one of its markers, and `AuthService.kt` is allowed to name the
+  gate, with the reason.
 - The invited person learns that the workspace's Team plan isn't active. That's what they need to
   know to act, and nothing more about the account.

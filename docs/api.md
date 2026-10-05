@@ -133,7 +133,9 @@ nothing there.
 account turns read-only (`402 account_read_only`), and export keeps working. Its admins can still
 deactivate people: `PATCH /api/v1/people/{id}` with `{"is_active": false}` and no other field.
 Once no more people can sign in than `free_plan_seats` (in `GET /api/v1/billing/subscription`),
-the account works again at once. Starting Team again works too. While the subscription is ended,
+the account works again: at once when a deactivation gets it there, otherwise at the next billing
+job, within 15 minutes. A deactivated person's running timer stops at the moment the account
+turned read-only. Starting Team again works too. While the subscription is ended,
 accepting an invitation that the free plan has no room for is refused with
 `409 invitation_needs_team_plan`, and nothing changes; the link keeps working until it expires.
 
