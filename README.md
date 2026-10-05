@@ -107,7 +107,7 @@ pnpm --filter @honestrobin/web dev       # the web app on :5173
 | `extension/` | Browser extension for Chrome and Firefox |
 | `packages/api-client/` | TypeScript client generated from the OpenAPI document |
 | `deploy/` | Dockerfile, Docker Compose and an HTTPS setup with Caddy |
-| `docs/` | Specification, decision records, design philosophy (`design.md`), self-hosting guide, API docs |
+| `docs/` | A tour of the architecture (`architecture.md`), specification, decision records, design philosophy (`design.md`), self-hosting guide, API docs |
 | `e2e/` | Playwright end-to-end tests |
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
