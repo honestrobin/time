@@ -94,7 +94,7 @@ the meantime. Without `If-Match` the last write wins.
 |---|---|
 | 400 | `bad_request`, `bad_cursor`, `invalid_link`, `invalid_password`, `invalid_code`, `challenge_expired`, `not_an_export`, `export_damaged`, `export_too_large` |
 | 401 | `unauthenticated` |
-| 402 | `account_read_only` (lapsed or scheduled for deletion; reading and exports still work), `subscription_required` (cloud; see Seats) |
+| 402 | `account_read_only` (lapsed or scheduled for deletion; reading, exports and ending connections still work), `subscription_required` (cloud; see Seats) |
 | 403 | `forbidden`, `insufficient_scope`, `reauth_required` (web sessions: sign in again or confirm the password with `POST /api/v1/auth/reauth`), `two_factor_required` (the account requires two-factor sign-in, which this person hasn't set up) |
 | 404 | `not_found` |
 | 409 | `invoiced`, `entry_locked`, `week_submitted`, `week_approved`, `seat_confirmation_required` (cloud; see Seats), and others named after the conflict |
@@ -167,8 +167,10 @@ curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api
 ```
 
 Moving out does the same and also lists everything still connected to the account (tokens,
-devices, Stripe, QuickBooks, Xero, Peppol, a Harvest sync, invoice links, invoice reminders), with
-the page in Time where each is ended. It changes nothing else in the account:
+devices, invitations, Stripe, QuickBooks, Xero, Peppol, a Harvest sync or unfinished import,
+invoice links, invoice reminders). Each comes with `end_in`, the page in Time where an admin ends
+it; invoice links have none, because they end only when the account is deleted. Moving out changes
+nothing else in the account:
 
 ```sh
 curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/account/move_out
