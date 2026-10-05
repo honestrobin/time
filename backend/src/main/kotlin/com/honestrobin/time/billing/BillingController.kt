@@ -101,7 +101,7 @@ data class SubscriptionView(
     val prices: List<PlanPrice>,
     /** How many people the free plan has room for: a lapsed account works again once no more than this can sign in. */
     val freePlanSeats: Int,
-    /** Prices Paddle reported above the lock and not yet refunded; usually none. */
+    /** Every price Paddle reported above the lock, refunded or not (`refunded` says which); usually none. */
     val priceReports: List<PriceReport>,
 )
 
