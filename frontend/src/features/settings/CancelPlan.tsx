@@ -17,13 +17,23 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const show = (next: Subscription) => qc.setQueryData(subscriptionQuery.queryKey, next);
+  // While a payment is past due, the period isn't paid for: the plan ends now, not at its end.
+  const pastDue = s.status === "past_due";
   const cancel = useMutation({
-    mutationFn: () => call<Subscription>("POST", "/api/v1/billing/cancellation"),
+    // Says which the admin saw; if that's no longer true, the server changes nothing and says so.
+    mutationFn: () => call<Subscription>("POST", "/api/v1/billing/cancellation", { ends: pastDue ? "now" : "period_end" }),
     onSuccess: (next) => {
       show(next);
       setOpen(false);
+      // Ended at once, the account may be read-only now: the notices look again.
+      void qc.invalidateQueries({ queryKey: ["account"] });
     },
-    onError: (e) => toast(errorInfo(e).message, "error"),
+    onError: (e) => {
+      const err = errorInfo(e);
+      // Paid or unpaid since the page loaded: show what's true now, in the dialog, before any change.
+      if (err.code === "cancellation_changed") void qc.invalidateQueries({ queryKey: ["billing"] });
+      toast(err.message, "error");
+    },
   });
   const keep = useMutation({
     mutationFn: () => call<Subscription>("DELETE", "/api/v1/billing/cancellation"),
@@ -36,13 +46,11 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
     s.locked_unit_price_minor != null && s.currency
       ? t(`billing.unitPrice.${s.interval ?? "month"}`, { price: formatMoney(s.locked_unit_price_minor, s.currency) })
       : undefined;
-  // While a payment is past due, the period isn't paid for: the plan ends now, not at its end.
-  const pastDue = s.status === "past_due";
   // What happens once the free plan starts: who may stay, and that the admin chooses.
   const after = (
     <p>
       {t("billing.cancel.after", { count: free })}
-      {s.seats_used > free && <> {t("billing.cancel.choose", { count: free, used: s.seats_used })}</>}
+      {s.seats_used > free && <> {t(pastDue && !s.cancel_at ? "billing.cancel.choosePastDue" : "billing.cancel.choose", { count: free, used: s.seats_used })}</>}
     </p>
   );
 

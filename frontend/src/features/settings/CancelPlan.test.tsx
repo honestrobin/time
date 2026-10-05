@@ -72,6 +72,8 @@ describe("CancelPlan", () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     expect(fetch.mock.calls[0][0]).toBe("/api/v1/billing/cancellation");
     expect(fetch.mock.calls[0][1]?.method).toBe("POST");
+    // It says what the admin saw, so the server never ends the plan at once without a yes to that.
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ ends: "period_end" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
@@ -80,11 +82,13 @@ describe("CancelPlan", () => {
     show({ ...team, status: "past_due" });
     fireEvent.click(screen.getByRole("button", { name: "Cancel the Team plan" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText(/^The last payment didn't go through, so this period isn't paid for\. Cancelling ends the Team plan now/)).toBeTruthy();
+    expect(within(dialog).getByText("The last payment didn't go through, so this period isn't paid for. Cancelling ends the Team plan now.")).toBeTruthy();
+    expect(within(dialog).getByText(/read-only from then until you choose who stays/)).toBeTruthy();
     expect(within(dialog).getByText("You can start Team again at any time.")).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel now" }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     expect(fetch.mock.calls[0][1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ ends: "now" });
   });
 
   it("closing the dialog cancels nothing", () => {

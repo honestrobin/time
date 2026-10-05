@@ -85,6 +85,13 @@ data class SubscriptionView(
 
 data class CheckoutRequest(val interval: String = "year")
 
+/**
+ * When the cancellation the admin saw takes effect: `period_end` (the usual case), or `now`, which
+ * the app offers only while a payment is past due. A request that doesn't match what's true by
+ * the time it arrives is refused, so the plan never ends at once without a yes to that.
+ */
+data class CancelRequest(val ends: String = "period_end")
+
 /** What Paddle.js needs to open the checkout in the browser. */
 data class CheckoutView(
     val environment: String,
@@ -181,19 +188,36 @@ class BillingService(
      * 0022). Normally at the end of the period that's paid for: nothing changes until then, Paddle
      * doesn't renew it, and its webhook ends the subscription on that day like any other
      * cancellation. While a payment is past due, that period isn't paid for and Paddle takes no
-     * scheduled change, so the plan ends now and Paddle stops asking for the payment.
+     * scheduled change, so the plan ends now. Whether a payment is past due is asked of Paddle
+     * itself, under the lock, not read from our record, which may not have heard of a payment yet.
+     * [ends] is what the admin saw; when it isn't what's true now, nothing changes and the answer
+     * says which it is.
      *
      * Our record changes only once Paddle has said yes, in the same transaction, which holds the
      * subscription's lock while Paddle answers: a second click waits and then finds it done, and
      * Paddle's webhook for the change waits too. If we stop between Paddle's yes and our commit,
      * that webhook brings our record in line.
      */
-    fun cancel(m: Member) {
+    fun cancel(m: Member, ends: String) {
         m.requireAdmin()
+        if (ends !in setOf("period_end", "now")) throw ValidationException("ends", "Choose period_end or now")
         withPaddle(m.accountId) { s ->
+            if (s.cancelAt != null) return@withPaddle
+            val pastDue = paddle.subscription(s.externalId)["data"]?.get("status")?.asText() == "past_due"
+            val now = if (pastDue) "now" else "period_end"
+            if (ends != now) {
+                throw ConflictException(
+                    "cancellation_changed",
+                    if (pastDue) {
+                        "The last payment didn't go through, so this period isn't paid for, and cancelling ends the Team plan now. Nothing changed yet. To go ahead, send it again with ends=now."
+                    } else {
+                        "This period is paid for, so cancelling ends the Team plan at the end of it. Nothing changed yet. To go ahead, send it again with ends=period_end."
+                    },
+                    details = mapOf("ends" to now),
+                )
+            }
             when {
-                s.cancelAt != null -> Unit
-                s.status == "past_due" -> {
+                pastDue -> {
                     paddle.cancel(s.externalId)
                     s.status = "canceled"
                     s.canceledAt = Instant.now(clock)
@@ -204,7 +228,9 @@ class BillingService(
                 else -> {
                     val answer = paddle.cancelAtPeriodEnd(s.externalId)
                     // The day Paddle says it takes effect; its webhook says the same.
-                    s.cancelAt = scheduledCancel(answer["data"]) ?: s.currentPeriodEnd
+                    s.cancelAt = scheduledCancel(answer["data"])
+                        ?: answer["data"]?.get("current_billing_period")?.get("ends_at")?.asText()?.let(Instant::parse)
+                        ?: s.currentPeriodEnd
                     s.store()
                     log.info("Account {} cancelled subscription {} at the end of its period", m.accountId, s.externalId)
                 }
@@ -252,7 +278,11 @@ class BillingService(
                         "If that's not it, write to us and a person will help.",
                 )
             } else {
-                ApiException(HttpStatus.BAD_GATEWAY, "billing_provider_unavailable", "Paddle couldn't be reached, so nothing changed. Try again in a moment.")
+                // Without an answer we can't know whether Paddle did it; its webhook will say.
+                ApiException(
+                    HttpStatus.BAD_GATEWAY, "billing_provider_unavailable",
+                    "Paddle didn't answer, so we don't know yet whether it took the change. If it did, this page shows it within a few minutes; if not, try again.",
+                )
             }
         }
     }
@@ -629,9 +659,9 @@ class BillingController(private val billing: BillingService) {
     fun portal(): PortalView = billing.portal(Current.member())
 
     @PostMapping("/cancellation")
-    @Operation(summary = "Cancel the Team plan at the end of the period that's paid for; nothing changes until then")
-    fun cancel(): SubscriptionView {
-        billing.cancel(Current.member())
+    @Operation(summary = "Cancel the Team plan: at the end of the period that's paid for, or at once while a payment is past due (ends=now)")
+    fun cancel(@RequestBody(required = false) body: CancelRequest?): SubscriptionView {
+        billing.cancel(Current.member(), (body ?: CancelRequest()).ends)
         return billing.view(Current.member())
     }
 

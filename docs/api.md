@@ -131,11 +131,16 @@ nothing there.
 
 **Cancelling** (admins): `POST /api/v1/billing/cancellation` cancels the Team plan at the end of
 the period that's paid for; nothing changes until then, and `cancel_at` in the answer says when.
-While a payment is past due (`"status": "past_due"`), that period isn't paid for, so the plan
-ends at once. Sending it again changes nothing. `DELETE /api/v1/billing/cancellation` takes it
-back before that day, and the plan renews as before. If Paddle can't be reached, the answer is
-`502 billing_provider_unavailable`; if Paddle refuses (it takes no changes in the 30 minutes
-before a renewal), `409 billing_provider_refused`. Either way nothing changed.
+While a payment is past due, as Paddle has it at that moment, that period isn't paid for, so the
+plan ends at once instead. The body says which you agreed to: `{"ends": "period_end"}` (the
+default) or `{"ends": "now"}`. If that's not what's true by then, the answer is
+`409 cancellation_changed` with the one that is in `details.ends`, and nothing changed. Sending it
+again after a cancellation at the period's end changes nothing; after the plan ended at once, the
+answer is `409 no_subscription`. `DELETE /api/v1/billing/cancellation` takes a cancellation back
+before that day, and the plan renews as before. If Paddle refuses (it takes no changes in the 30
+minutes before a renewal), the answer is `409 billing_provider_refused` and nothing changed. If
+Paddle doesn't answer, it's `502 billing_provider_unavailable`: we don't know yet whether Paddle
+took the change, and the subscription shows it within a few minutes if it did.
 
 **When a subscription ends** with more people who can sign in than the free plan holds, the
 account turns read-only (`402 account_read_only`), and export keeps working. Its admins can still
