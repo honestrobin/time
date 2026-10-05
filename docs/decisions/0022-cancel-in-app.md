@@ -23,16 +23,19 @@ opened Paddle's customer portal, where cancelling took several screens on anothe
    cancel with `effective_from: next_billing_period`. Nothing is refunded and nothing more is
    charged for the period already paid; the plan just doesn't renew. **One exception: while a
    payment is past due,** that period isn't paid for, and Paddle takes no scheduled change, so the
-   plan ends at once and Paddle stops asking for the payment. The dialog says so, and its button
-   says "Cancel now". Otherwise cancelling at once stays for deleting an account and for a second
-   subscription made by mistake, as before.
+   plan ends at once. Whether it's past due is asked of Paddle under the lock, not read from our
+   record, which may not have heard of a payment yet. The dialog says so, and its button says
+   "Cancel now". The request carries which one the admin saw (`ends`: `period_end` or `now`); if
+   that's no longer true, nothing changes and the answer says which it is
+   (`409 cancellation_changed`). Otherwise cancelling at once stays for deleting an account and for
+   a second subscription made by mistake, as before.
 3. **Paddle first, and asked once.** The change runs in a transaction that holds the
    subscription's lock (the one webhooks take) while Paddle answers, and our record changes only
    once Paddle said yes. A second click waits, then finds it done. If we stop between Paddle's yes
-   and our commit, Paddle's webhook for the change brings our record in line. If Paddle can't be
-   reached, the admin sees `502 billing_provider_unavailable`; if it refuses (it takes no changes
-   in the 30 minutes before a renewal), `409 billing_provider_refused`, with that reason. Either
-   way nothing changed.
+   and our commit, Paddle's webhook for the change brings our record in line. If Paddle doesn't
+   answer, the admin sees `502 billing_provider_unavailable`, which says we don't know yet whether
+   Paddle took it; its webhook will tell. If Paddle refuses (it takes no changes in the 30 minutes
+   before a renewal), `409 billing_provider_refused`, with that reason, and nothing changed.
 4. **It can be taken back until that day.** "Keep the Team plan" (`DELETE
    /api/v1/billing/cancellation`) asks Paddle to drop the scheduled cancellation, and the plan
    renews as before, on the same day and at the same locked price. Nothing is charged at that
@@ -52,7 +55,10 @@ opened Paddle's customer portal, where cancelling took several screens on anothe
 - VERIFY with Paddle's sandbox: that `effective_from: next_billing_period` schedules the
   cancellation and its answer carries `scheduled_change.effective_at`; that `PATCH
   /subscriptions/{id}` with `scheduled_change: null` removes it and charges nothing; that a
-  past-due subscription can be cancelled at once and Paddle stops collecting; the 30-minute rule;
-  and whether Paddle accepts seat changes on a subscription with a scheduled cancellation. If it
+  past-due subscription can be cancelled at once and Paddle stops collecting (if it doesn't, the
+  customer could pay for a period they no longer have); that `GET /subscriptions/{id}` answers
+  with `data.status`; whether a failed prorated seat charge can make a subscription past due in
+  the middle of a paid period (then "ends now" would cut off a period partly paid for); the
+  30-minute rule; and whether Paddle accepts seat changes on a subscription with a scheduled cancellation. If it
   doesn't, the seat sync keeps retrying until the plan ends, and a person who joins in that time
   isn't billed.

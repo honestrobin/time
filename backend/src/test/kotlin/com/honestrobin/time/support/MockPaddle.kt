@@ -35,6 +35,9 @@ object MockPaddle {
         }
     }
 
+    /** A subscription's status as Paddle has it, by id, when a test needs one other than "active". */
+    val statuses = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /** While true, Paddle answers every request with 400, as it refuses changes in the 30 minutes before a renewal. */
     @Volatile var refusing = false
 
@@ -58,6 +61,10 @@ object MockPaddle {
                     down -> 503 to mapOf("error" to mapOf("detail" to "Service unavailable"))
                     refusing -> 400 to mapOf("error" to mapOf("detail" to "Changes can't be made to this subscription right now"))
                     ex.requestHeaders.getFirst("Authorization") != "Bearer $API_KEY" -> 403 to mapOf("error" to mapOf("detail" to "Invalid API key"))
+                    ex.requestMethod == "GET" && ex.requestURI.path.matches(Regex("/subscriptions/[^/]+")) -> {
+                        val id = ex.requestURI.path.substringAfterLast('/')
+                        200 to mapOf("data" to mapOf("id" to id, "status" to (statuses[id] ?: "active")))
+                    }
                     ex.requestMethod == "PATCH" && ex.requestURI.path.startsWith("/subscriptions/") -> 200 to mapOf("data" to mapOf("id" to ex.requestURI.path.substringAfterLast('/')))
                     // At the end of the period, the subscription runs on with the cancellation scheduled.
                     ex.requestMethod == "POST" && ex.requestURI.path.matches(Regex("/subscriptions/[^/]+/cancel")) &&

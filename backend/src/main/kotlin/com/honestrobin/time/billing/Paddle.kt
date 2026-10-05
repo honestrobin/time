@@ -63,7 +63,10 @@ class PaddleClient(private val settings: PaddleSettings, private val json: Objec
             mapOf("items" to listOf(mapOf("price_id" to priceId, "quantity" to quantity)), "proration_billing_mode" to "prorated_immediately"),
         )
 
-    /** Cancels a subscription now, so it never renews: for an account being deleted, or a second subscription. */
+    /** A subscription as Paddle has it now, for what our record may not have heard yet (`data.status`). */
+    fun subscription(subscriptionId: String): JsonNode = call("GET", "/subscriptions/$subscriptionId", null)
+
+    /** Cancels a subscription now, so it never renews: for an account being deleted, a second subscription, or one past due. */
     fun cancel(subscriptionId: String): JsonNode = call("POST", "/subscriptions/$subscriptionId/cancel", mapOf("effective_from" to "immediately"))
 
     /**
