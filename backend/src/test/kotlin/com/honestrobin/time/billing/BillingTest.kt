@@ -844,6 +844,8 @@ class BillingTest : IntegrationTest() {
         assertThat(reports[0]["locked_unit_price_minor"].asLong()).isEqualTo(YEARLY)
         assertThat(reports[0]["currency"].asText()).isEqualTo("EUR")
         assertThat(reports[0]["interval"].asText()).isEqualTo("year")
+        assertThat(reports[0]["period_end"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+        assertThat(reports[0]["refunded"].asBoolean()).isFalse()
         // Every admin is emailed once, with both prices; nobody else is.
         for (email in listOf(admin.email!!, second.email!!)) {
             val sent = mail.to(email).filter { it.template == "price-above-lock" }
@@ -856,12 +858,16 @@ class BillingTest : IntegrationTest() {
         assertThat(errors).isNotEmpty()
         assertThat(errors.first().formattedMessage).contains("sub_test_$account", "9000", "8400")
 
-        // Once a person has refunded the difference and marked it so, the billing page stops saying it.
+        // Once a person has refunded the difference and marked it so, the billing page stops saying
+        // it (it shows only the open ones), and the report stays in reach, as refunded.
         tx.system {
             dsl.update(BILLING_EVENTS).set(BILLING_EVENTS.EVENT_TYPE, BillingService.PRICE_ABOVE_LOCK_REFUNDED)
                 .where(BILLING_EVENTS.ACCOUNT_ID.eq(account)).and(BILLING_EVENTS.EVENT_TYPE.eq(BillingService.PRICE_ABOVE_LOCK)).execute()
         }
-        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["price_reports"].size()).isEqualTo(0)
+        val after = admin.get("/api/v1/billing/subscription").expect(200)["price_reports"]
+        assertThat(after.size()).isEqualTo(1)
+        assertThat(after[0]["refunded"].asBoolean()).isTrue()
+        assertThat(after[0]["reported_unit_price_minor"].asLong()).isEqualTo(9000)
     }
 
     @Test
