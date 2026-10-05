@@ -9,6 +9,9 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- On Honest Robin Cloud, Move out's list of what's still connected includes a Team subscription,
+  in the export's README too: its billing interval, whether it's active, past due or cancelled,
+  and how to cancel it. Before, the README only said where to look.
 - If Paddle ever reports a higher price than your locked one, your lock stays, the billing page
   shows both prices, and every admin gets an email. If Paddle charges more, we refund the
   difference, by hand for now.

@@ -11,6 +11,7 @@ import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.platform.security.Member
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
+import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -24,10 +25,10 @@ import java.util.UUID
  */
 data class ConnectionView(
     /**
-     * api_token; device (signed in with a code, such as the browser extension); invitation (a link
-     * that still lets someone join); stripe; qbo; xero; storecove (Peppol); harvest_sync;
-     * harvest_import (an unfinished import that keeps its Harvest token); invoice_links;
-     * invoice_reminders.
+     * subscription (Honest Robin Cloud's Team plan, which Paddle bills); api_token; device (signed
+     * in with a code, such as the browser extension); invitation (a link that still lets someone
+     * join); stripe; qbo; xero; storecove (Peppol); harvest_sync; harvest_import (an unfinished
+     * import that keeps its Harvest token); invoice_links; invoice_reminders.
      */
     val kind: String,
     /** A token's or device's id, to revoke it (DELETE /api/v1/account/api_tokens/{id}); an import's, to end it. */
@@ -42,22 +43,48 @@ data class ConnectionView(
     /** connect (through Honest Robin) or api_key (your own key), for Stripe and Peppol. */
     val mode: String? = null,
     val lastUsedAt: Instant? = null,
-    /** When it stops by itself: a token's expiry, an invitation's, the end of a Harvest sync. */
+    /**
+     * When it stops by itself: a token's expiry, an invitation's, the end of a Harvest sync, the
+     * last day of a subscription that's cancelled.
+     */
     val endsAt: Instant? = null,
     /** The page in Time where an admin ends it; null where it ends only with the account. */
     val endIn: String? = null,
+    /** A subscription's plan: team, the one paid plan. */
+    val plan: String? = null,
+    /** A subscription's status, as Paddle reports it: trialing, active or past_due. */
+    val status: String? = null,
+    /** How often a subscription is billed: month or year. */
+    val interval: String? = null,
+    /** When a subscription that runs on is billed next; null once it's cancelled, or while a payment is past due. */
+    val renewsAt: Instant? = null,
 )
+
+/**
+ * The account's subscription to Honest Robin Cloud, as something still connected to it. Honest
+ * Robin Cloud's billing module answers from the subscription; everywhere else there is none. This
+ * way the export module lists it without reading the plan itself (PromiseGuardsTest, "only the
+ * number of seats depends on the plan"). Asked in the caller's transaction.
+ */
+fun interface SubscriptionConnection {
+    /** The subscription while Paddle bills it (or will, once a trial ends); null when there is none. */
+    fun of(accountId: UUID): ConnectionView?
+}
+
+@Component
+class NoSubscription : SubscriptionConnection {
+    override fun of(accountId: UUID): ConnectionView? = null
+}
 
 /** What moving out started: the export, which emails when it's ready, and what's still connected. */
 data class MoveOutView(val export: AccountExportView, val connections: List<ConnectionView>)
 
 /**
- * Everything still connected to an account ("You can always leave" in the Robin's Code). Only
- * reads: moving out changes nothing in the account. A Honest Robin Cloud subscription isn't
- * listed here; the billing page shows it (the web app's Move out page reads it from there).
+ * Everything still connected to an account ("You can always leave" in the Robin's Code), a
+ * Honest Robin Cloud subscription included. Only reads: moving out changes nothing in the account.
  */
 @Service
-class ConnectionsService(private val dsl: DSLContext) {
+class ConnectionsService(private val dsl: DSLContext, private val subscription: SubscriptionConnection) {
     @Transactional(readOnly = true)
     fun list(m: Member): List<ConnectionView> {
         m.requireAdmin()
@@ -69,7 +96,8 @@ class ConnectionsService(private val dsl: DSLContext) {
      * README shows the same moment as its data.
      */
     fun of(accountId: UUID): List<ConnectionView> =
-        tokens(accountId) + invitations(accountId) + services(accountId) + harvest(accountId) + invoiceLinks(accountId) + reminders(accountId)
+        listOfNotNull(subscription.of(accountId)) + tokens(accountId) + invitations(accountId) + services(accountId) + harvest(accountId) +
+            invoiceLinks(accountId) + reminders(accountId)
 
     /** Tokens that work now: not expired, and of people who can sign in. */
     private fun tokens(accountId: UUID): List<ConnectionView> {
@@ -189,10 +217,7 @@ object LeavingGuide {
             appendLine("  ${how(c)}")
         }
         appendLine()
-        appendLine("Not in this list: a Team subscription to Honest Robin Cloud. If you have one, Settings >")
-        appendLine("Billing shows it, and you cancel it there in two clicks: it ends with the period you've")
-        appendLine("paid for. Deleting the account cancels it too, when the account is deleted 14 days later.")
-        appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
+        appendLine("People in your team who sign in aren't listed: deactivate them under Team.")
         appendLine()
         appendLine("While the account is read-only (lapsed, or waiting to be deleted), an admin can still end")
         appendLine("each of these, except invoice links, which end only when the account is deleted. A lapsed")
@@ -217,6 +242,13 @@ object LeavingGuide {
     private fun day(at: Instant?) = at?.let { LocalDate.ofInstant(it, ZoneOffset.UTC).toString() }
 
     private fun what(c: ConnectionView): String = when (c.kind) {
+        // Team is the one paid plan: the database refuses any other.
+        "subscription" -> "Honest Robin Cloud subscription: the Team plan, paid ${if (c.interval == "year") "yearly" else "monthly"}. " + when {
+            c.endsAt != null -> "Cancelled: it ends on ${day(c.endsAt)}."
+            c.status == "past_due" -> "A payment is past due."
+            c.status == "trialing" -> "On trial." + (day(c.renewsAt)?.let { " The first payment is on $it." } ?: "")
+            else -> "Active." + (day(c.renewsAt)?.let { " It renews on $it." } ?: "")
+        }
         "api_token" -> "API token \"${c.name}\" of ${c.person}" + (day(c.lastUsedAt)?.let { ", last used $it" } ?: ", never used") +
             (day(c.endsAt)?.let { ", expires $it" } ?: "") + "."
         "device" -> "Device \"${c.name}\", signed in as ${c.person}" + (day(c.lastUsedAt)?.let { ", last used $it" } ?: "") + "."
@@ -233,6 +265,13 @@ object LeavingGuide {
     }
 
     private fun how(c: ConnectionView): String = when (c.kind) {
+        "subscription" -> if (c.endsAt != null) {
+            "Nothing to do: it ends by itself on ${day(c.endsAt)}. Until then, Settings > Billing > Keep the Team plan takes it back."
+        } else {
+            "End it: Settings > Billing > Cancel the Team plan, in two clicks. " +
+                (if (c.status == "past_due") "While a payment is past due, that ends it at once." else "It ends with the period you've paid for.") +
+                " Deleting the account cancels it too, when the account is deleted 14 days later."
+        }
         "api_token", "device" -> "End it: an admin revokes it under Settings > Account > Move out, or ${c.person} revokes it " +
             "under Profile > Personal access tokens." + (if (c.kind == "device") " It also stops after 90 days without use." else "")
         "stripe" -> "End it: Settings > Online payments > Disconnect Stripe" +

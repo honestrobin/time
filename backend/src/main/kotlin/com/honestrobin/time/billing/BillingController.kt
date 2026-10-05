@@ -20,6 +20,8 @@ import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.SubscriptionsRecord
 import com.honestrobin.time.export.AccountPurging
+import com.honestrobin.time.export.ConnectionView
+import com.honestrobin.time.export.SubscriptionConnection
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.Money
 import com.honestrobin.time.platform.db.DbContext
@@ -708,6 +710,27 @@ class SubscriptionSeatGate(
     }
 
     private fun money(minor: Long, currency: String) = "$currency ${Money.fromMinor(minor, currency).toPlainString()}"
+}
+
+/**
+ * The account's subscription in Move out's list of what's still connected ("You can always
+ * leave"), with its plan, status and billing interval, and where it's cancelled. Listed while
+ * Paddle bills it (or will, once a trial ends), a cancelled one until its last day. Only reads.
+ */
+@Component
+@Primary
+@CloudEditionOnly
+class PaddleSubscriptionConnection(private val dsl: DSLContext) : SubscriptionConnection {
+    override fun of(accountId: UUID): ConnectionView? {
+        val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId))
+            .and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetchOne() ?: return null
+        return ConnectionView(
+            kind = "subscription", plan = s.plan, status = s.status, interval = s.billingInterval,
+            // While a payment is past due, Paddle retries it; the period isn't renewed until it's paid.
+            renewsAt = if (s.cancelAt == null && s.status != "past_due") s.currentPeriodEnd else null,
+            endsAt = s.cancelAt, endIn = "/settings/billing",
+        )
+    }
 }
 
 /** Paddle.js runs the checkout in the browser: its script and frames are allowed where billing is set up. (VERIFY the origins with Paddle.) */
