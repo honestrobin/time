@@ -39,9 +39,9 @@ class RowLevelSecurityCheck(
             if (!exists) {
                 throw RowLevelSecurityNotEffective(
                     "Refusing to start: the database role '$appRole' doesn't exist, so row-level security can't keep accounts apart. " +
-                        "This happens after a restore into a database where the role wasn't created first.",
+                        "This happens after a restore without the role, or when the database user may not create roles.",
                     "Create the role (CREATE ROLE $appRole NOLOGIN;) and give it its rights, then start the app again. " +
-                        "See docs/self-host.md, Backups and restore.",
+                        "See docs/self-host.md, Database role.",
                 )
             }
             if (!member) {
