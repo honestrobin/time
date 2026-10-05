@@ -1,0 +1,98 @@
+{
+  "moveOut": {
+    "title": "Move out",
+    "lead": "Everything you need to leave, in one step: all your data in one download, where you can go next, and what's still connected. Moving out changes nothing in your account.",
+    "button": "Move out",
+    "again": "Make a fresh export",
+    "adminOnly": "Only an admin of this account can move it out.",
+    "pageLead": "Everything you need to leave, in one place. Your account keeps working as it is.",
+    "dataTitle": "All your data, in one download",
+    "dataLead": "One zip: every table as JSON, spreadsheets, every invoice as a PDF, e-invoice files where an invoice has the data for them, and all receipts. Its README says where you can go next and lists what's still connected. We email you when it's ready.",
+    "nextTitle": "Where you can go next",
+    "selfHostTitle": "The same software, on your own server",
+    "selfHostBody": "Time is open source. Set it up with the self-hosting guide, then import the zip under Settings → Account → Import an export. The account comes back with its history, and you invite your team again.",
+    "selfHostLink": "Self-hosting guide, on GitHub",
+    "toolsTitle": "Another tool",
+    "toolsBody": "The zip's csv folder has spreadsheets of your time entries, expenses, invoices, clients, contacts, projects, tasks and people. Most time tracking, invoicing and accounting tools can import them.",
+    "connectedTitle": "Still connected",
+    "connectedLead": "Everything that still connects to this account, and how to end each one.",
+    "readOnly": "This account is read-only, so its Disconnect and Stop buttons don't work now. You can still end each connection at the other service. Deleting the account ends our access to all of them.",
+    "nothingConnected": "Nothing is connected: no tokens, devices, outside services or invoice links.",
+    "what": "What",
+    "howToEnd": "How to end it",
+    "unchangedTitle": "Moving out changes nothing",
+    "unchangedBody": "Your account keeps working as it is. Cancelling and deleting are separate steps, and you choose them.",
+    "cancelSubscription": "Cancel the subscription, under Billing",
+    "deleteAccount": "Delete the account, under Settings → Account",
+    "kind": {
+      "api_token": {
+        "title": "API token “{{name}}”",
+        "used": "{{person}}. Last used {{lastUsed}}.",
+        "unused": "{{person}}. Never used."
+      },
+      "device": {
+        "title": "Signed-in device “{{name}}”",
+        "used": "{{person}}. Last used {{lastUsed}}. It stops by itself after 90 days without use.",
+        "unused": "{{person}}. It stops by itself after 90 days without use."
+      },
+      "token": {
+        "howMine": "Revoke it in your profile, under Personal access tokens.",
+        "howOther": "{{person}} revokes it in their profile, or you deactivate {{person}} in Team, which stops all their tokens."
+      },
+      "stripe": {
+        "title": "Stripe",
+        "detail": "Your clients pay invoices online into {{name}}.",
+        "howConnect": "Disconnect Stripe under Online payments. That ends our access at Stripe.",
+        "howOwnKey": "Disconnect Stripe under Online payments, then roll the key and delete the webhook endpoint in Stripe. The key works there until you do."
+      },
+      "qbo": {
+        "title": "QuickBooks Online",
+        "detail": "Invoices and payments go to {{name}}."
+      },
+      "xero": {
+        "title": "Xero",
+        "detail": "Invoices and payments go to {{name}}."
+      },
+      "books": {
+        "how": "Disconnect it under Accounting. That ends our access to your books."
+      },
+      "storecove": {
+        "title": "Peppol, through Storecove",
+        "detailConnect": "E-invoices go out on Honest Robin's Storecove contract.",
+        "detailOwnKey": "E-invoices go out with your own Storecove API key.",
+        "howConnect": "Disconnect it under Invoice settings. That removes your Peppol ID from Storecove.",
+        "howOwnKey": "Disconnect it under Invoice settings, which removes your Peppol ID from Storecove. Then delete the API key in Storecove."
+      },
+      "harvest_sync": {
+        "title": "Harvest sync",
+        "detail": "Changes in Harvest account {{name}} come over until {{until}}.",
+        "how": "Stop syncing under Import from Harvest, then delete the personal access token in Harvest."
+      },
+      "harvest_import": {
+        "title": "Unfinished Harvest import",
+        "detail": "We keep the token for Harvest account {{name}}, so the import can go on.",
+        "how": "Delete the personal access token in Harvest. A running import can also be cancelled under Import from Harvest."
+      },
+      "invoice_links": {
+        "title": "Invoice links",
+        "detail_one": "Your clients can open {{count}} invoice from the link they were sent.",
+        "detail_other": "Your clients can open {{count}} invoices from the links they were sent.",
+        "how": "They work while this account exists, and stop for good when it's deleted. A single link can't be turned off yet."
+      },
+      "invoice_reminders": {
+        "title": "Invoice reminders",
+        "detail": "We email your clients about unpaid invoices on the days you chose.",
+        "how": "Turn them off under Invoice settings."
+      },
+      "subscription": {
+        "title": "Honest Robin Cloud subscription",
+        "renews": "Team plan, renews on {{date}}.",
+        "ends": "Team plan, ends on {{date}}.",
+        "how": "Cancel it under Billing. Deleting the account cancels it too."
+      },
+      "other": {
+        "how": "Write to us and we'll tell you how to end it."
+      }
+    }
+  }
+}

@@ -32,6 +32,7 @@ import { ReportsPage } from "../features/reports/ReportsPage";
 import { AccountingPage } from "../features/settings/AccountingPage";
 import { DevicePage } from "../features/settings/DevicePage";
 import { BillingPage } from "../features/settings/BillingPage";
+import { MoveOutPage } from "../features/settings/MoveOut";
 import { validateReportSearch } from "../features/reports/search";
 import { InvoicesPage } from "../features/invoices/InvoicesPage";
 import { PaymentsSettingsPage } from "../features/invoices/PaymentsSettingsPage";
@@ -139,6 +140,7 @@ const invoiceRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoi
 const invoiceSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/invoices", component: InvoiceSettingsPage });
 const accountingRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/accounting", component: AccountingPage });
 const billingRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/billing", component: BillingPage });
+const moveOutRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/move-out", component: MoveOutPage });
 const paymentsSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/payments", component: PaymentsSettingsPage });
 const publicInvoiceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/i/$token", component: PublicInvoicePage });
 
@@ -181,6 +183,7 @@ const routeTree = rootRoute.addChildren([
     invoiceSettingsRoute,
     paymentsSettingsRoute,
     billingRoute,
+    moveOutRoute,
     accountingRoute,
   ]),
 ]);
