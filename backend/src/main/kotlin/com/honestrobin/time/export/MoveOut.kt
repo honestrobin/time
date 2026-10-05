@@ -225,19 +225,28 @@ object LeavingGuide {
         appendLine("deletion is cancelled. Deleting the account ends our access to all of them.")
     }
 
-    fun cancellingAndDeleting(): String = """
-        |CANCELLING AND DELETING
-        |
-        |Making this export changed nothing in the account: it works as it did before. Cancelling and
-        |deleting are separate steps, and you choose them:
-        |- Cancel a Team subscription to Honest Robin Cloud under Settings > Billing > Cancel the Team
-        |  plan. It ends with the period you've paid for.
-        |- Delete the account under Settings > Account > Delete this account. After 14 days the account
-        |  and everything in it are deleted for good, a subscription is cancelled, and our access to
-        |  Stripe, QuickBooks, Xero and Storecove ends. Until then it's read-only, you can still
-        |  export, and any admin can cancel.
-        |
-    """.trimMargin()
+    /** Cancelling is listed only for a subscription that runs on: one already cancelled ends by itself. */
+    fun cancellingAndDeleting(connections: List<ConnectionView>): String = buildString {
+        appendLine("CANCELLING AND DELETING")
+        appendLine()
+        appendLine("Making this export changed nothing in the account: it works as it did before. Cancelling and")
+        appendLine("deleting are separate steps, and you choose them:")
+        connections.firstOrNull { it.kind == "subscription" && it.endsAt == null }?.let { s ->
+            appendLine("- Cancel the Team plan of Honest Robin Cloud under Settings > Billing > Cancel the Team plan.")
+            appendLine("  ${cancelEnds(s)}")
+        }
+        appendLine("- Delete the account under Settings > Account > Delete this account. After 14 days the account")
+        appendLine("  and everything in it are deleted for good, a subscription is cancelled, and our access to")
+        appendLine("  Stripe, QuickBooks, Xero and Storecove ends. Until then it's read-only, you can still")
+        appendLine("  export, and any admin can cancel.")
+    }
+
+    /** When cancelling ends a subscription: the request asks Paddle for the end of the current period, or now while a payment is past due. */
+    private fun cancelEnds(c: ConnectionView): String = when (c.status) {
+        "past_due" -> "While a payment is past due, that ends it at once."
+        "trialing" -> "It ends at the end of the current billing period."
+        else -> "It ends with the period you've paid for."
+    }
 
     private fun day(at: Instant?) = at?.let { LocalDate.ofInstant(it, ZoneOffset.UTC).toString() }
 
@@ -246,7 +255,7 @@ object LeavingGuide {
         "subscription" -> "Honest Robin Cloud subscription: the Team plan, paid ${if (c.interval == "year") "yearly" else "monthly"}. " + when {
             c.endsAt != null -> "Cancelled: it ends on ${day(c.endsAt)}."
             c.status == "past_due" -> "A payment is past due."
-            c.status == "trialing" -> "On trial." + (day(c.renewsAt)?.let { " The first payment is on $it." } ?: "")
+            c.status == "trialing" -> "On trial" + (day(c.renewsAt)?.let { "; the current billing period ends on $it." } ?: ".")
             else -> "Active." + (day(c.renewsAt)?.let { " It renews on $it." } ?: "")
         }
         "api_token" -> "API token \"${c.name}\" of ${c.person}" + (day(c.lastUsedAt)?.let { ", last used $it" } ?: ", never used") +
@@ -268,9 +277,8 @@ object LeavingGuide {
         "subscription" -> if (c.endsAt != null) {
             "Nothing to do: it ends by itself on ${day(c.endsAt)}. Until then, Settings > Billing > Keep the Team plan takes it back."
         } else {
-            "End it: Settings > Billing > Cancel the Team plan, in two clicks. " +
-                (if (c.status == "past_due") "While a payment is past due, that ends it at once." else "It ends with the period you've paid for.") +
-                " Deleting the account cancels it too, when the account is deleted 14 days later."
+            "End it: Settings > Billing > Cancel the Team plan, in two clicks. ${cancelEnds(c)} " +
+                "Deleting the account cancels it too, on the day the account is deleted for good, 14 days after the deletion is asked for."
         }
         "api_token", "device" -> "End it: an admin revokes it under Settings > Account > Move out, or ${c.person} revokes it " +
             "under Profile > Personal access tokens." + (if (c.kind == "device") " It also stops after 90 days without use." else "")

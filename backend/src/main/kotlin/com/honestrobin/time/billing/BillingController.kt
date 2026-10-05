@@ -65,6 +65,9 @@ import java.util.UUID
 
 data class PlanPrice(val interval: String, val currency: String, val perSeatPerMonthMinor: Long)
 
+/** A subscription in one of these states pays for seats now, or will once a trial ends: billing, the seat gate and Move out agree on it. */
+internal val PAYING_STATUSES = setOf("trialing", "active", "past_due")
+
 /**
  * Paddle reported a price per seat above the subscription's locked one (decision record 0023). The
  * lock stays, and if Paddle charges more, the difference is refunded by hand.
@@ -179,7 +182,7 @@ class BillingService(
     private fun current(): SubscriptionsRecord? = dsl.selectFrom(SUBSCRIPTIONS).fetchOne()
 
     /** A subscription that pays for seats now. */
-    fun isPaying(s: SubscriptionsRecord?) = s != null && s.status in setOf("trialing", "active", "past_due")
+    fun isPaying(s: SubscriptionsRecord?) = s != null && s.status in PAYING_STATUSES
 
     @Transactional(readOnly = true)
     fun view(m: Member): SubscriptionView {
@@ -378,7 +381,7 @@ class BillingService(
             if (other != null && isPaying(other)) {
                 // Two checkouts at once (two tabs, say) make a second subscription. It's cancelled so
                 // it never renews; its first payment needs a refund by a person.
-                if (data["status"]?.asText() in setOf("trialing", "active", "past_due")) duplicate = externalId
+                if (data["status"]?.asText() in PAYING_STATUSES) duplicate = externalId
                 log.error("Paddle subscription {} is for account {}, which already pays through {}; cancelling it, refund its first payment", externalId, accountId, other.externalId)
                 return@system
             }
@@ -509,7 +512,7 @@ class BillingService(
      */
     fun syncSeats(): Int {
         if (!settings.configured) return 0
-        val subs = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetch() }
+        val subs = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.STATUS.`in`(PAYING_STATUSES)).fetch() }
         return subs.count { sync(it) }
     }
 
@@ -629,7 +632,7 @@ class SubscriptionSeatGate(
         // Without Paddle there is nothing to buy, so nothing to hold back.
         if (!settings.configured) return
         val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId))
-            .and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetchOne()
+            .and(SUBSCRIPTIONS.STATUS.`in`(PAYING_STATUSES)).fetchOne()
         if (s == null) {
             if (seats.claimed(accountId) + (if (counted) 0 else 1) > freePlan.seats) throw subscriptionRequired()
             return
@@ -653,7 +656,7 @@ class SubscriptionSeatGate(
         // One at a time for each account, so two people can't both take the last free seat.
         dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 7234004))", "join:$accountId")
         val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).fetchOne() ?: return
-        if (s.status in setOf("trialing", "active", "past_due")) return
+        if (s.status in PAYING_STATUSES) return
         if (seats.used(accountId) + 1 <= freePlan.seats) return
         throw ConflictException(
             "invitation_needs_team_plan",
@@ -723,7 +726,7 @@ class SubscriptionSeatGate(
 class PaddleSubscriptionConnection(private val dsl: DSLContext) : SubscriptionConnection {
     override fun of(accountId: UUID): ConnectionView? {
         val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId))
-            .and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetchOne() ?: return null
+            .and(SUBSCRIPTIONS.STATUS.`in`(PAYING_STATUSES)).fetchOne() ?: return null
         return ConnectionView(
             kind = "subscription", plan = s.plan, status = s.status, interval = s.billingInterval,
             // While a payment is past due, Paddle retries it; the period isn't renewed until it's paid.

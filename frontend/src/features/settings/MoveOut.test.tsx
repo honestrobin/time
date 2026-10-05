@@ -120,7 +120,7 @@ describe("Move out", () => {
     expect(screen.getByText(`Team plan, paid yearly. Active. It renews on ${formatDate("2027-10-01")}.`)).toBeTruthy();
     expect(
       screen.getByText(
-        "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, when the account is deleted 14 days later.",
+        "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, on the day the account is deleted for good, 14 days after the deletion is asked for.",
       ),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Billing" }).getAttribute("href")).toBe("/settings/billing");
@@ -132,6 +132,8 @@ describe("Move out", () => {
     await screen.findByRole("heading", { name: "Moving out changes nothing" });
     expect(screen.getByText(`Team plan, paid yearly. Cancelled: it ends on ${formatDate("2027-10-01")}.`)).toBeTruthy();
     expect(screen.getByText(`Nothing to do: it ends by itself on ${formatDate("2027-10-01")}. Until then, Keep the Team plan on the Billing page takes it back.`)).toBeTruthy();
+    // Already cancelled, there's nothing to cancel: no link to do it.
+    expect(screen.queryByRole("link", { name: "Cancel the Team plan on the Billing page, in two clicks" })).toBeNull();
     cleanup();
     renderPage(MoveOutPage, "active", [{ ...team, interval: "month", status: "past_due", renews_at: undefined }]);
     await screen.findByRole("heading", { name: "Moving out changes nothing" });
