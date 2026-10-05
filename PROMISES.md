@@ -15,7 +15,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Promise | Status | Guarded by |
 |---|---|---|
 | Your price stays the same for as long as your subscription runs: the database refuses to raise a subscription's locked price. The lock is on our record. Paddle, which takes the payment, charges the subscription's own price. If Paddle ever reported a higher one, we'd log it and keep your lock, but nothing yet tells you. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::the database refuses to raise a subscription's price (AT-6_2)`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::free for one person, a Team subscription for more, seats kept in step and the price never raised` |
-| Features you have don't move to a more expensive plan. There's one paid plan, Team, and it differs from the free plan only in how many people can sign in. | Built, no test | |
+| Features you have don't move to a more expensive plan. There's one paid plan, Team, and it differs from the free plan only in how many people can sign in. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::only the number of seats depends on the plan` |
 | Each version of the API keeps working for at least 12 months after the next one comes out. Every endpoint is under `/api/v1`, and there's no v2 yet. | By hand | |
 | A feature you use is never removed without 90 days' notice. | By hand | |
 | Changes to how you work are in a public, dated changelog before they ship. | Not built | |
@@ -36,7 +36,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Promise | Status | Guarded by |
 |---|---|---|
 | The self-hosted edition is the same software with every feature: both editions offer the same endpoints, apart from paying Honest Robin Cloud, and only the billing and analytics code may treat them differently. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/EditionParityTest.kt::editions expose the same endpoints except cloud billing`, `backend/src/test/kotlin/com/honestrobin/time/platform/EditionParityTest.kt::only allowlisted packages refer to the edition` |
-| Two-factor sign-in, the audit log, export and the API come with every plan, including the free one. Nothing in the code checks the plan except to count seats, but no test checks it plan by plan. | Built, no test | |
+| Two-factor sign-in, the audit log, export and the API come with every plan, including the free one. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::the free plan has two-factor sign-in, the audit log, export and the API` |
 
 ## You can always leave
 
@@ -45,7 +45,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Move out: one button that gets everything ready for leaving. Today there's "Export all data" in Settings. | Not built | |
 | Cancel in the app. Today the billing page links to Paddle's page for payment and invoices. | Not built | |
 | Pay monthly or yearly, your choice, and no plan is yearly-only. Monthly is always offered once billing is on; yearly is optional. | Built, no test | |
-| A full export works on every plan and in every state of an account. It's tested for lapsed accounts, and partly for cancelled ones. It isn't tested yet for accounts waiting to be deleted. | Tested | `backend/src/test/kotlin/com/honestrobin/time/export/AccountDataTest.kt::a lapsed account is read-only but can still export its data (AT-6_3)` |
+| A full export works on every plan and in every state of an account. It's tested for free, lapsed and pending-deletion accounts, and partly for cancelled ones. | Tested | `backend/src/test/kotlin/com/honestrobin/time/export/AccountDataTest.kt::a lapsed account is read-only but can still export its data (AT-6_3)`, `backend/src/test/kotlin/com/honestrobin/time/export/AccountDataTest.kt::an account waiting to be deleted can still export its data`, `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::the free plan has two-factor sign-in, the audit log, export and the API` |
 | Nothing we store is left out of the export: a test fails when a new table is neither exported nor left out on purpose. | Tested | `backend/src/test/kotlin/com/honestrobin/time/export/AccountDataTest.kt::every table is either exported or left out on purpose` |
 | An export imports into a fresh account, identical table by table. It's tested within one edition, not yet from the cloud into a self-hosted instance. | Tested | `backend/src/test/kotlin/com/honestrobin/time/export/AccountDataTest.kt::an export imports back after the account is deleted, identical table by table (AT-6_1)` |
 | The code is open source with no contributor licence agreement: the AGPL for the app, the MIT licence for the API client. CI checks every file's licence header. | Tested | `scripts/check-license-headers.sh`, `LICENSE`, `packages/api-client/LICENSE` |
