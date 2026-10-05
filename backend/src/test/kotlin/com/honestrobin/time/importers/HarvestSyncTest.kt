@@ -82,6 +82,32 @@ class HarvestSyncTest : IntegrationTest() {
     }
 
     @Test
+    fun `the sync never brings back someone deactivated here`() {
+        // Second review, 5 October 2026: someone active in Harvest came back here with each sync,
+        // and on Honest Robin Cloud that can add a paid seat nobody said yes to.
+        val f = HarvestFixture.agency(seed = 23, people = 3, clients = 1, projectsPerClient = 1, weeks = 1)
+        MockHarvest.reset(f)
+        val admin = signup()
+        val job = admin.post("/api/v1/imports/harvest", mapOf("token" to MockHarvest.TOKEN, "account_id" to MockHarvest.ACCOUNT_ID, "sync_until" to LocalDate.now(clock).plusDays(7))).expect(201)
+        val harvestUser = f.users.last()
+        val email = harvestUser["email"] as String
+        val id = admin.get("/api/v1/people", mapOf("limit" to 500)).expect(200)["data"].values().first { it["email"].asText() == email }["id"].asText()
+        admin.post("/api/v1/people/$id/invite").expect(200)
+        admin.patch("/api/v1/people/$id", mapOf("is_active" to false)).expect(200)
+
+        // In Harvest they're still active, and something else about them changed.
+        harvestUser["weekly_capacity"] = 108_000
+        harvestUser["updated_at"] = Instant.now().plusSeconds(1).toString()
+        admin.post("/api/v1/imports/${job.id()}/sync").expect(200)
+
+        val after = admin.get("/api/v1/people/$id").expect(200)
+        assertThat(after["is_active"].asBoolean()).isFalse()
+        assertThat(after["weekly_capacity_seconds"].asInt()).isEqualTo(108_000)
+        assertThat(admin.get("/api/v1/imports/${job.id()}/issues").expect(200).body.values().map { it["reason"].asText() })
+            .anyMatch { it.contains("active in Harvest but deactivated here") }
+    }
+
+    @Test
     fun `a sync window ends by itself on its last day`() {
         MockHarvest.reset(HarvestFixture.agency(seed = 22, people = 1, clients = 1, projectsPerClient = 1, weeks = 1))
         val admin = signup()

@@ -3182,11 +3182,25 @@
         "operationId" : "people_create",
         "parameters" : [ {
           "in" : "query",
-          "name" : "confirm_new_seat",
+          "name" : "confirm_unit_price_minor",
           "required" : false,
           "schema" : {
-            "type" : "boolean",
-            "default" : false
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_currency",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_interval",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "requestBody" : {
@@ -3252,11 +3266,25 @@
           }
         }, {
           "in" : "query",
-          "name" : "confirm_new_seat",
+          "name" : "confirm_unit_price_minor",
           "required" : false,
           "schema" : {
-            "type" : "boolean",
-            "default" : false
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_currency",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_interval",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "requestBody" : {
@@ -3297,11 +3325,25 @@
           }
         }, {
           "in" : "query",
-          "name" : "confirm_new_seat",
+          "name" : "confirm_unit_price_minor",
           "required" : false,
           "schema" : {
-            "type" : "boolean",
-            "default" : false
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_currency",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_interval",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {
@@ -3332,11 +3374,25 @@
           }
         }, {
           "in" : "query",
-          "name" : "confirm_new_seat",
+          "name" : "confirm_unit_price_minor",
           "required" : false,
           "schema" : {
-            "type" : "boolean",
-            "default" : false
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_currency",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confirm_interval",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {
