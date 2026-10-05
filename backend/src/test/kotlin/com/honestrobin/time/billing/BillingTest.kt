@@ -615,9 +615,23 @@ class BillingTest : IntegrationTest() {
         invite(admin)
         assertThat(deliver(subscriptionEvent(account, quantity = 2))).isEqualTo(200)
         assertThat(deliver(subscriptionEvent(account, type = "subscription.past_due", status = "past_due", quantity = 2))).isEqualTo(200)
+        val subscription = "sub_test_$account"
         MockPaddle.calls.clear()
         withFreePlanOfOne {
-            val ended = admin.post("/api/v1/billing/cancellation").expect(200)
+            // Our record says past due, but Paddle has the payment by now: nothing ends at once.
+            val paid = admin.post("/api/v1/billing/cancellation", mapOf("ends" to "now")).expectError(409, "cancellation_changed")
+            assertThat(paid["details"]["ends"].asText()).isEqualTo("period_end")
+            assertThat(cancellations(account)).isEmpty()
+
+            // Paddle says past due. An admin who saw "at the end of this period" is asked again, and nothing changes.
+            MockPaddle.statuses[subscription] = "past_due"
+            val unpaid = admin.post("/api/v1/billing/cancellation", mapOf("ends" to "period_end")).expectError(409, "cancellation_changed")
+            assertThat(unpaid["details"]["ends"].asText()).isEqualTo("now")
+            assertThat(cancellations(account)).isEmpty()
+            assertThat(accountStatus(admin)).isEqualTo("active")
+
+            // With a yes to "now", the plan ends now.
+            val ended = admin.post("/api/v1/billing/cancellation", mapOf("ends" to "now")).expect(200)
             assertThat(ended["plan"].asText()).isEqualTo("free")
             assertThat(ended["status"].asText()).isEqualTo("canceled")
             assertThat(cancellations(account).single().body!!["effective_from"].asText()).isEqualTo("immediately")
@@ -627,9 +641,10 @@ class BillingTest : IntegrationTest() {
             exportWorks(admin)
             // Paddle's webhook agrees, and asking again sends nothing.
             assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2))).isEqualTo(200)
-            admin.post("/api/v1/billing/cancellation").expectError(409, "no_subscription")
+            admin.post("/api/v1/billing/cancellation", mapOf("ends" to "now")).expectError(409, "no_subscription")
             assertThat(cancellations(account)).hasSize(1)
         }
+        MockPaddle.statuses.remove(subscription)
     }
 
     @Test
