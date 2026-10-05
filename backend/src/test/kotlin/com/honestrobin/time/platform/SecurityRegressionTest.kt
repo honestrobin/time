@@ -114,6 +114,38 @@ class SecurityRegressionTest : IntegrationTest() {
             .expectError(422, "validation_failed")
     }
 
+    /**
+     * Found on 5 October 2026, when jOOQ began refusing queries outside a transaction (decision
+     * record 0027): since 4 October, editing an invoice ran without one, so as the database user,
+     * which row-level security doesn't apply to in the Compose setup. Someone allowed to invoice in
+     * one account could read and change another account's invoice by its id, payment instructions
+     * included, and a refused edit kept what it had saved before the refusal.
+     */
+    @Test
+    fun `another account's invoice can't be read or changed by its id, and a refused edit changes nothing`() {
+        val owner = signup(accountName = "Owner")
+        val created = owner.post("/api/v1/invoices", mapOf("client_id" to createClient(owner), "subject" to "September", "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 10_000))))
+            .expect(201)
+        val id = created.id()
+        val outsider = signup(accountName = "Outsider")
+        outsider.get("/api/v1/invoices/$id").expectError(404, "not_found")
+        outsider.patch("/api/v1/invoices/$id", mapOf("subject" to "Changed from another account")).expectError(404, "not_found")
+        outsider.patch("/api/v1/invoices/$id", mapOf("payment_instructions" to "Pay to another account")).expectError(404, "not_found")
+        val untouched = owner.get("/api/v1/invoices/$id").expect(200)
+        assertThat(untouched["subject"].asText()).isEqualTo("September")
+        assertThat(untouched["payment_instructions"]).isEqualTo(created["payment_instructions"])
+
+        // A refused edit is refused whole: the new total would be less than what's already paid.
+        owner.post("/api/v1/invoices/$id/mark_sent").expect(200)
+        owner.post("/api/v1/invoices/$id/payments", mapOf("amount" to 5_000)).expect(201)
+        owner.patch("/api/v1/invoices/$id", mapOf("subject" to "Smaller", "lines" to listOf(mapOf("description" to "Less", "quantity" to 1, "unit_price" to 1_000))))
+            .expectError(422, "validation_failed")
+        val after = owner.get("/api/v1/invoices/$id").expect(200)
+        assertThat(after["subject"].asText()).isEqualTo("September")
+        assertThat(after["lines"].values().map { it["description"].asText() }).containsExactly("Work")
+        assertThat(after["total"].asLong()).isEqualTo(untouched["total"].asLong())
+    }
+
     @Test
     fun `malformed cursors are a bad request, not a server error`() {
         val admin = signup()
