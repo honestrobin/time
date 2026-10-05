@@ -122,7 +122,7 @@ dependencies {
     codegenImplementation("org.flywaydb:flyway-database-postgresql")
     codegenImplementation("org.testcontainers:testcontainers-postgresql")
     codegenRuntimeOnly("org.postgresql:postgresql")
-    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
 }
 
 val jooqCodegen by tasks.registering(JavaExec::class) {
