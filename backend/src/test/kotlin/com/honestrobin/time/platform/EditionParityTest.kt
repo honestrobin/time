@@ -13,7 +13,8 @@ import java.io.File
 
 /**
  * AT-0.2: the edition flag toggles only the allowed modules (trust charter §1.2.3).
- * Boots the application in both editions and compares every HTTP endpoint and bean.
+ * Boots the application in both editions and compares their HTTP endpoints (beans aren't
+ * compared), and scans the main code for references to the edition outside the allowed packages.
  */
 class EditionParityTest {
 
