@@ -9,33 +9,18 @@ particular to Time, and where the two disagree, stop and ask.
 
 ## Project rules
 
-- **Honest, in everything.** It's the core value, in the UI, emails, docs, pricing, billing,
-  uptime and in how the product is made (by Claude, said openly). Honest means no lies, nothing
-  shady, and a straight answer to a straight question, also when it doesn't flatter us. It does
-  not mean publishing everything about ourselves: say what a reader needs in order to decide,
-  once and plainly, and keep back what could be used against a customer or the project (an
-  unfixed security problem, for example). That is never a cover for misleading anyone: leave no
-  false impression, and what affects a customer (prices, limits, outages, a mistake that touches
-  their data or money) they hear without asking. The rule in full is "We
-  tell you the truth" in the Robin's Code (honestrobin.com/code).
-- **A joy to use: professional, and playful.** Simple first, powerful when needed. The robin
-  keeps people company; words sound like a person. No tricks, nagging, corporate language or AI
-  for its own sake: treat any of those as a bug (`docs/design.md`).
-- **You come first.** When what's good for us and what's good for the people using Time pull
-  apart, pick them, and if we can't, say so and why. They're always right about what they need:
-  start from what they say is missing or in their way, and work back.
+- **Honest Robin's rules come first.** They're in
+  [honestrobin/robinscode](https://github.com/honestrobin/robinscode) (`rules/`), with the
+  promises (`robins-code.md`), and they load in every session in the workspace. This file only adds
+  what's particular to Time; it doesn't restate them, so the two can't drift apart.
 - **Global by default.** No defaults, copy or compliance scoped to one country or region
   (decision record 0009). Country rules go in modules behind a neutral core.
-- **Plain English** in the UI, emails and docs: short sentences, no jargon.
-- **Copy we can stand behind.** Say what Time does, never an outcome nobody could enforce. A joy
-  to read: a little wit in chosen places, never on money, data or errors. Name a promise ("You can
-  always leave"); never cite it by number.
-- **The trust charter** (README, "Our promises"; Time's part of the Robin's Code at
-  honestrobin.com/code) is guarded by tests in code: nothing is metered
-  for billing, export always works, and the editions have the same features. Tests stop a promise
-  breaking by accident, not on purpose, so never call a check a guarantee. Edition-specific code
-  (cloud vs self-host) lives only in `billing`, `analytics` and `platform.edition`;
-  `EditionParityTest` checks it.
+- **The ledger.** `PROMISES.md` lists every promise Time makes and what keeps it today. A change
+  that builds, breaks, renames or moves what a row points at updates that row in the same commit,
+  and a test it names changes only with the maintainer. Edition-specific code (cloud vs self-host)
+  lives only in `billing`, `analytics` and `platform.edition`; `EditionParityTest` checks it.
+- **The changelog.** A change people will notice adds a line under "Unreleased" in `CHANGELOG.md`,
+  in their words, in the same pull request, so it's there before it reaches Honest Robin Cloud.
 - **Nothing private in the repository:** it is public. No secrets, credentials or personal data,
   not even in tests (use stand-ins like `MockStripe`).
 - Commits follow Conventional Commits, with a body that says why. Record decisions someone might
