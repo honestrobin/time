@@ -26,6 +26,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 |---|---|---|
 | Invoices to your clients: the total in the app, on the PDF and charged online comes from the same arithmetic, checked against the same worked examples, and we take no fee from your client's payment. | Tested | `frontend/src/lib/invoiceMath.test.ts::matches the server's worked example for two named taxes and a discount`, `backend/src/test/kotlin/com/honestrobin/time/invoicing/InvoicingTest.kt::two named taxes and a discount compute like the worked example (AT-3_3)`, `backend/src/test/kotlin/com/honestrobin/time/payments/OnlinePaymentsTest.kt::with no fee taken (AT-3_4)` |
 | Your Time subscription: you see the exact amount before you're charged. Not yet. The billing page shows our list price, while Paddle charges its own price setup. The page counts the people who can sign in, but checkout also counts pending invitations. A seat added on the Team plan is billed straight away, prorated, without showing the amount first. | Not built | |
+| Nobody pays for an invitation until it's accepted: a person counts from the moment they can sign in. Not yet. Today checkout and seat changes count pending invitations; a fix is in progress. | Not built | |
 | The price list is public and complete. The price isn't decided yet; the website says so, and it will be there before anyone pays. | Not built | |
 | Nothing is metered for billing: Honest Robin Cloud limits seats only. Where anyone can sign up, mail also has daily limits against abuse (50 invitations and 300 invoice recipients a day). They're never billed. | Built, no test | |
 | Sending e-invoices over Peppol uses your own Storecove account, so there's nothing for us to pass on. | Doesn't apply | |
@@ -117,6 +118,4 @@ the words, or the code.
 
 - The Robin's Code promises you see the exact amount before you're charged, and that adding a
   person beyond your plan asks first and shows the price. Seat changes on the Team plan don't yet.
-- The Robin's Code says nothing stores an identifier in your browser for analytics. The app keeps
-  the account's id there, and page views use it.
 - The Robin's Code promises a person one step from every help screen. There's no help screen yet.
