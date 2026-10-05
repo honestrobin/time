@@ -9,6 +9,12 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- On Honest Robin Cloud, an account that turned read-only when its Team plan ended can deactivate
+  people. As soon as no more people can sign in than the free plan holds, it works again. The
+  billing page and the read-only notice say how.
+- After a Team plan ends, accepting an invitation that the free plan has no room for is refused,
+  and the person invited is asked to talk to whoever invited them. Before, they got in and the
+  account turned read-only for everyone.
 - While an account is read-only (lapsed, or waiting to be deleted), an admin can still end every
   connection: disconnect Stripe, QuickBooks, Xero and Peppol, stop a Harvest sync or cancel a
   stopped import, revoke anyone's token or signed-in device, and withdraw an invitation. The Move
