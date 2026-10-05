@@ -277,12 +277,16 @@
     "lead": "One person is free. A team pays per person who can sign in, and nothing else.",
     "unavailable": "Billing isn't set up on this instance yet.",
     "freeTitle": "Free plan",
-    "freeBody": "For one person, with every feature. To work with your team, start a Team subscription: you pay per person who can sign in, and people you deactivate are free.",
+    "freeBody": "For one person, with every feature. To work with your team, start a Team subscription: you pay for each person who can sign in. Invitations are free until they're accepted, and so are people you deactivate.",
     "interval": {
       "month": "Monthly",
       "year": "Yearly"
     },
     "perSeat": "{{price}} per person per month",
+    "unitPrice": {
+      "month": "{{price}} per person a month",
+      "year": "{{price}} per person a year"
+    },
     "totalYear_one": "{{count}} person: {{total}} a year",
     "totalYear_other": "{{count}} people: {{total}} a year",
     "totalMonth_one": "{{count}} person: {{total}} a month",
@@ -293,12 +297,14 @@
     "pastDue": "The last payment didn't go through. Update the payment method to keep the subscription.",
     "seats": "People",
     "seatsValue": "{{used}} can sign in; billed for {{billed}}",
+    "invitationsWaiting_one": "{{count}} invitation waiting: not billed until accepted",
+    "invitationsWaiting_other": "{{count}} invitations waiting: not billed until accepted",
     "price": "Price",
     "billed": "Billed",
     "renews": "Renews on",
     "ends": "Ends on",
-    "priceLock": "Your price is locked at {{price}} per person per month for as long as this subscription runs. Honest Robin refuses any change that would raise it, also when list prices go up.",
-    "seatsHint": "The number of people billed follows the people who can sign in, within a few minutes of a change.",
+    "priceLock": "Your price is locked at {{price}} for as long as this subscription runs. Honest Robin refuses any change that would raise it, also when list prices go up.",
+    "seatsHint": "You pay for the people who can sign in. Someone who accepts an invitation, or comes back, counts from that moment. Someone you deactivate stops counting within a few minutes.",
     "manage": "Payment method and invoices"
   },
   "developers": {
