@@ -86,7 +86,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Promise | Status | Guarded by |
 |---|---|---|
 | No mail meant to bring you back. Timesheet reminders, invoice reminders and budget alerts stay off until someone turns them on. Some mail can't be turned off: a rejected timesheet, security notices, a finished export, and account deletion. | Built, no test | |
-| A person is one step away from every help screen. Time has no help screen yet. | Not built | |
+| A person is one step away from every page: Help, at the foot of the menu or behind `?`, first shows the address where a person reads every message and answers it. | Tested | `frontend/src/features/shell/AppShell.test.tsx::a person is one step away from every page, in both editions`, `frontend/src/features/shell/AppShell.test.tsx::the ? key opens help too`, `e2e/tests/10-m1-tour.spec.ts::M1 pages render with data and without raw translation keys` |
 | No AI without a reason: Time has no AI features. | Doesn't apply | |
 
 ## We trust you too
@@ -118,4 +118,3 @@ the words, or the code.
 
 - The Robin's Code promises you see the exact amount before you're charged, and that adding a
   person beyond your plan asks first and shows the price. Seat changes on the Team plan don't yet.
-- The Robin's Code promises a person one step from every help screen. There's no help screen yet.
