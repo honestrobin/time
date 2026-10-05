@@ -9,6 +9,7 @@ import { errorInfo } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
 import { accountQuery } from "./AccountSettingsPage";
 import { call, startTeamCheckout, subscriptionQuery } from "./billing";
+import { CancelPlan } from "./CancelPlan";
 
 export function BillingPage() {
   const { t } = useTranslation();
@@ -148,6 +149,7 @@ export function BillingPage() {
               {t("billing.manage")}
             </Button>
           </div>
+          <CancelPlan subscription={s} />
         </section>
       )}
     </div>

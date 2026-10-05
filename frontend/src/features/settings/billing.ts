@@ -37,7 +37,7 @@ interface Checkout {
   custom_data: Record<string, string>;
 }
 
-export async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+export async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     credentials: "include",

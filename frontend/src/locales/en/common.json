@@ -314,7 +314,23 @@
     "ends": "Ends on",
     "priceLock": "Your price is locked at {{price}} for as long as this subscription runs. Honest Robin refuses any change that would raise it, also when list prices go up.",
     "seatsHint": "You pay for the people who can sign in. Someone who accepts an invitation, or comes back, counts from that moment. Someone you deactivate stops counting within 15 minutes.",
-    "manage": "Payment method and invoices"
+    "manage": "Payment method and invoices",
+    "cancel": {
+      "button": "Cancel the Team plan",
+      "title": "Cancel the Team plan",
+      "until": "Everything stays as it is until {{date}}, the end of the period you've paid for. The plan doesn't renew after that.",
+      "untilEnd": "Everything stays as it is until the end of the period you've paid for. The plan doesn't renew after that.",
+      "after_one": "Then the account moves to the free plan, for {{count}} person.",
+      "after_other": "Then the account moves to the free plan, for {{count}} people.",
+      "choose_one": "Now {{used}} people can sign in. If more than {{count}} still can on that day, the account is read-only until you choose who stays: deactivating someone keeps everything they tracked. Or start Team again.",
+      "choose_other": "Now {{used}} people can sign in. If more than {{count}} still can on that day, the account is read-only until you choose who stays: deactivating someone keeps everything they tracked. Or start Team again.",
+      "data": "Your data stays as it is, and export works on every plan.",
+      "undo": "Until then, you can keep the Team plan here with one click.",
+      "confirm": "Cancel at the end of this period",
+      "scheduled": "The Team plan ends on {{date}}. Until then, everything stays as it is.",
+      "keep": "Keep the Team plan",
+      "keepHint": "It then renews on {{date}} as before, at your locked price of {{price}}."
+    }
   },
   "developers": {
     "title": "API",
