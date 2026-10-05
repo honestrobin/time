@@ -16,7 +16,7 @@
     "toolsBody": "The zip's csv folder has spreadsheets of your time entries, expenses, invoices, clients, contacts, projects, tasks and people. Most time tracking, invoicing and accounting tools can import them.",
     "connectedTitle": "Still connected",
     "connectedLead": "Everything that still connects to this account, and how to end each one. People in your team who sign in aren't listed: deactivate them in Team.",
-    "readOnly": "This account is read-only, and you can still end each of these, here or on the page it links to. Ending a connection only removes access.",
+    "readOnly": "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. Deactivating people waits until the account is active again.",
     "nothingConnected": "Nothing is connected: no tokens, devices, invitations, outside services or invoice links.",
     "what": "What",
     "howToEnd": "How to end it",
@@ -101,6 +101,9 @@
     },
     "dataRedrawn": "Time doesn't keep a copy of each invoice as it was sent: the files are drawn from today's data. An invoice that changed since you sent it (edited, paid, or with a new company address) looks different from the one your client received.",
     "withdraw": "Withdraw",
-    "withdrawn": "The invitation is withdrawn."
+    "withdrawn": "The invitation is withdrawn.",
+    "withdrawTitle": "Withdraw the invitation for {{name}}?",
+    "withdrawBody": "Its link stops working.",
+    "withdrawBodyReadOnly": "Inviting them again waits until the account is active again."
   }
 }

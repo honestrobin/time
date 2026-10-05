@@ -7189,6 +7189,9 @@
           "can_resume" : {
             "type" : "boolean"
           },
+          "connected" : {
+            "type" : "boolean"
+          },
           "created_at" : {
             "type" : "string",
             "format" : "date-time"
@@ -7247,7 +7250,7 @@
             } ]
           }
         },
-        "required" : [ "can_resume", "created_at", "id", "issue_count", "mode", "progress", "source", "stats", "status" ]
+        "required" : [ "can_resume", "connected", "created_at", "id", "issue_count", "mode", "progress", "source", "stats", "status" ]
       },
       "ImportedAccount" : {
         "properties" : {

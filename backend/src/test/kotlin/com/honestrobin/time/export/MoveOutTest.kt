@@ -227,10 +227,13 @@ class MoveOutTest : IntegrationTest() {
             // Where each one is ended in Time; invoice links end only with the account.
             assertThat(list.associate { "${it["kind"].asText()}:${it.text("name")}" to it.text("end_in") }).containsAllEntriesOf(
                 mapOf(
-                    "api_token:Reports script" to "/settings/profile", "device:Browser extension (Firefox)" to "/settings/profile",
+                    "api_token:Reports script" to "/settings/move-out", "device:Browser extension (Firefox)" to "/settings/move-out",
                     "stripe:Totara Works Ltd" to "/settings/payments", "qbo:Totara Books" to "/settings/accounting", "xero:Totara Ledger" to "/settings/accounting",
-                    "storecove:Storecove" to "/settings/invoices", "harvest_sync:1234567" to "/settings/import", "harvest_import:7654321" to "/settings/import",
-                    "invoice_links:null" to null, "invoice_reminders:null" to "/settings/invoices", "invitation:Ana Pending" to "/team",
+                    "storecove:Storecove" to "/settings/invoices",
+                    // Straight to that import on the Import page.
+                    "harvest_sync:1234567" to "/settings/import#import-${one("harvest_sync").text("id")}",
+                    "harvest_import:7654321" to "/settings/import#import-${one("harvest_import").text("id")}",
+                    "invoice_links:null" to null, "invoice_reminders:null" to "/settings/invoices", "invitation:Ana Pending" to "/settings/move-out",
                 ),
             )
 

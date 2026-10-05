@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, PageHeader, TextField } from "../../design";
+import { Button, Checkbox, PageHeader, TextField, useToast } from "../../design";
 import { CsvImport } from "./CsvImport";
 import { api, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDateTime, formatDuration, formatMoney, formatMonth } from "../../lib/format";
@@ -99,6 +99,7 @@ export function ImportPage() {
       ) : (
         <Start />
       )}
+      <StillConnected jobs={(jobs.data ?? []).slice(1).filter((j) => j.connected)} />
       {latest && !active(latest) && latest.status !== "failed" && latest.status !== "syncing" && !(csv && latest.status === "preview") && (
         <details className="import-again">
           <summary>{t("import.again")}</summary>
@@ -203,17 +204,67 @@ function StartForm() {
   );
 }
 
+/** The actions on one import; each says what went wrong if it's refused. */
+function useJobActions(job: Job) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const options = { onSuccess: () => qc.invalidateQueries({ queryKey: ["imports"] }), onError: (e: Error) => toast(errorInfo(e).message, "error") };
+  const path = { params: { path: { id: job.id } } };
+  return {
+    resume: useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/resume", path)), ...options }),
+    cancel: useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/cancel", path)), ...options }),
+    syncNow: useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/sync", path)), ...options }),
+    stopSync: useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/stop_sync", path)), ...options }),
+  };
+}
+
+/**
+ * Older imports that still connect to Harvest: a sync, or a stopped import that keeps its token.
+ * Each can be ended here, also while the account is read-only (Move out links to each one).
+ */
+function StillConnected({ jobs }: { jobs: Job[] }) {
+  const { t } = useTranslation();
+  if (jobs.length === 0) return null;
+  return (
+    <section className="section stack">
+      <h2>{t("import.connectedTitle")}</h2>
+      <p className="muted">{t("import.connectedLead")}</p>
+      <ul className="stack">
+        {jobs.map((j) => (
+          <ConnectedImport key={j.id} job={j} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ConnectedImport({ job }: { job: Job }) {
+  const { t } = useTranslation();
+  const { cancel, stopSync } = useJobActions(job);
+  const values = { account: job.external_account_id ?? "", date: formatDateTime(job.created_at), until: job.sync_until ? formatDateTime(job.sync_until) : "—" };
+  const syncing = job.status === "syncing";
+  return (
+    <li id={`import-${job.id}`} className="row">
+      <span className="spacer">{syncing ? t("import.connectedSyncing", values) : t("import.connectedKept", values)}</span>
+      {syncing ? (
+        <Button size="sm" busy={stopSync.isPending} onClick={() => stopSync.mutate()}>
+          {t("import.stopSync")}
+        </Button>
+      ) : (
+        <Button size="sm" busy={cancel.isPending} onClick={() => cancel.mutate()}>
+          {t("import.cancel")}
+        </Button>
+      )}
+    </li>
+  );
+}
+
 function JobView({ job }: { job: Job }) {
   const { t } = useTranslation();
-  const qc = useQueryClient();
   const progress = (job.progress ?? {}) as Progress;
   const done = new Set(progress.done ?? []);
   const counts = progress.counts ?? {};
-  const refresh = () => qc.invalidateQueries({ queryKey: ["imports"] });
-  const resume = useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/resume", { params: { path: { id: job.id } } })), onSuccess: refresh });
-  const cancel = useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/cancel", { params: { path: { id: job.id } } })), onSuccess: refresh });
-  const syncNow = useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/sync", { params: { path: { id: job.id } } })), onSuccess: refresh });
-  const stopSync = useMutation({ mutationFn: () => unwrap(api.POST("/api/v1/imports/{id}/stop_sync", { params: { path: { id: job.id } } })), onSuccess: refresh });
+  const { resume, cancel, syncNow, stopSync } = useJobActions(job);
   const finished = job.status === "completed" || job.status === "syncing";
   const verification = job.verification as Verification | null | undefined;
 
@@ -225,7 +276,7 @@ function JobView({ job }: { job: Job }) {
   };
 
   return (
-    <div className="stack">
+    <div className="stack" id={`import-${job.id}`}>
       {job.status === "syncing" && (
         <div className="notice notice-ok stack">
           <p>
@@ -296,6 +347,14 @@ function JobView({ job }: { job: Job }) {
       {active(job) && (
         <div className="row">
           <span className="muted">{t("import.running")}</span>
+          <Button variant="ghost" busy={cancel.isPending} onClick={() => cancel.mutate()}>
+            {t("import.cancel")}
+          </Button>
+        </div>
+      )}
+      {/* Any other state that still keeps a Harvest token can be ended too. */}
+      {job.connected && !active(job) && job.status !== "syncing" && job.status !== "failed" && (
+        <div className="row">
           <Button variant="ghost" busy={cancel.isPending} onClick={() => cancel.mutate()}>
             {t("import.cancel")}
           </Button>

@@ -75,8 +75,7 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
 
     /**
      * An admin ends anyone's token or signed-in device in the account, such as one of someone who
-     * has left. Ending access only removes access, so it works while the account is read-only
-     * ("You can always leave").
+     * has left. Ending a connection works while the account is read-only (decision record 0024).
      */
     @Transactional
     fun revokeInAccount(admin: Member, id: UUID) {

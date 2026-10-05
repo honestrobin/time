@@ -214,9 +214,9 @@ class PeopleService(
     }
 
     /**
-     * Withdraws an invitation: its links stop working, and the person can be invited again later.
-     * Ending access only removes access, so it works while the account is read-only ("You can
-     * always leave").
+     * Withdraws an invitation: its links stop working, and the person can be invited again once
+     * the account is active. Ending a connection works while the account is read-only (decision
+     * record 0024).
      */
     @Transactional
     fun withdrawInvite(m: Member, id: UUID): PersonView {
