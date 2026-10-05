@@ -112,6 +112,28 @@
         "tags" : [ "account" ]
       }
     },
+    "/api/v1/account/connections" : {
+      "get" : {
+        "operationId" : "account_data_list_connections",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConnectionView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Everything still connected to the account, and where each is ended (admins)",
+        "tags" : [ "account" ]
+      }
+    },
     "/api/v1/account/deletion" : {
       "delete" : {
         "operationId" : "account_data_cancel_deletion",
@@ -141,6 +163,25 @@
           }
         },
         "summary" : "Schedule the account for deletion after the grace period (admins)",
+        "tags" : [ "account" ]
+      }
+    },
+    "/api/v1/account/move_out" : {
+      "post" : {
+        "operationId" : "account_data_move_out",
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoveOutView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Move out (admins): export everything and list what's still connected. Changes nothing else.",
         "tags" : [ "account" ]
       }
     },
@@ -6257,6 +6298,42 @@
         },
         "required" : [ "contacts", "created_at", "currency", "id", "is_active", "name", "updated_at" ]
       },
+      "ConnectionView" : {
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "end_in" : {
+            "type" : "string"
+          },
+          "ends_at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "last_used_at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "membership_id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "person" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind" ]
+      },
       "ContactInput" : {
         "properties" : {
           "email" : {
@@ -7902,6 +7979,20 @@
           }
         },
         "required" : [ "accounts", "email", "email_verification_required", "email_verified", "has_password", "id", "is_instance_admin", "locale", "name", "two_factor_enabled", "two_factor_setup_required" ]
+      },
+      "MoveOutView" : {
+        "properties" : {
+          "connections" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConnectionView"
+            }
+          },
+          "export" : {
+            "$ref" : "#/components/schemas/AccountExportView"
+          }
+        },
+        "required" : [ "connections", "export" ]
       },
       "MyAccount" : {
         "properties" : {

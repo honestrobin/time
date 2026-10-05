@@ -144,6 +144,15 @@ class AccountExportService(
         return views(listOf(r)).single()
     }
 
+    /** Moving out: a new export, or the one already being prepared. */
+    @Transactional
+    fun requestOrRunning(m: Member): AccountExportView {
+        m.requireAdmin()
+        val running = dsl.selectFrom(ACCOUNT_EXPORTS).where(ACCOUNT_EXPORTS.STATUS.`in`("queued", "running"))
+            .orderBy(ACCOUNT_EXPORTS.CREATED_AT.desc()).limit(1).fetchOne()
+        return if (running != null) views(listOf(running)).single() else request(m)
+    }
+
     @Transactional(readOnly = true)
     fun list(m: Member): List<AccountExportView> {
         m.requireAdmin()
@@ -375,6 +384,7 @@ class AccountDataJobsConfig {
 @Tag(name = "account", description = "Exporting, importing and deleting accounts")
 class AccountDataController(
     private val exports: AccountExportService,
+    private val connections: ConnectionsService,
     private val deletions: AccountDeletionService,
     private val importer: AccountImporter,
     private val settings: AccountDataSettings,
@@ -394,6 +404,24 @@ class AccountDataController(
 
     @GetMapping("/exports")
     fun listExports(): List<AccountExportView> = exports.list(Current.member())
+
+    /**
+     * Moving out, in one step: starts an export of everything (or returns the one being prepared)
+     * and lists what's still connected. It changes nothing else: cancelling and deleting are
+     * separate steps. Works on every plan and in every state of an account.
+     */
+    @PostMapping("/account/move_out")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Move out (admins): export everything and list what's still connected. Changes nothing else.")
+    fun moveOut(): MoveOutView {
+        recentAuth.requireUnlessApiToken()
+        val m = Current.member()
+        return MoveOutView(exports.requestOrRunning(m), connections.list(m))
+    }
+
+    @GetMapping("/account/connections")
+    @Operation(summary = "Everything still connected to the account, and where each is ended (admins)")
+    fun listConnections(): List<ConnectionView> = connections.list(Current.member())
 
     @GetMapping("/exports/{id}/download")
     @Operation(summary = "Download a finished export as a zip")
