@@ -101,7 +101,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Promise | Status | Guarded by |
 |---|---|---|
 | Your data is stored in the EU: Honest Robin Cloud runs on Hetzner's servers in Nuremberg, Germany. On its way there it passes through Cloudflare, an American company, which doesn't store it. | By hand | |
-| Every company that touches your data is listed, with its country, and the list is checked against the hosts the code may reach. | Not built | |
+| Every company that touches your data is listed in [`docs/companies.md`](docs/companies.md), with its country and what it does, and a test fails when the code can reach a host that isn't on it. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/CompanyListTest.kt::every outside host the code can reach is on the public list of companies`, `backend/src/test/kotlin/com/honestrobin/time/platform/CompanyListTest.kt::every host kept off the list is still in the code` |
 
 ## You can see how it's made
 
