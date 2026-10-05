@@ -23,7 +23,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/** Wraps and unwraps data-encryption keys. Self-host: a local key file. Cloud: a KMS-backed implementation. */
+/** Wraps and unwraps data-encryption keys with a key from a file or HONESTROBIN_SECRETS_KEY, in both editions. There's no KMS (decision record 0025). */
 interface KeyEncryptionKeyProvider {
     val keyId: String
     fun wrap(dek: ByteArray): ByteArray

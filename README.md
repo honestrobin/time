@@ -5,8 +5,8 @@ come from Harvest expect, can import your Harvest account, and has e-invoicing b
 Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
 [Honest Robin](https://honestrobin.com) products: a joy to use, honest, and you come first.
 
-> **Not released yet.** Version 1 is feature-complete and being tried out before a first release.
-> See the [roadmap](ROADMAP.md) for what's built and what's still to check.
+> **Not released yet.** Version 1 is built and being tried out before a first release. See the
+> [roadmap](ROADMAP.md) for what's built, what isn't, and what's still to check.
 
 ![The week timesheet](docs/screenshots/timesheet.png)
 
@@ -24,8 +24,8 @@ How it's made is in the open:
   history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
   with the reasoning.
-- **The code is tested:** around 190 backend tests in two editions, frontend and extension tests,
-  and end-to-end tests that run the packaged app and the browser extension in a real browser. The
+- **The code is tested:** backend tests in both editions, frontend and extension tests, and
+  end-to-end tests that run the packaged app and the browser extension in a real browser. The
   Harvest import compares hours, billable amounts and invoice totals with
   Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
   e-invoices are checked against the official validation rules.
@@ -57,13 +57,14 @@ Reports of anything that looks wrong are very welcome; see
 
 What we promise, and what holds us to it:
 
-1. **No usage-based pricing.** Nothing is metered for billing. Honest Robin Cloud's plans differ only in seats (where anyone can sign up, daily mail limits guard against abuse), and the self-hosted edition has no limits.
+1. **No usage-based pricing.** Nothing is metered for billing. Honest Robin Cloud's plans differ only in seats, and the self-hosted edition has no plan limits. Where anyone can sign up, daily mail limits guard against abuse; they're never billed.
 2. **Export always works,** including on free and lapsed accounts.
-3. **The self-hosted edition is complete:** the same code with the same features. A test fails if the editions differ.
-4. **No dark patterns:** no hidden fees, no forced annual plans, and you cancel in the app, in two clicks.
+3. **The self-hosted edition is complete:** the same code with the same features. Tests fail if the editions' endpoints differ, apart from paying for Honest Robin Cloud, or if code outside billing, analytics and the edition switch tells them apart.
+4. **No dark patterns:** no hidden fees, no forced annual plans, and you cancel Honest Robin Cloud in the app, in two clicks. Not in the 30 minutes before a renewal: Paddle takes no changes then, the app says so, and a renewal charged after that needs a person.
 
-The second and third are guarded by tests, so they can't break by accident; the first isn't
-tested yet. Code can't stop us breaking a promise on purpose, though, so all four will also go into the terms of service. And the last
+Tests guard the first three, and the monthly-or-yearly choice and cancelling in the fourth, so a
+change that breaks them by accident fails. Billing is tested against a stand-in for Paddle, not Paddle itself. Code
+can't stop us breaking a promise on purpose, though, so all four will also go into the terms of service. And the last
 guarantee is yours: you can export everything and run the same software yourself.
 
 They sit on top of the [Robin's Code](https://honestrobin.com/code), the promises every Honest
