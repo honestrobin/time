@@ -175,6 +175,11 @@ curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api
 curl -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/account/connections
 ```
 
+Ending a connection works in every state of an account, also while it's read-only: the
+Disconnect endpoints of Stripe, QuickBooks, Xero and Peppol, stopping a Harvest sync or cancelling
+an import, `DELETE /api/v1/account/api_tokens/{id}` (an admin revokes anyone's token or device)
+and `DELETE /api/v1/people/{id}/invite` (withdraws an invitation).
+
 ## Stability
 
 Paths are versioned (`/api/v1`). Within v1, fields and endpoints are added but not removed or

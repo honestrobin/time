@@ -9,6 +9,11 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- While an account is read-only (lapsed, or waiting to be deleted), an admin can still end every
+  connection: disconnect Stripe, QuickBooks, Xero and Peppol, stop a Harvest sync or cancel a
+  stopped import, revoke anyone's token or signed-in device, and withdraw an invitation. The Move
+  out page has Revoke and Withdraw buttons for these. Connecting or changing anything still waits
+  until the account is active again.
 - Move out, in Settings → Account: one step gets everything ready for leaving, and changes
   nothing in your account. You get one zip of all your data, with every invoice as a PDF and as an
   e-invoice where it has the data. The Move out page says where you can go next, and lists
