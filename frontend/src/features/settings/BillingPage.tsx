@@ -4,77 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, PageHeader, useToast } from "../../design";
-import { ApiError, authHeaders, errorInfo } from "../../lib/api";
+import { errorInfo } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
-
-// The billing endpoints exist in the cloud edition only, so they're not in the generated client
-// (which describes the self-hosted API); these types mirror BillingController.kt.
-interface PlanPrice {
-  interval: "month" | "year";
-  currency: string;
-  per_seat_per_month_minor: number;
-}
-interface Subscription {
-  plan: "free" | "team";
-  status: string;
-  seats_used: number;
-  seats_billed?: number;
-  interval?: "month" | "year";
-  currency?: string;
-  locked_unit_price_minor?: number;
-  current_period_end?: string;
-  cancel_at?: string;
-  billing_available: boolean;
-  prices: PlanPrice[];
-}
-interface Checkout {
-  environment: string;
-  client_token: string;
-  price_id: string;
-  quantity: number;
-  email: string;
-  custom_data: Record<string, string>;
-}
-
-async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method,
-    credentials: "include",
-    headers: { ...authHeaders(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({ code: `http_${res.status}`, message: res.statusText }));
-  if (!res.ok) throw new ApiError(res.status, json);
-  return json as T;
-}
-
-const subscriptionQuery = { queryKey: ["billing", "subscription"], queryFn: () => call<Subscription>("GET", "/api/v1/billing/subscription") };
-
-interface PaddleGlobal {
-  Environment: { set: (env: string) => void };
-  Initialize: (opts: { token: string; eventCallback?: (e: { name?: string }) => void }) => void;
-  Checkout: { open: (opts: { items: { priceId: string; quantity: number }[]; customer: { email: string }; customData: Record<string, string> }) => void };
-}
-
-/** Loads Paddle.js once; the checkout runs in Paddle's overlay, so card details never touch us. */
-function loadPaddle(): Promise<PaddleGlobal> {
-  const w = window as unknown as { Paddle?: PaddleGlobal };
-  if (w.Paddle) return Promise.resolve(w.Paddle);
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    s.onload = () => (w.Paddle ? resolve(w.Paddle) : reject(new Error("Paddle didn't load")));
-    s.onerror = () => reject(new Error("Paddle couldn't be reached"));
-    document.head.appendChild(s);
-  });
-}
-
-async function openCheckout(c: Checkout, onDone: () => void) {
-  const paddle = await loadPaddle();
-  if (c.environment === "sandbox") paddle.Environment.set("sandbox");
-  paddle.Initialize({ token: c.client_token, eventCallback: (e) => e.name === "checkout.completed" && onDone() });
-  paddle.Checkout.open({ items: [{ priceId: c.price_id, quantity: c.quantity }], customer: { email: c.email }, customData: c.custom_data });
-}
+import { call, startTeamCheckout, subscriptionQuery } from "./billing";
 
 export function BillingPage() {
   const { t } = useTranslation();
@@ -84,13 +16,12 @@ export function BillingPage() {
   const [waiting, setWaiting] = useState(false);
 
   const checkout = useMutation({
-    mutationFn: (interval: "month" | "year") => call<Checkout>("POST", "/api/v1/billing/checkout", { interval }),
-    onSuccess: (c) =>
-      openCheckout(c, () => {
+    mutationFn: (interval: "month" | "year") =>
+      startTeamCheckout(interval, () => {
         // Paddle tells us by webhook; give it a moment, then look again.
         setWaiting(true);
         setTimeout(() => void qc.invalidateQueries({ queryKey: ["billing"] }).then(() => setWaiting(false)), 4000);
-      }).catch((e: Error) => toast(e.message, "error")),
+      }),
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
   const portal = useMutation({
@@ -100,6 +31,10 @@ export function BillingPage() {
   });
 
   const s = sub.data;
+  // Open invitations are shown, never billed: a person counts once they can sign in.
+  const waitingInvitations = s && s.invitations_pending > 0 && (
+    <p className="muted small">{t("billing.invitationsWaiting", { count: s.invitations_pending })}</p>
+  );
   return (
     <div className="page page-narrow">
       <PageHeader title={t("billing.title")} lead={t("billing.lead")} />
@@ -115,6 +50,7 @@ export function BillingPage() {
                 .slice()
                 .reverse()
                 .map((p) => {
+                  // The same count checkout sends to Paddle: the people who can sign in.
                   const seats = Math.max(1, s.seats_used);
                   return (
                     <div key={p.interval} className="panel stack">
@@ -136,6 +72,7 @@ export function BillingPage() {
                 })}
             </div>
           )}
+          {waitingInvitations}
           {waiting && <p className="muted">{t("billing.waiting")}</p>}
         </section>
       )}
@@ -145,11 +82,14 @@ export function BillingPage() {
           {s.status === "past_due" && <p className="notice notice-warn">{t("billing.pastDue")}</p>}
           <dl className="facts">
             <dt>{t("billing.seats")}</dt>
-            <dd>{t("billing.seatsValue", { used: s.seats_used, billed: s.seats_billed ?? s.seats_used })}</dd>
+            <dd>
+              {t("billing.seatsValue", { used: s.seats_used, billed: s.seats_billed ?? s.seats_used })}
+              {waitingInvitations}
+            </dd>
             {s.locked_unit_price_minor != null && s.currency && (
               <>
                 <dt>{t("billing.price")}</dt>
-                <dd>{t("billing.perSeat", { price: formatMoney(s.locked_unit_price_minor, s.currency) })}</dd>
+                <dd>{t(`billing.unitPrice.${s.interval ?? "month"}`, { price: formatMoney(s.locked_unit_price_minor, s.currency) })}</dd>
               </>
             )}
             {s.interval && (
@@ -173,7 +113,9 @@ export function BillingPage() {
             )}
           </dl>
           {s.locked_unit_price_minor != null && s.currency && (
-            <p className="notice notice-ok">{t("billing.priceLock", { price: formatMoney(s.locked_unit_price_minor, s.currency) })}</p>
+            <p className="notice notice-ok">
+              {t("billing.priceLock", { price: t(`billing.unitPrice.${s.interval ?? "month"}`, { price: formatMoney(s.locked_unit_price_minor, s.currency) }) })}
+            </p>
           )}
           <p className="muted small">{t("billing.seatsHint")}</p>
           <div>

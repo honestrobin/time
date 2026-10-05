@@ -13,9 +13,12 @@ export interface InviteLink {
   expiresAt: string;
 }
 
-/** A new invitation link for the person; it retires any earlier one. */
-export async function fetchInviteLink(id: string, name: string): Promise<InviteLink> {
-  const res = await unwrap(api.POST("/api/v1/people/{id}/invite_link", { params: { path: { id } } }));
+/**
+ * A new invitation link for the person; it retires any earlier one. [confirmNewSeat] is the admin's
+ * yes to the price of one more person, where the plan asks for it (Seats.tsx).
+ */
+export async function fetchInviteLink(id: string, name: string, confirmNewSeat: boolean): Promise<InviteLink> {
+  const res = await unwrap(api.POST("/api/v1/people/{id}/invite_link", { params: { path: { id }, query: { confirm_new_seat: confirmNewSeat } } }));
   return { name, url: res.url, expiresAt: res.expires_at };
 }
 
