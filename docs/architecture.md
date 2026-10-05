@@ -42,8 +42,9 @@ paying for Honest Robin Cloud. Who may sign up is a setting ([0004](decisions/00
   the live timer notifications.
 - **The database keeps accounts apart.** Every account table has `account_id` and a row-level
   security policy. Each transaction runs as the unprivileged role `honestrobin_app`, so the policy
-  holds even when the configured user is a superuser. Work across accounts, such as sign-in and
-  jobs, has to ask for it ([0002](decisions/0002-tenancy-rls.md)). When the policy can't hold,
+  holds even when the configured user is a superuser. The app's jOOQ queries outside a
+  transaction are refused ([0027](decisions/0027-queries-only-in-transactions.md)). Work across accounts, such as sign-in
+  and jobs, has to ask for it ([0002](decisions/0002-tenancy-rls.md)). When the policy can't hold,
   for example after a restore without that role, the app refuses to start
   ([0026](decisions/0026-rls-fails-closed.md)). Since migration V15, keys
   between account tables include `account_id`, so a reference into another account is refused.

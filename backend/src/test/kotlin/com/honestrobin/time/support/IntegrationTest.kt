@@ -26,6 +26,7 @@ abstract class IntegrationTest {
     @Autowired
     lateinit var mail: RecordingMailTransport
 
+    /** The app's own: it runs a query only in a transaction, so wrap one in `tx.run` or `tx.system`. */
     @Autowired
     lateinit var dsl: DSLContext
 

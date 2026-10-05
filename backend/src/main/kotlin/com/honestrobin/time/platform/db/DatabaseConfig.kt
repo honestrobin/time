@@ -2,6 +2,7 @@
 package com.honestrobin.time.platform.db
 
 import com.honestrobin.time.platform.HonestRobinProperties
+import org.jooq.ConnectionProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer
 import org.springframework.boot.jdbc.DataSourceBuilder
@@ -23,6 +24,10 @@ class DatabaseConfig {
 
     @Bean
     fun transactionTemplate(tm: PlatformTransactionManager) = TransactionTemplate(tm)
+
+    /** jOOQ runs a query only in a transaction, as the app's role (decision record 0027). */
+    @Bean
+    fun jooqConnectionProvider(dataSource: DataSource): ConnectionProvider = TransactionalConnectionProvider(dataSource)
 
     @Bean
     fun jooqCustomizer() = DefaultConfigurationCustomizer { c ->
