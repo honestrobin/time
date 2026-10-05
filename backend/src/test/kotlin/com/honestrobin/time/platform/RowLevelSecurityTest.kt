@@ -4,12 +4,23 @@ package com.honestrobin.time.platform
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.platform.db.DbContext
+import com.honestrobin.time.platform.db.RowLevelSecurityCheck
+import com.honestrobin.time.platform.db.TenantAwareTransactionManager
 import com.honestrobin.time.support.IntegrationTest
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.diagnostics.FailureAnalyzedException
+import org.springframework.transaction.CannotCreateTransactionException
+import org.springframework.transaction.support.TransactionTemplate
+import java.util.UUID
+import javax.sql.DataSource
 
 /** Defence in depth (spec §3.4): even a query without an account filter only sees the current tenant. */
 class RowLevelSecurityTest : IntegrationTest() {
+    @Autowired
+    lateinit var dataSource: DataSource
 
     @Test
     fun `unfiltered queries only see the current tenant`() {
@@ -45,5 +56,42 @@ class RowLevelSecurityTest : IntegrationTest() {
         signup()
         val role = tx.run { dsl.fetchValue("select current_user") as String }
         assertThat(role).isEqualTo("honestrobin_app")
+    }
+
+    /**
+     * Architecture review, 5 October 2026: after a restore into a database without the app's
+     * role, the app started with a warning, and for the Compose setup's superuser row-level
+     * security did nothing. The app runs this check at startup; the tests' database user is a
+     * superuser too.
+     */
+    @Test
+    fun `the app refuses to start when row-level security can't hold`() {
+        fun check(role: String) = RowLevelSecurityCheck(dataSource, TenantAwareTransactionManager(dataSource, role), role)
+        val missing = "honestrobin_missing_${UUID.randomUUID().toString().take(8)}"
+
+        // Restored without the role.
+        assertThatThrownBy { check(missing).verify() }.isInstanceOf(FailureAnalyzedException::class.java)
+            .hasMessageContaining("Refusing to start").hasMessageContaining("doesn't exist")
+        // Nor does any transaction begin without it, so none runs on as the superuser.
+        val withoutRole = TransactionTemplate(TenantAwareTransactionManager(dataSource, missing))
+        assertThatThrownBy { withoutRole.execute { dsl.fetchValue("select current_user") } }
+            .isInstanceOf(CannotCreateTransactionException::class.java)
+
+        // No role to switch to, so transactions would run as the superuser itself.
+        assertThatThrownBy { check("").verify() }.isInstanceOf(FailureAnalyzedException::class.java)
+            .hasMessageContaining("bypasses row-level security")
+
+        // The role created after the restore, which skipped its rights on the tables.
+        val late = "honestrobin_late_${UUID.randomUUID().toString().take(8)}"
+        dsl.execute("create role $late nologin")
+        try {
+            assertThatThrownBy { check(late).verify() }.isInstanceOf(FailureAnalyzedException::class.java)
+                .hasMessageContaining("has no rights on the app's tables")
+        } finally {
+            dsl.execute("drop role $late")
+        }
+
+        // As it ships, it starts.
+        check("honestrobin_app").verify()
     }
 }

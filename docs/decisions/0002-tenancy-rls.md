@@ -1,6 +1,6 @@
 # 0002. Tenant isolation with transaction-scoped settings and SET ROLE
 
-- Status: accepted
+- Status: accepted; the last point of the decision (the fallback when the role cannot be created) is superseded by 0026
 - Date: 2026-09-30
 - Spec reference: §3.4
 

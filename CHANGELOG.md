@@ -9,6 +9,11 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Self-hosted: when the database can't keep accounts apart, for example after a restore without
+  the app's database role, the app refuses to start, and its log says how to fix it. Before, it
+  started with only a warning, and with the default database user only each query's own filter
+  kept one account's data from another. The restore steps in `docs/self-host.md` now create the
+  role first.
 - On Honest Robin Cloud, Move out's list of what's still connected includes a Team subscription,
   in the export's README too: its billing interval, whether it's active, past due or cancelled,
   and how to cancel it. Before, the README only said where to look.

@@ -33,7 +33,11 @@ data class HonestRobinProperties(
     }
 
     data class Db(
-        /** Role the application switches to with SET ROLE so row-level security applies. Blank disables. */
+        /**
+         * Role every transaction switches to with SET ROLE, so row-level security applies even to a
+         * superuser. Without it the app doesn't start. Blank: transactions run as the database user
+         * itself, which must then not bypass row-level security (RowLevelSecurityCheck).
+         */
         val appRole: String = "honestrobin_app",
     )
 

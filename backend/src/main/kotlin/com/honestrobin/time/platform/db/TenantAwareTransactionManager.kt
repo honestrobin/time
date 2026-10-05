@@ -16,31 +16,19 @@ class TenantAwareTransactionManager(
     dataSource: DataSource,
     private val appRole: String,
 ) : DataSourceTransactionManager(dataSource) {
-    @Volatile
-    private var roleUsable: Boolean? = null
-
     override fun prepareTransactionalConnection(con: Connection, definition: TransactionDefinition) {
         super.prepareTransactionalConnection(con, definition)
         // Drop to the unprivileged role for the transaction so RLS applies even to superusers.
-        if (appRole.isNotBlank() && isRoleUsable(con)) {
+        // Without the role, PostgreSQL refuses the switch and the transaction never begins: it
+        // doesn't go on as the login user, which may bypass row-level security. RowLevelSecurityCheck
+        // says why at startup.
+        if (appRole.isNotBlank()) {
             con.prepareStatement("select set_config('role', ?, true)").use { ps ->
                 ps.setString(1, appRole)
                 ps.executeQuery().close()
             }
         }
         apply(con, DbContext.current())
-    }
-
-    private fun isRoleUsable(con: Connection): Boolean = roleUsable ?: run {
-        val sql = "select case when exists (select 1 from pg_roles where rolname = ?) then pg_has_role(current_user, ?, 'MEMBER') else false end"
-        val usable = con.prepareStatement(sql).use { ps ->
-            ps.setString(1, appRole)
-            ps.setString(2, appRole)
-            ps.executeQuery().use { rs -> rs.next() && rs.getBoolean(1) }
-        }
-        if (!usable) logger.warn("Database role '$appRole' is not available; row-level security relies on FORCE RLS only")
-        roleUsable = usable
-        usable
     }
 
     companion object {
