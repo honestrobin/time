@@ -28,7 +28,7 @@ you too": nothing you already have ever stops working):
    in the same transaction (`SeatFreed`), and an account with no more people who can sign in than
    the free plan holds is active again before the request returns. The account row is locked
    before counting, so two deactivations at the same moment can't each miss the other. The billing
-   job, every 15 minutes, is the backstop: it makes an ended subscription's account active again
+   job, which runs about every 15 minutes, is the backstop: it makes an ended subscription's account active again
    when it's within the free plan (after a race, or when the free plan is made larger), and never
    lapses it again unless someone can sign in beyond the free plan.
    A deactivated person's running timer stops at the moment the account turned read-only, not
