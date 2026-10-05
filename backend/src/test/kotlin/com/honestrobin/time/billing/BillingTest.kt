@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.billing
 
+import com.honestrobin.time.auth.AuthService
 import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.edition.Edition
@@ -18,8 +19,13 @@ import org.springframework.http.HttpMethod
 import java.time.Instant
 import java.util.UUID
 
-/** Spec §14 and AT-6.2, against MockPaddle. */
+/** Spec §14, AT-6.2 and decision record 0020, against MockPaddle. */
 class BillingTest : IntegrationTest() {
+    companion object {
+        /** A yearly price per person: Paddle charges a yearly price's whole amount each year (EUR 84.00, EUR 7.00 a month). */
+        const val YEARLY = 8400L
+    }
+
     @Autowired lateinit var props: HonestRobinProperties
 
     @Autowired lateinit var context: ApplicationContext
@@ -43,7 +49,7 @@ class BillingTest : IntegrationTest() {
         type: String = "subscription.created",
         status: String = "active",
         quantity: Int = 1,
-        unitPrice: Long = 700,
+        unitPrice: Long = YEARLY,
         priceId: String = MockPaddle.ANNUAL_PRICE,
         // The whole id: UUIDv7s made within a minute or so share their first characters.
         subscription: String = "sub_test_$account",
@@ -61,9 +67,15 @@ class BillingTest : IntegrationTest() {
         return client().request(HttpMethod.POST, "/webhooks/paddle", payload, headers = mapOf("Paddle-Signature" to "ts=$ts;h1=${PaddleClient.sign(secret, ts, payload)}")).status
     }
 
-    /** The same request, with an admin's yes to the price of a new paid seat. */
-    private fun confirmed(c: TestClient, method: HttpMethod, path: String, body: Any? = null) =
-        c.request(method, path, body, params = mapOf("confirm_new_seat" to true))
+    /** The same request, with an admin's yes to the price of a new paid seat (by default, the price these tests subscribe at). */
+    private fun confirmed(c: TestClient, method: HttpMethod, path: String, body: Any? = null, unitPrice: Long = YEARLY, interval: String = "year") =
+        c.request(method, path, body, params = mapOf("confirm_unit_price_minor" to unitPrice, "confirm_currency" to "EUR", "confirm_interval" to interval))
+
+    /** Accepts an invitation as the person invited, with the link's token. */
+    private fun accept(token: String) =
+        TestClient(mockMvc, mapper).post("/api/v1/auth/invite/accept", mapOf("token" to token, "password" to "correct horse battery"))
+
+    private fun seatsBilled(admin: TestClient) = admin.get("/api/v1/billing/subscription").expect(200)["seats_billed"].asInt()
 
     private fun seatChanges(account: UUID) = MockPaddle.calls.filter { it.method == "PATCH" && it.path == "/subscriptions/sub_test_$account" }
 
@@ -108,7 +120,7 @@ class BillingTest : IntegrationTest() {
         assertThat(deliver(created)).isEqualTo(200) // a retry changes nothing
         val team = admin.get("/api/v1/billing/subscription").expect(200)
         assertThat(team["plan"].asText()).isEqualTo("team")
-        assertThat(team["locked_unit_price_minor"].asLong()).isEqualTo(700)
+        assertThat(team["locked_unit_price_minor"].asLong()).isEqualTo(YEARLY)
         assertThat(team["interval"].asText()).isEqualTo("year")
         admin.post("/api/v1/billing/checkout", mapOf("interval" to "year")).expectError(409, "already_subscribed")
 
@@ -118,27 +130,25 @@ class BillingTest : IntegrationTest() {
         MockPaddle.calls.clear()
         confirmed(admin, HttpMethod.POST, "/api/v1/people/$aroha/invite").expect(200)
         assertThat(seatChanges(account)).isEmpty()
-        val member = TestClient(mockMvc, mapper)
-        val email = admin.get("/api/v1/people/$aroha")["email"].asText()
-        member.post("/api/v1/auth/invite/accept", mapOf("token" to mail.linkToken(email), "password" to "correct horse battery")).expect(200)
+        accept(mail.linkToken(admin.get("/api/v1/people/$aroha")["email"].asText())).expect(200)
         val patch = seatChanges(account).single()
         assertThat(patch.body!!["items"][0]["price_id"].asText()).isEqualTo(MockPaddle.ANNUAL_PRICE)
         assertThat(patch.body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
 
         // The price per seat may come down but never go up.
-        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 2, unitPrice = 900))
-        assertThat(locked(account)).isEqualTo(700)
-        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 2, unitPrice = 600))
-        assertThat(locked(account)).isEqualTo(600)
+        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 2, unitPrice = 9000))
+        assertThat(locked(account)).isEqualTo(YEARLY)
+        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 2, unitPrice = 7200))
+        assertThat(locked(account)).isEqualTo(7200)
 
         assertThat(admin.post("/api/v1/billing/portal").expect(200)["url"].asText()).startsWith("https://customer-portal.paddle.test/")
 
         // Cancelled with two people: read-only, export still works; subscribing again lifts it.
-        deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2, unitPrice = 600))
+        deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2, unitPrice = 7200))
         assertThat(admin.get("/api/v1/account")["status"].asText()).isEqualTo("lapsed")
         admin.post("/api/v1/clients", mapOf("name" to "New", "currency" to "EUR")).expectError(402, "account_read_only")
         admin.post("/api/v1/exports").expect(202)
-        deliver(subscriptionEvent(account, type = "subscription.resumed", status = "active", quantity = 2, unitPrice = 600))
+        deliver(subscriptionEvent(account, type = "subscription.resumed", status = "active", quantity = 2, unitPrice = 7200))
         assertThat(admin.get("/api/v1/account")["status"].asText()).isEqualTo("active")
 
         val events = (1..100).asSequence().map { Thread.sleep(50); MockPostHog.forAccount(account) }.first { "subscription_started" in it }
@@ -158,7 +168,7 @@ class BillingTest : IntegrationTest() {
             assertThat(details["prices"].values().map { it["interval"].asText() to it["per_seat_per_month_minor"].asLong() })
                 .containsExactly("year" to 700L, "month" to 850L)
             assertThat(details["prices"].values().map { it["currency"].asText() }).containsOnly("EUR")
-            assertThat(refused["message"].asText()).contains("EUR 7.00", "EUR 8.50")
+            assertThat(refused["message"].asText()).contains("EUR 7.00 per person per month paid yearly (EUR 84.00 a year)", "EUR 8.50 paid monthly")
             // Nothing that was already there stops working.
             admin.post("/api/v1/clients", mapOf("name" to "Still here", "currency" to "EUR")).expect(201)
         }
@@ -205,7 +215,7 @@ class BillingTest : IntegrationTest() {
         assertThat(seatChanges(account)).isEmpty()
 
         // Accepting it adds the seat at Paddle at once, prorated from that moment, on the subscription's own price.
-        TestClient(mockMvc, mapper).post("/api/v1/auth/invite/accept", mapOf("token" to mail.linkToken(email), "password" to "correct horse battery")).expect(200)
+        accept(mail.linkToken(email)).expect(200)
         val patch = seatChanges(account).single()
         assertThat(patch.body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
         assertThat(patch.body!!["items"][0]["price_id"].asText()).isEqualTo(MockPaddle.ANNUAL_PRICE)
@@ -219,29 +229,93 @@ class BillingTest : IntegrationTest() {
         val admin = signup(accountName = "Manuka Works")
         val account = admin.accountId!!
         assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
-        val person: Map<String, Any> = mapOf("name" to "Tui", "email" to uniqueEmail("tui"), "role" to "member")
+        val email = uniqueEmail("tui")
+        val person: Map<String, Any> = mapOf("name" to "Tui", "email" to email, "role" to "member")
 
         val refused = admin.post("/api/v1/people", person).expectError(409, "seat_confirmation_required")
         val details = refused["details"]
-        assertThat(details["unit_price_minor"].asLong()).isEqualTo(700)
+        assertThat(details["unit_price_minor"].asLong()).isEqualTo(YEARLY)
         assertThat(details["currency"].asText()).isEqualTo("EUR")
         assertThat(details["interval"].asText()).isEqualTo("year")
         assertThat(details["billing_starts"].asText()).isEqualTo("when_accepted")
         assertThat(details["seats_billed"].asInt()).isEqualTo(1)
-        assertThat(refused["message"].asText()).contains("EUR 7.00 a year", "confirm_new_seat=true")
-        // Nothing was saved or sent.
+        assertThat(details["stale"].asBoolean()).isFalse()
+        assertThat(refused["message"].asText()).contains("EUR 84.00 a year, paid yearly", "up to EUR 84.00", "confirm_unit_price_minor=8400")
+        // Nobody was added, and no invitation went out.
         assertThat(admin.get("/api/v1/people").expect(200)["data"].size()).isEqualTo(1)
+        assertThat(mail.to(email)).isEmpty()
 
         // Every way of inviting asks the same: by email, and as a link to pass on.
         val pending = admin.post("/api/v1/people", person + ("send_invite" to false)).expect(201).id()
         admin.post("/api/v1/people/$pending/invite").expectError(409, "seat_confirmation_required")
         admin.post("/api/v1/people/$pending/invite_link").expectError(409, "seat_confirmation_required")
         assertThat(admin.get("/api/v1/people/$pending")["status"].asText()).isEqualTo("pending_invite")
+        assertThat(mail.to(email)).isEmpty()
 
-        // Confirmed, the invitation goes out; sending it again doesn't ask again.
+        // With a yes to the price, the invitation goes out, and nothing is charged yet.
+        MockPaddle.calls.clear()
         confirmed(admin, HttpMethod.POST, "/api/v1/people/$pending/invite").expect(200)
         assertThat(admin.get("/api/v1/people/$pending")["status"].asText()).isEqualTo("invited")
-        admin.post("/api/v1/people/$pending/invite").expect(200)
+        assertThat(mail.to(email)).hasSize(1)
+        assertThat(seatChanges(account)).isEmpty()
+    }
+
+    @Test
+    fun `a yes to a price that's no longer right is refused, with the price now`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Kowhai Works")
+        assertThat(deliver(subscriptionEvent(admin.accountId!!, quantity = 1))).isEqualTo(200)
+        val person: Map<String, Any> = mapOf("name" to "Nikau", "email" to uniqueEmail("nikau"), "role" to "member")
+
+        val stale = confirmed(admin, HttpMethod.POST, "/api/v1/people", person, unitPrice = 9000).expectError(409, "seat_confirmation_required")
+        assertThat(stale["details"]["unit_price_minor"].asLong()).isEqualTo(YEARLY)
+        assertThat(stale["details"]["stale"].asBoolean()).isTrue()
+        assertThat(stale["message"].asText()).startsWith("That's not the price now.")
+        // The same amount for another billing period isn't the same price either.
+        confirmed(admin, HttpMethod.POST, "/api/v1/people", person, interval = "month").expectError(409, "seat_confirmation_required")
+        assertThat(admin.get("/api/v1/people").expect(200)["data"].size()).isEqualTo(1)
+
+        confirmed(admin, HttpMethod.POST, "/api/v1/people", person).expect(201)
+    }
+
+    @Test
+    fun `sending an invitation again asks again, on either plan`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        withFreePlanOf(2) {
+            val admin = signup(accountName = "Rata Ltd")
+            val account = admin.accountId!!
+            val email = uniqueEmail("ana")
+            // Within a free plan of two people, the invitation goes out without a question.
+            val ana = admin.post("/api/v1/people", mapOf("name" to "Ana", "email" to email, "role" to "member")).expect(201).id()
+
+            // The free plan is one person now: sending it again is refused like a new invitation.
+            context.getBean(FreePlan::class.java).seats = 1
+            admin.post("/api/v1/people/$ana/invite").expectError(402, "subscription_required")
+            admin.post("/api/v1/people/$ana/invite_link").expectError(402, "subscription_required")
+
+            // On the Team plan, sending it again asks for a yes to the price, like the first time.
+            assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+            admin.post("/api/v1/people/$ana/invite").expectError(409, "seat_confirmation_required")
+            confirmed(admin, HttpMethod.POST, "/api/v1/people/$ana/invite").expect(200)
+            assertThat(mail.to(email)).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `an invitation link asks first too, and works once the price is confirmed`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Titoki Co")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val id = admin.post("/api/v1/people", mapOf("name" to "Hine", "email" to uniqueEmail("hine"), "role" to "member", "send_invite" to false)).expect(201).id()
+
+        admin.post("/api/v1/people/$id/invite_link").expectError(409, "seat_confirmation_required")
+        MockPaddle.calls.clear()
+        val link = confirmed(admin, HttpMethod.POST, "/api/v1/people/$id/invite_link").expect(200)
+        assertThat(seatChanges(account)).isEmpty()
+
+        accept(link["url"].asText().substringAfter('#')).expect(200)
+        assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
     }
 
     @Test
@@ -251,17 +325,139 @@ class BillingTest : IntegrationTest() {
         val account = admin.accountId!!
         val member = invite(admin)
         assertThat(deliver(subscriptionEvent(account, quantity = 2))).isEqualTo(200)
-        admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to false)).expect(200)
-        billing().syncSeats()
-        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["seats_billed"].asInt()).isEqualTo(1)
+        val path = "/api/v1/people/${member.membershipId}"
 
-        val refused = admin.patch("/api/v1/people/${member.membershipId}", mapOf("is_active" to true)).expectError(409, "seat_confirmation_required")
+        // Back before the seat sync lowered the count: their seat is still paid for, so there's nothing to ask.
+        admin.patch(path, mapOf("is_active" to false)).expect(200)
+        MockPaddle.calls.clear()
+        admin.patch(path, mapOf("is_active" to true)).expect(200)
+        assertThat(seatChanges(account)).isEmpty()
+
+        admin.patch(path, mapOf("is_active" to false)).expect(200)
+        billing().syncSeats()
+        assertThat(seatsBilled(admin)).isEqualTo(1)
+
+        val refused = admin.patch(path, mapOf("is_active" to true)).expectError(409, "seat_confirmation_required")
         assertThat(refused["details"]["billing_starts"].asText()).isEqualTo("now")
-        assertThat(admin.get("/api/v1/people/${member.membershipId}")["is_active"].asBoolean()).isFalse()
+        assertThat(refused["message"].asText()).contains("Today, Paddle charges for what's left of the current billing period, up to EUR 84.00")
+        assertThat(admin.get(path)["is_active"].asBoolean()).isFalse()
 
         MockPaddle.calls.clear()
-        confirmed(admin, HttpMethod.PATCH, "/api/v1/people/${member.membershipId}", mapOf("is_active" to true)).expect(200)
+        confirmed(admin, HttpMethod.PATCH, path, mapOf("is_active" to true)).expect(200)
         assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
+    }
+
+    @Test
+    fun `bringing back someone whose invitation is still open asks first, and bills once they accept`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Horoeka Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val email = uniqueEmail("rangi")
+        val rangi = confirmed(admin, HttpMethod.POST, "/api/v1/people", mapOf("name" to "Rangi", "email" to email, "role" to "member")).expect(201).id()
+        admin.patch("/api/v1/people/$rangi", mapOf("is_active" to false)).expect(200)
+
+        val refused = admin.patch("/api/v1/people/$rangi", mapOf("is_active" to true)).expectError(409, "seat_confirmation_required")
+        assertThat(refused["details"]["billing_starts"].asText()).isEqualTo("when_accepted")
+        MockPaddle.calls.clear()
+        confirmed(admin, HttpMethod.PATCH, "/api/v1/people/$rangi", mapOf("is_active" to true)).expect(200)
+        assertThat(seatChanges(account)).isEmpty()
+
+        accept(mail.linkToken(email)).expect(200)
+        assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
+    }
+
+    @Test
+    fun `an invitation accepted after the subscription ended charges nothing`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Mahoe Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val email = uniqueEmail("kiri")
+        confirmed(admin, HttpMethod.POST, "/api/v1/people", mapOf("name" to "Kiri", "email" to email, "role" to "member")).expect(201)
+        assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 1))).isEqualTo(200)
+
+        MockPaddle.calls.clear()
+        accept(mail.linkToken(email)).expect(200)
+        assertThat(seatChanges(account)).isEmpty()
+        // A new subscription counts them, and checkout says so before anyone pays.
+        val free = admin.get("/api/v1/billing/subscription").expect(200)
+        assertThat(free["plan"].asText()).isEqualTo("free")
+        assertThat(free["seats_used"].asInt()).isEqualTo(2)
+        assertThat(admin.post("/api/v1/billing/checkout", mapOf("interval" to "year")).expect(200)["quantity"].asInt()).isEqualTo(2)
+    }
+
+    @Test
+    fun `an invitation waiting when Team starts is billed from its acceptance`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        withFreePlanOf(2) {
+            val admin = signup(accountName = "Akeake Ltd")
+            val account = admin.accountId!!
+            val email = uniqueEmail("pita")
+            admin.post("/api/v1/people", mapOf("name" to "Pita", "email" to email, "role" to "member")).expect(201)
+
+            // The billing page shows it before checkout, as waiting and not billed; starting Team is the yes to it.
+            val free = admin.get("/api/v1/billing/subscription").expect(200)
+            assertThat(free["invitations_pending"].asInt()).isEqualTo(1)
+            assertThat(admin.post("/api/v1/billing/checkout", mapOf("interval" to "year")).expect(200)["quantity"].asInt()).isEqualTo(1)
+            assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+
+            MockPaddle.calls.clear()
+            accept(mail.linkToken(email)).expect(200)
+            assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `when Paddle is down at an accept, the person still gets in and the seat sync bills the seat once`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Kotukutuku Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val email = uniqueEmail("aperahama")
+        val id = confirmed(admin, HttpMethod.POST, "/api/v1/people", mapOf("name" to "Aperahama", "email" to email, "role" to "member")).expect(201).id()
+
+        MockPaddle.calls.clear()
+        MockPaddle.whileDown { accept(mail.linkToken(email)).expect(200) }
+        assertThat(admin.get("/api/v1/people/$id")["status"].asText()).isEqualTo("active")
+        assertThat(seatChanges(account).filter { it.status == 200 }).isEmpty()
+        assertThat(seatsBilled(admin)).isEqualTo(1)
+
+        // The job catches up once, and running it again sends nothing more.
+        billing().syncSeats()
+        billing().syncSeats()
+        val sent = seatChanges(account).filter { it.status == 200 }
+        assertThat(sent).hasSize(1)
+        assertThat(sent.single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
+        assertThat(seatsBilled(admin)).isEqualTo(2)
+    }
+
+    @Test
+    fun `an accepted invitation that rolls back charges nothing`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Second review, 5 October 2026: Paddle was told inside the accept's transaction, so a
+        // rollback could bill someone who can't sign in.
+        val admin = signup(accountName = "Whau Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val email = uniqueEmail("moana")
+        val id = confirmed(admin, HttpMethod.POST, "/api/v1/people", mapOf("name" to "Moana", "email" to email, "role" to "member")).expect(201).id()
+        val token = mail.linkToken(email)
+
+        MockPaddle.calls.clear()
+        val auth = context.getBean(AuthService::class.java)
+        assertThatThrownBy {
+            tx.run {
+                auth.acceptInvite(token, null, "correct horse battery", null, null)
+                throw IllegalStateException("rolled back on purpose")
+            }
+        }.hasMessage("rolled back on purpose")
+        assertThat(seatChanges(account)).isEmpty()
+        assertThat(admin.get("/api/v1/people/$id")["status"].asText()).isEqualTo("invited")
+
+        // The invitation still works, and is billed once.
+        accept(token).expect(200)
+        assertThat(seatChanges(account)).hasSize(1)
     }
 
     @Test

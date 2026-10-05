@@ -9,18 +9,23 @@ import java.util.UUID
 /** When someone given sign-in access starts to count as a seat: once they accept the invitation, or now. */
 enum class SeatStart { WHEN_ACCEPTED, NOW }
 
+/** The price of one seat as an admin saw it and said yes to: per [interval] ("month" or "year"). */
+data class SeatPrice(val unitPriceMinor: Long, val currency: String, val interval: String)
+
 /**
- * Asked before someone is given sign-in access: an invitation, or bringing someone back. Honest
- * Robin Cloud's billing module answers it from the subscription; everywhere else everyone fits.
- * [confirmed] means an admin has agreed to the price of a new paid seat, where one is needed.
+ * Asked before someone is given sign-in access: an invitation (also sent again), or bringing
+ * someone back. Honest Robin Cloud's billing module answers it from the subscription; everywhere
+ * else everyone fits. [confirmed] is the price an admin said yes to, if any: a new paid seat needs
+ * it to match the subscription's price now. [counted] says the person already counts towards the
+ * plan's limit (an invitation sent again).
  */
 fun interface SeatGate {
-    fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: Boolean)
+    fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: SeatPrice?, counted: Boolean)
 }
 
 @Component
 class OpenSeats : SeatGate {
-    override fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: Boolean) = Unit
+    override fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: SeatPrice?, counted: Boolean) = Unit
 }
 
 /**

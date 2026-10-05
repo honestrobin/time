@@ -14,9 +14,23 @@ object MockPaddle {
     const val MONTHLY_PRICE = "pri_team_monthly"
     const val ANNUAL_PRICE = "pri_team_annual"
 
-    data class Call(val method: String, val path: String, val authorization: String?, val body: JsonNode?)
+    /** A request the app made; [status] is what the stand-in answered. */
+    data class Call(val method: String, val path: String, val authorization: String?, val body: JsonNode?, val status: Int = 200)
 
     val calls = CopyOnWriteArrayList<Call>()
+
+    /** While true, Paddle is down: every request is answered with 503 and changes nothing. */
+    @Volatile var down = false
+
+    /** Runs [block] with Paddle down, and brings it back afterwards. */
+    fun <T> whileDown(block: () -> T): T {
+        down = true
+        try {
+            return block()
+        } finally {
+            down = false
+        }
+    }
 
     private val mapper = ObjectMapper()
     private val server: HttpServer by lazy {
@@ -24,8 +38,8 @@ object MockPaddle {
             createContext("/") { ex ->
                 val raw = ex.requestBody.readAllBytes()
                 val body = if (raw.isEmpty()) null else mapper.readTree(raw)
-                calls.add(Call(ex.requestMethod, ex.requestURI.path, ex.requestHeaders.getFirst("Authorization"), body))
                 val (status, response) = when {
+                    down -> 503 to mapOf("error" to mapOf("detail" to "Service unavailable"))
                     ex.requestHeaders.getFirst("Authorization") != "Bearer $API_KEY" -> 403 to mapOf("error" to mapOf("detail" to "Invalid API key"))
                     ex.requestMethod == "PATCH" && ex.requestURI.path.startsWith("/subscriptions/") -> 200 to mapOf("data" to mapOf("id" to ex.requestURI.path.substringAfterLast('/')))
                     ex.requestMethod == "POST" && ex.requestURI.path.matches(Regex("/subscriptions/[^/]+/cancel")) ->
@@ -34,6 +48,7 @@ object MockPaddle {
                         200 to mapOf("data" to mapOf("urls" to mapOf("general" to mapOf("overview" to "https://customer-portal.paddle.test/overview"))))
                     else -> 404 to mapOf("error" to mapOf("detail" to "Not found"))
                 }
+                calls.add(Call(ex.requestMethod, ex.requestURI.path, ex.requestHeaders.getFirst("Authorization"), body, status))
                 val bytes = mapper.writeValueAsBytes(response)
                 ex.responseHeaders.add("Content-Type", "application/json")
                 ex.sendResponseHeaders(status, bytes.size.toLong())
