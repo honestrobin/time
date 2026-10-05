@@ -20,7 +20,8 @@ as they're made.
   stopped import, revoke anyone's token or signed-in device, and withdraw an invitation. The Move
   out page has Revoke and Withdraw buttons for these, and the Import page lists every older import
   that still keeps a Harvest token, each with its own Stop or Cancel. Connecting, changing
-  anything, and deactivating or inviting people still wait until the account is active again.
+  anything and inviting people still wait until the account is active again, and so does
+  deactivating people in an account waiting to be deleted.
 - Move out, in Settings → Account: one step gets everything ready for leaving, and changes
   nothing in your account. You get one zip of all your data, with every invoice as a PDF and as an
   e-invoice where it has the data. The Move out page says where you can go next, and lists
