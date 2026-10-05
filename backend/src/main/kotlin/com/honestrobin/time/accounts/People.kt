@@ -37,6 +37,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -116,6 +117,7 @@ class PeopleService(
     private val outbound: OutboundMail,
     private val seats: SeatGate,
     private val recentAuth: RecentAuth,
+    private val events: ApplicationEventPublisher,
     private val clock: Clock,
 ) {
     @Transactional(readOnly = true)
@@ -138,8 +140,9 @@ class PeopleService(
         return views(listOf(load(id))).single()
     }
 
+    /** [confirmNewSeat]: the admin agreed to the price of a new paid seat, if the invitation needs one. */
     @Transactional
-    fun create(m: Member, input: PersonInput): PersonView {
+    fun create(m: Member, input: PersonInput, confirmNewSeat: Boolean): PersonView {
         m.requireAdmin()
         m.requireWritable()
         val errors = mutableMapOf<String, String>()
@@ -150,24 +153,25 @@ class PeopleService(
             accountId = m.accountId
             status = "pending_invite"
         }
-        apply(m, r, Patch.all(input, presentFields(input)), creating = true)
+        apply(m, r, Patch.all(input, presentFields(input)), creating = true, confirmNewSeat = confirmNewSeat)
         try {
             r.store()
         } catch (e: DuplicateKeyException) {
             throw ValidationException("email", "Someone with this email is already in the account")
         }
         input.teamIds?.let { setTeams(m, r.id, it) }
-        if (input.sendInvite != false) invite(m, r.id)
+        if (input.sendInvite != false) invite(m, r.id, confirmNewSeat)
         return views(listOf(load(r.id))).single()
     }
 
     @Transactional
-    fun update(m: Member, id: UUID, patch: Patch<PersonInput>): PersonView {
+    fun update(m: Member, id: UUID, patch: Patch<PersonInput>, confirmNewSeat: Boolean): PersonView {
         m.requireAdmin()
         m.requireWritable()
         val r = load(id)
         ETags.checkIfMatch(r.updatedAt)
-        apply(m, r, patch, creating = false)
+        val wasActive = r.isActive
+        apply(m, r, patch, creating = false, confirmNewSeat = confirmNewSeat)
         try {
             r.store()
         } catch (e: DuplicateKeyException) {
@@ -175,13 +179,15 @@ class PeopleService(
         }
         patch.value.teamIds?.let { setTeams(m, id, it) }
         if (patch.value.isActive == false) stopRunningTimer(id)
+        // Back with sign-in access: from now on they count as a seat.
+        if (!wasActive && r.isActive && r.status == "active") events.publishEvent(SeatTaken(m.accountId))
         return views(listOf(load(id))).single()
     }
 
     /** Sends (or re-sends) the invitation email. */
     @Transactional
-    fun invite(m: Member, id: UUID): PersonView {
-        val (r, token) = issueInvite(m, id)
+    fun invite(m: Member, id: UUID, confirmNewSeat: Boolean): PersonView {
+        val (r, token) = issueInvite(m, id, confirmNewSeat)
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!!
         mailer.send(
             "invite", r.email, Locale.forLanguageTag(account.locale),
@@ -198,21 +204,22 @@ class PeopleService(
      * invitation limits and takes a seat. It is never written to the log.
      */
     @Transactional
-    fun inviteLink(m: Member, id: UUID): InviteLinkView {
+    fun inviteLink(m: Member, id: UUID, confirmNewSeat: Boolean): InviteLinkView {
         m.requireAdmin()
         recentAuth.require()
-        val (_, token) = issueInvite(m, id)
+        val (_, token) = issueInvite(m, id, confirmNewSeat)
         return InviteLinkView("${props.baseUrl}/auth/invite#$token", Instant.now(clock).plus(TokenPurpose.INVITE.ttl))
     }
 
-    private fun issueInvite(m: Member, id: UUID): Pair<MembershipsRecord, String> {
+    private fun issueInvite(m: Member, id: UUID, confirmNewSeat: Boolean): Pair<MembershipsRecord, String> {
         m.requireWritable()
         m.requireAdmin()
         val r = load(id)
         if (r.status == "active") throw ConflictException("already_active", "This person already has access")
         if (!r.isActive) throw ConflictException("inactive", "Reactivate this person before inviting them")
         outbound.checkInvite(m.accountId, m.userId, r)
-        if (r.status != "invited") seats.requireSeat(m.accountId)
+        // A new invitation takes a seat once it's accepted; sending one again doesn't take another.
+        if (r.status != "invited") seats.requireSeat(m.accountId, SeatStart.WHEN_ACCEPTED, confirmNewSeat)
         val token = auth.issueToken(null, r.email, TokenPurpose.INVITE, membershipId = r.id)
         r.status = "invited"
         r.invitedAt = Instant.now(clock)
@@ -222,9 +229,10 @@ class PeopleService(
 
     fun load(id: UUID): MembershipsRecord = dsl.selectFrom(MEMBERSHIPS).where(MEMBERSHIPS.ID.eq(id)).fetchOne() ?: throw NotFoundException("Person")
 
-    private fun apply(m: Member, r: MembershipsRecord, p: Patch<PersonInput>, creating: Boolean) {
+    private fun apply(m: Member, r: MembershipsRecord, p: Patch<PersonInput>, creating: Boolean, confirmNewSeat: Boolean) {
         val i = p.value
         val errors = mutableMapOf<String, String>()
+        var seat: SeatStart? = null
         i.name?.let { if (it.isBlank()) errors["name"] = "Enter a name" else Names.problem(it)?.let { e -> errors["name"] = e } ?: run { r.name = it.trim() } }
         i.email?.let {
             val email = it.trim().lowercase()
@@ -259,8 +267,10 @@ class PeopleService(
         i.isActive?.let {
             if (!it && r.role == "admin") requireAnotherAdmin(r.id)
             if (!it && r.id == m.membershipId) errors["is_active"] = "You can't deactivate yourself"
-            // Coming back with sign-in access (or an invitation) takes a seat again.
-            if (it && !creating && !r.isActive && r.status in setOf("active", "invited")) seats.requireSeat(m.accountId)
+            // Coming back with sign-in access takes a seat again: now, or once the invitation is accepted.
+            if (it && !creating && !r.isActive && r.status in setOf("active", "invited")) {
+                seat = if (r.status == "active") SeatStart.NOW else SeatStart.WHEN_ACCEPTED
+            }
             r.isActive = it
             r.archivedAt = if (it) null else (r.archivedAt ?: Instant.now(clock))
         }
@@ -276,6 +286,8 @@ class PeopleService(
             i.canManageInvoices?.let { r.canManageInvoices = it }
         }
         if (errors.isNotEmpty()) throw ValidationException(errors)
+        // Asked last, so a change refused for another reason doesn't ask about a seat first.
+        seat?.let { seats.requireSeat(m.accountId, it, confirmNewSeat) }
     }
 
     private fun requireAnotherAdmin(exceptId: UUID) {
@@ -349,19 +361,33 @@ class PeopleController(private val people: PeopleService, private val patches: P
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID) = people.get(Current.member(), id)
 
+    // confirm_new_seat (docs/api.md, "Seats"): on Honest Robin Cloud's Team plan, giving someone
+    // sign-in access adds a paid seat. Without it, that's refused with 409 seat_confirmation_required
+    // and the price, so no client adds to the bill without asking first.
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody body: PersonInput) = people.create(Current.member(), body)
+    fun create(
+        @RequestBody body: PersonInput,
+        @RequestParam(name = "confirm_new_seat", defaultValue = "false") confirmNewSeat: Boolean,
+    ) = people.create(Current.member(), body, confirmNewSeat)
 
     @PatchMapping("/{id}")
     fun update(
         @PathVariable id: UUID,
         @io.swagger.v3.oas.annotations.parameters.RequestBody(content = [Content(schema = Schema(implementation = PersonInput::class))]) @RequestBody body: JsonNode,
-    ) = people.update(Current.member(), id, patches.parse(body))
+        @RequestParam(name = "confirm_new_seat", defaultValue = "false") confirmNewSeat: Boolean,
+    ) = people.update(Current.member(), id, patches.parse(body), confirmNewSeat)
 
     @PostMapping("/{id}/invite")
-    fun invite(@PathVariable id: UUID) = people.invite(Current.member(), id)
+    fun invite(
+        @PathVariable id: UUID,
+        @RequestParam(name = "confirm_new_seat", defaultValue = "false") confirmNewSeat: Boolean,
+    ) = people.invite(Current.member(), id, confirmNewSeat)
 
     @PostMapping("/{id}/invite_link")
-    fun inviteLink(@PathVariable id: UUID) = people.inviteLink(Current.member(), id)
+    fun inviteLink(
+        @PathVariable id: UUID,
+        @RequestParam(name = "confirm_new_seat", defaultValue = "false") confirmNewSeat: Boolean,
+    ) = people.inviteLink(Current.member(), id, confirmNewSeat)
 }

@@ -8,6 +8,8 @@ import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
 import com.honestrobin.time.accounts.SeatCounter
 import com.honestrobin.time.accounts.SeatGate
+import com.honestrobin.time.accounts.SeatStart
+import com.honestrobin.time.accounts.SeatTaken
 import com.honestrobin.time.analytics.Funnel
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.BILLING_EVENTS
@@ -16,6 +18,7 @@ import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.SubscriptionsRecord
 import com.honestrobin.time.export.AccountPurging
+import com.honestrobin.time.platform.Money
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.edition.CloudEditionOnly
@@ -54,8 +57,10 @@ data class SubscriptionView(
     /** free (one person) or team. */
     val plan: String,
     val status: String,
-    /** People who can sign in now; what a Team subscription is billed for. */
+    /** People who can sign in now: what checkout and Paddle count, and so what a Team subscription is billed for. */
     val seatsUsed: Int,
+    /** Invitations not yet accepted. They're not billed; each counts from the moment it's accepted. */
+    val invitationsPending: Int,
     val seatsBilled: Int?,
     val interval: String?,
     val currency: String?,
@@ -116,7 +121,7 @@ class BillingService(
         val paying = isPaying(s)
         return SubscriptionView(
             plan = if (paying) "team" else "free", status = s?.status ?: "active", seatsUsed = seats.used(m.accountId),
-            seatsBilled = s?.seats, interval = s?.billingInterval, currency = s?.currency, lockedUnitPriceMinor = s?.lockedUnitPriceMinor,
+            invitationsPending = seats.invited(m.accountId), seatsBilled = s?.seats, interval = s?.billingInterval, currency = s?.currency, lockedUnitPriceMinor = s?.lockedUnitPriceMinor,
             currentPeriodEnd = s?.currentPeriodEnd, cancelAt = s?.cancelAt, billingAvailable = settings.configured,
             prices = listOf(PlanPrice("month", prices.currency, prices.teamMonthlyMinor), PlanPrice("year", prices.currency, prices.teamAnnualMonthlyMinor)),
         )
@@ -135,7 +140,8 @@ class BillingService(
         val email = dsl.select(USERS.EMAIL).from(USERS).where(USERS.ID.eq(m.userId)).fetchOne()!!.value1()
         return CheckoutView(
             environment = settings.environment, clientToken = settings.clientToken, priceId = priceId,
-            quantity = maxOf(1, seats.claimed(m.accountId)), email = email,
+            // People who can sign in. An invitation isn't billed: it counts from the moment it's accepted.
+            quantity = maxOf(1, seats.used(m.accountId)), email = email,
             // The browser hands this to Paddle; signed, so nobody can attach a subscription to another account.
             customData = mapOf("account_id" to m.accountId.toString(), "signature" to accountSignature(m.accountId)),
         )
@@ -262,23 +268,40 @@ class BillingService(
         }
     }
 
-    /** Keeps Paddle's seat count in step with the people who can sign in (the job). */
+    /**
+     * Keeps Paddle's seat count in step with the people who can sign in (the job, every 15
+     * minutes). Open invitations aren't counted: nobody is billed for one until it's accepted.
+     */
     fun syncSeats(): Int {
         if (!settings.configured) return 0
         val subs = tx.system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetch() }
-        var changed = 0
-        for (s in subs) {
-            val used = maxOf(1, tx.system { seats.used(s.accountId) })
-            if (used == s.seats) continue
-            try {
-                paddle.updateQuantity(s.externalId, s.externalPriceId, used)
-                tx.system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.SEATS, used).where(SUBSCRIPTIONS.ID.eq(s.id)).execute() }
-                changed++
-            } catch (e: PaddleException) {
-                log.warn("Seat update for subscription {} failed: {}", s.externalId, e.message)
-            }
+        return subs.count { sync(it) }
+    }
+
+    /**
+     * Someone can sign in from now on (an invitation accepted, a person back): Paddle hears at
+     * once, so the seat is billed from this moment, prorated. If Paddle can't be reached, the job
+     * tries again; the person can sign in either way.
+     */
+    @org.springframework.context.event.EventListener
+    fun onSeatTaken(e: SeatTaken) {
+        if (!settings.configured) return
+        val s = tx.system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(e.accountId)).fetchOne() } ?: return
+        if (isPaying(s)) sync(s)
+    }
+
+    /** Sets the subscription's seats at Paddle to the people who can sign in; true if it changed them. */
+    private fun sync(s: SubscriptionsRecord): Boolean {
+        val used = maxOf(1, tx.system { seats.used(s.accountId) })
+        if (used == s.seats) return false
+        return try {
+            paddle.updateQuantity(s.externalId, s.externalPriceId, used)
+            tx.system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.SEATS, used).where(SUBSCRIPTIONS.ID.eq(s.id)).execute() }
+            true
+        } catch (e: PaddleException) {
+            log.warn("Seat update for subscription {} failed: {}", s.externalId, e.message)
+            false
         }
-        return changed
     }
 
     /** Accounts whose subscription ended and that have more people than the free plan: read-only, export still works. */
@@ -306,7 +329,13 @@ class BillingService(
 
 }
 
-/** On Honest Robin Cloud a second person needs a Team subscription (the free plan is one person). */
+/**
+ * Limits are kept at the moment you act (the Robin's Code, "We trust you too"; decision record
+ * 0020). On the free plan, a person beyond it needs a Team subscription: refused with the Team
+ * prices. On the Team plan, everyone who can sign in is billed, so giving someone sign-in access
+ * adds a paid seat: refused with its price until an admin confirms. Nothing is charged here; the
+ * seat is billed from the moment the person can sign in (BillingService.onSeatTaken).
+ */
 @Component
 @Primary
 @CloudEditionOnly
@@ -314,17 +343,60 @@ class SubscriptionSeatGate(
     private val dsl: DSLContext,
     private val seats: SeatCounter,
     private val settings: PaddleSettings,
+    private val prices: BillingPrices,
     private val freePlan: FreePlan,
 ) : SeatGate {
-    override fun requireSeat(accountId: UUID) {
+    override fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: Boolean) {
         // Without Paddle there is nothing to buy, so nothing to hold back.
         if (!settings.configured) return
-        val paying = dsl.fetchExists(SUBSCRIPTIONS, SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId).and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")))
-        if (!paying && seats.claimed(accountId) >= freePlan.seats) {
-            val who = if (freePlan.seats == 1) "one person" else "${freePlan.seats} people"
-            throw ApiException(HttpStatus.PAYMENT_REQUIRED, "subscription_required", "The free plan is for $who. Start a Team subscription to invite your team.")
+        val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId))
+            .and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetchOne()
+        if (s == null) {
+            if (seats.claimed(accountId) >= freePlan.seats) throw subscriptionRequired()
+            return
         }
+        if (!confirmed) throw confirmationRequired(s, starts)
     }
+
+    private fun subscriptionRequired(): ApiException {
+        val who = if (freePlan.seats == 1) "one person" else "${freePlan.seats} people"
+        val currency = prices.currency
+        return ApiException(
+            HttpStatus.PAYMENT_REQUIRED, "subscription_required",
+            "The free plan is for $who. To invite your team, start a Team subscription: ${money(prices.teamAnnualMonthlyMinor, currency)} " +
+                "per person per month, paid yearly, or ${money(prices.teamMonthlyMinor, currency)} paid monthly, for each person who can sign in.",
+            details = mapOf(
+                "free_plan_seats" to freePlan.seats,
+                // The same list prices as the billing page (GET /api/v1/billing/subscription).
+                "prices" to listOf(
+                    mapOf("interval" to "year", "currency" to currency, "per_seat_per_month_minor" to prices.teamAnnualMonthlyMinor),
+                    mapOf("interval" to "month", "currency" to currency, "per_seat_per_month_minor" to prices.teamMonthlyMinor),
+                ),
+            ),
+        )
+    }
+
+    private fun confirmationRequired(s: SubscriptionsRecord, starts: SeatStart): ApiException {
+        // The subscription's own price per seat for each billing period, which Paddle charges. (VERIFY
+        // with Paddle's sandbox that a yearly price's unit_price is the amount for the whole year.)
+        val price = "${money(s.lockedUnitPriceMinor, s.currency)} a ${s.billingInterval}"
+        val message = when (starts) {
+            SeatStart.WHEN_ACCEPTED -> "When they accept, your plan goes up by one person: $price, charged from that day. Nothing is charged before then."
+            SeatStart.NOW -> "Once they're back, your plan goes up by one person: $price, charged from today."
+        }
+        return ConflictException(
+            "seat_confirmation_required", "$message To go ahead, send the request again with confirm_new_seat=true.",
+            details = mapOf(
+                "unit_price_minor" to s.lockedUnitPriceMinor,
+                "currency" to s.currency,
+                "interval" to s.billingInterval,
+                "billing_starts" to (if (starts == SeatStart.NOW) "now" else "when_accepted"),
+                "seats_billed" to s.seats,
+            ),
+        )
+    }
+
+    private fun money(minor: Long, currency: String) = "$currency ${Money.fromMinor(minor, currency).toPlainString()}"
 }
 
 /** Paddle.js runs the checkout in the browser: its script and frames are allowed where billing is set up. (VERIFY the origins with Paddle.) */
