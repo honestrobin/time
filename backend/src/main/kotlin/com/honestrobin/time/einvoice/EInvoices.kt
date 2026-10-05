@@ -114,6 +114,28 @@ class EInvoiceService(
         if (problems.isNotEmpty()) {
             throw ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "einvoice_incomplete", problems.joinToString(" ") { it.message }, details = mapOf("problems" to problems))
         }
+        return file(d, format)
+    }
+
+    /**
+     * For the account export: the invoice as XRechnung and as Peppol BIS, each where the invoice
+     * has what that format needs. Factur-X travels inside the PDF ([invoicePdf]).
+     */
+    fun xmlFiles(r: InvoicesRecord): List<EInvoiceFile> {
+        if (r.number == null || r.state == "draft" || r.state == "void") return emptyList()
+        val d = load(r)
+        return listOf(EInvoiceFormat.XRECHNUNG, EInvoiceFormat.PEPPOL).filter { problems(d, it).isEmpty() }.mapNotNull { format ->
+            try {
+                file(d, format)
+            } catch (e: Exception) {
+                log.warn("Invoice {} has no {} file in the export: {}", r.id, format.label, e.message)
+                null
+            }
+        }
+    }
+
+    private fun file(d: Data, format: EInvoiceFormat): EInvoiceFile {
+        val r = d.invoice
         val model = model(d, format)
         val base = "invoice-${r.number!!.replace(Regex("[^A-Za-z0-9._-]"), "-")}"
         return when (format) {
