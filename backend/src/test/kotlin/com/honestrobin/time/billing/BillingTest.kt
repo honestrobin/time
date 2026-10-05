@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.http.HttpMethod
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -412,9 +413,15 @@ class BillingTest : IntegrationTest() {
         assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
         val admin = signup(accountName = "Kahikatea Ltd")
         val account = admin.accountId!!
-        val aroha = invite(admin, name = "Aroha").membershipId!!
+        val arohaClient = invite(admin, name = "Aroha")
+        val aroha = arohaClient.membershipId!!
         val hemi = invite(admin, name = "Hemi").membershipId!!
         assertThat(deliver(subscriptionEvent(account, quantity = 3))).isEqualTo(200)
+        // Aroha's timer is running when the plan ends.
+        val task = createTask(admin)
+        val project = createProject(admin, taskIds = listOf(task), members = listOf(arohaClient)).id()
+        val entry = arohaClient.post("/api/v1/time_entries", mapOf("project_id" to project, "task_id" to task)).expect(201).id()
+        clock.advance(Duration.ofMinutes(20))
         withFreePlanOfOne {
             // The Team plan ends with three people who can sign in: read-only, export still works.
             assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 3))).isEqualTo(200)
@@ -428,8 +435,13 @@ class BillingTest : IntegrationTest() {
             admin.patch("/api/v1/people/$aroha", mapOf("name" to "Aroha T")).expectError(402, "account_read_only")
             admin.patch("/api/v1/people/$aroha", mapOf("is_active" to false, "name" to "Aroha T")).expectError(402, "account_read_only")
             MockPaddle.calls.clear()
+            clock.advance(Duration.ofHours(3))
             admin.patch("/api/v1/people/$aroha", mapOf("is_active" to false)).expect(200)
             assertThat(admin.get("/api/v1/people/$aroha")["name"].asText()).isEqualTo("Aroha")
+            // Her timer stops where the account turned read-only: nobody could stop it after that.
+            val stopped = admin.get("/api/v1/time_entries/$entry").expect(200)
+            assertThat(stopped["is_running"].asBoolean()).isFalse()
+            assertThat(stopped["duration_seconds"].asLong()).isBetween(1200L, 1260L)
             // Two can still sign in, one more than the free plan: still read-only.
             assertThat(accountStatus(admin)).isEqualTo("lapsed")
             admin.patch("/api/v1/people/$aroha", mapOf("is_active" to true)).expectError(402, "account_read_only")
@@ -444,6 +456,27 @@ class BillingTest : IntegrationTest() {
             exportWorks(admin)
             // Nothing was sent to Paddle on the way.
             assertThat(paddleCalls(account)).isEmpty()
+        }
+    }
+
+    @Test
+    fun `a lapsed account within a larger free plan is active again at the next billing job`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // The backstop for a deactivation that raced another change, or a free plan made larger.
+        val admin = signup(accountName = "Pukatea Ltd")
+        val account = admin.accountId!!
+        invite(admin)
+        assertThat(deliver(subscriptionEvent(account, quantity = 2))).isEqualTo(200)
+        withFreePlanOfOne {
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2))).isEqualTo(200)
+            assertThat(accountStatus(admin)).isEqualTo("lapsed")
+            billing().lapseDue()
+            assertThat(accountStatus(admin)).isEqualTo("lapsed")
+        }
+        withFreePlanOf(2) {
+            billing().lapseDue()
+            assertThat(accountStatus(admin)).isEqualTo("active")
+            admin.post("/api/v1/clients", mapOf("name" to "Room again", "currency" to "EUR")).expect(201)
         }
     }
 

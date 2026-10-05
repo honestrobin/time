@@ -1,6 +1,6 @@
 # 0013. Cloud billing with Paddle
 
-- Status: accepted (built against a Paddle stand-in; VERIFY the API shapes in Paddle's sandbox before launch); decision 3 (seats) is superseded by 0020
+- Status: accepted (built against a Paddle stand-in; VERIFY the API shapes in Paddle's sandbox before launch); decision 3 (seats) is superseded by 0020; decision 5 (when a subscription ends) in part by 0021
 - Date: 2026-10-03
 - Spec reference: §14, AT-6.2, AT-6.5
 

@@ -34,9 +34,11 @@ export function BillingPage() {
   });
 
   const s = sub.data;
-  // Open invitations are shown, never billed: a person counts once they can sign in.
+  // Open invitations are shown, never billed: a person counts once they can sign in. After a Team
+  // plan ended, one can't be accepted while the free plan is full, and the admin hears it here.
+  const invitationsBlocked = s && (s.status === "canceled" || s.status === "paused") && s.seats_used >= s.free_plan_seats;
   const waitingInvitations = s && s.invitations_pending > 0 && (
-    <p className="muted small">{t("billing.invitationsWaiting", { count: s.invitations_pending })}</p>
+    <p className="muted small">{t(invitationsBlocked ? "billing.invitationsBlocked" : "billing.invitationsWaiting", { count: s.invitations_pending })}</p>
   );
   return (
     <div className="page page-narrow">

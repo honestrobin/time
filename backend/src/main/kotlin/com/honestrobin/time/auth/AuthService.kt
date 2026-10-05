@@ -4,8 +4,8 @@ package com.honestrobin.time.auth
 import com.honestrobin.time.platform.mail.OutboundMail
 import com.honestrobin.time.analytics.Funnel
 import com.honestrobin.time.accounts.AccountService
-import com.honestrobin.time.accounts.JoiningSeats
 import com.honestrobin.time.accounts.NewAccount
+import com.honestrobin.time.accounts.SeatGate
 import com.honestrobin.time.accounts.SeatTaken
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.API_TOKENS
@@ -84,7 +84,7 @@ class AuthService(
     private val notices: SecurityNotices,
     private val tx: com.honestrobin.time.platform.db.Tx,
     private val events: org.springframework.context.ApplicationEventPublisher,
-    private val joining: JoiningSeats,
+    private val seats: SeatGate,
 ) {
     @Transactional(readOnly = true)
     fun hasAnyUser(): Boolean = dsl.fetchExists(USERS)
@@ -294,9 +294,10 @@ class AuthService(
     fun acceptInvite(token: String, name: String?, password: String?, ip: String?, userAgent: String?): SignedIn = DbContext.system {
         val row = inviteRow(token)
         val membershipId = row[MEMBERSHIPS.ID]
-        // From now on they can sign in, so the account's plan has to hold them. Asked before
-        // anything changes: a refusal leaves the account, the person and the link as they were.
-        joining.require(row[MEMBERSHIPS.ACCOUNT_ID])
+        // From now on they can sign in, so the account's plan has to hold them. The seat gate is
+        // asked before anything changes: a refusal leaves the account, the person and the link as
+        // they were.
+        seats.requireSeatToJoin(row[MEMBERSHIPS.ACCOUNT_ID])
         dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now()).where(LOGIN_TOKENS.TOKEN_HASH.eq(Tokens.hash(token))).execute()
         val email = row[MEMBERSHIPS.EMAIL]
         // An existing user is signed in as by this link the way a sign-in link would; if their
