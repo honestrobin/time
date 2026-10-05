@@ -63,8 +63,25 @@ class PaddleClient(private val settings: PaddleSettings, private val json: Objec
             mapOf("items" to listOf(mapOf("price_id" to priceId, "quantity" to quantity)), "proration_billing_mode" to "prorated_immediately"),
         )
 
-    /** Cancels a subscription now, so it never renews. */
+    /** Cancels a subscription now, so it never renews: for an account being deleted, or a second subscription. */
     fun cancel(subscriptionId: String): JsonNode = call("POST", "/subscriptions/$subscriptionId/cancel", mapOf("effective_from" to "immediately"))
+
+    /**
+     * Cancels a subscription at the end of the billing period that's paid for: it runs as before
+     * until then, and doesn't renew. (VERIFY with Paddle's sandbox: `next_billing_period` schedules
+     * the cancellation, the answer's `data.scheduled_change` has `action: cancel` and its
+     * `effective_at`, and Paddle sends `subscription.updated` now and `subscription.canceled` then.)
+     */
+    fun cancelAtPeriodEnd(subscriptionId: String): JsonNode =
+        call("POST", "/subscriptions/$subscriptionId/cancel", mapOf("effective_from" to "next_billing_period"))
+
+    /**
+     * Takes back a cancellation that hasn't happened yet, so the subscription renews as before.
+     * (VERIFY with Paddle's sandbox: setting `scheduled_change` to null removes it, and charges
+     * nothing.)
+     */
+    fun removeScheduledChange(subscriptionId: String): JsonNode =
+        call("PATCH", "/subscriptions/$subscriptionId", json.createObjectNode().putNull("scheduled_change"))
 
     /** A link to Paddle's customer portal: payment method, invoices, cancelling. */
     fun portalUrl(customerId: String, subscriptionId: String?): String {

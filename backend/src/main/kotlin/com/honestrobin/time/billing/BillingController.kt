@@ -46,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -175,6 +176,68 @@ class BillingService(
         return PortalView(paddle.portalUrl(customer, s.externalId))
     }
 
+    /**
+     * Cancels the Team plan at the end of the period that's paid for (the Robin's Code: "Cancel in
+     * the app, in two clicks"; decision record 0022). Nothing changes until then. Paddle doesn't
+     * renew it, and its webhook ends the subscription on that day like any other cancellation.
+     * Asked again, or twice at once, Paddle hears it once: the date is claimed on our record before
+     * Paddle is asked, and given back if Paddle can't be reached.
+     */
+    fun cancel(m: Member) {
+        m.requireAdmin()
+        val s = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(m.accountId)).fetchOne() }
+            ?.takeIf { isPaying(it) } ?: throw ConflictException("no_subscription", "This account has no Team plan to cancel")
+        if (s.cancelAt != null) return
+        val ends = s.currentPeriodEnd
+            ?: throw ConflictException("period_unknown", "Paddle hasn't said yet when this billing period ends. Try again in a minute.")
+        val claimed = system {
+            dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, ends).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.isNull).execute()
+        }
+        if (claimed == 0) return
+        val answer = try {
+            paddle.cancelAtPeriodEnd(s.externalId)
+        } catch (e: PaddleException) {
+            system { dsl.update(SUBSCRIPTIONS).setNull(SUBSCRIPTIONS.CANCEL_AT).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.eq(ends)).execute() }
+            log.warn("Cancelling subscription {} at the end of its period failed: {}", s.externalId, e.message)
+            throw paddleUnavailable()
+        }
+        // The day Paddle says it takes effect is the one shown; its webhook says the same.
+        scheduledCancel(answer["data"])?.takeIf { it != ends }?.let { at ->
+            system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, at).where(SUBSCRIPTIONS.ID.eq(s.id)).execute() }
+        }
+        log.info("Account {} cancelled subscription {} at the end of its period", m.accountId, s.externalId)
+    }
+
+    /**
+     * Takes back a cancellation before it happens: the Team plan renews as before, on the same
+     * day and at the same locked price. Nothing is charged now.
+     */
+    fun keep(m: Member) {
+        m.requireAdmin()
+        val s = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(m.accountId)).fetchOne() }
+            ?.takeIf { isPaying(it) } ?: throw ConflictException("no_subscription", "This account has no Team plan running")
+        val at = s.cancelAt ?: return
+        val claimed = system {
+            dsl.update(SUBSCRIPTIONS).setNull(SUBSCRIPTIONS.CANCEL_AT).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.eq(at)).execute()
+        }
+        if (claimed == 0) return
+        try {
+            paddle.removeScheduledChange(s.externalId)
+        } catch (e: PaddleException) {
+            system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, at).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.isNull).execute() }
+            log.warn("Keeping subscription {} failed: {}", s.externalId, e.message)
+            throw paddleUnavailable()
+        }
+        log.info("Account {} kept subscription {}", m.accountId, s.externalId)
+    }
+
+    private fun paddleUnavailable() =
+        ApiException(HttpStatus.BAD_GATEWAY, "billing_provider_unavailable", "Paddle couldn't be reached, so nothing changed. Try again in a moment.")
+
+    /** When a subscription's scheduled cancellation takes effect, if it has one. */
+    private fun scheduledCancel(data: JsonNode?): Instant? =
+        data?.get("scheduled_change")?.takeIf { it["action"]?.asText() == "cancel" }?.get("effective_at")?.asText()?.let(Instant::parse)
+
     /** Handles a Paddle webhook; false when the signature doesn't check out. */
     fun webhook(payload: String, signature: String?): Boolean {
         // Signatures carry wall-clock time, so they are checked against it, not the app clock.
@@ -263,7 +326,7 @@ class BillingService(
         r.status = data["status"].asText()
         r.seats = item["quantity"]?.asInt() ?: r.seats ?: 1
         r.currentPeriodEnd = data["current_billing_period"]?.get("ends_at")?.asText()?.let(Instant::parse)
-        r.cancelAt = data["scheduled_change"]?.takeIf { it["action"]?.asText() == "cancel" }?.get("effective_at")?.asText()?.let(Instant::parse)
+        r.cancelAt = scheduledCancel(data)
         r.canceledAt = data["canceled_at"]?.takeIf { !it.isNull }?.asText()?.let(Instant::parse)
         r.lastEventAt = occurred ?: r.lastEventAt
         r.store()
@@ -541,6 +604,20 @@ class BillingController(private val billing: BillingService) {
     @PostMapping("/portal")
     @Operation(summary = "A link to Paddle's customer portal")
     fun portal(): PortalView = billing.portal(Current.member())
+
+    @PostMapping("/cancellation")
+    @Operation(summary = "Cancel the Team plan at the end of the period that's paid for; nothing changes until then")
+    fun cancel(): SubscriptionView {
+        billing.cancel(Current.member())
+        return billing.view(Current.member())
+    }
+
+    @DeleteMapping("/cancellation")
+    @Operation(summary = "Keep the Team plan: take back a cancellation before it happens")
+    fun keep(): SubscriptionView {
+        billing.keep(Current.member())
+        return billing.view(Current.member())
+    }
 }
 
 @RestController
