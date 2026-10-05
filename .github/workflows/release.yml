@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-# Publishes the Docker image to GHCR for semver tags (v1.2.3).
+# A version tag (v1.2.3) releases the image CI already built for that commit on main, once every
+# check passed (ci.yml, job "image"), for amd64 and arm64. Nothing is rebuilt: the release has the
+# same jar and the same image for each architecture, under the release's tags. A commit CI hasn't
+# built that image for gets no release.
 name: Release
 
 on:
@@ -13,6 +16,8 @@ permissions:
 jobs:
   image:
     runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -23,30 +28,68 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: The image CI built for this commit after every check passed
+        id: tested
+        run: |
+          source="$IMAGE:sha-${GITHUB_SHA::7}"
+          if ! index=$(docker buildx imagetools inspect --raw "$source" 2>/dev/null); then
+            echo "::error::No release: CI has no image for commit $GITHUB_SHA ($source). CI publishes one only once every check passes on main, and a newer push to main can cancel that. If CI is still running on this commit, re-run this workflow once it's green; otherwise tag a commit that has one."
+            exit 1
+          fi
+          revision=$(jq -r '.annotations["org.opencontainers.image.revision"] // "unknown"' <<<"$index")
+          if [ "$revision" != "$GITHUB_SHA" ]; then
+            echo "::error::No release: $source was built from commit $revision, not $GITHUB_SHA."
+            exit 1
+          fi
+          for platform in linux/amd64 linux/arm64; do
+            if ! jq -e --arg p "$platform" 'any(.manifests[]; "\(.platform.os)/\(.platform.architecture)" == $p)' <<<"$index" >/dev/null; then
+              echo "::error::No release: $source has no $platform image."
+              exit 1
+            fi
+          done
+          echo "source=$source" >> "$GITHUB_OUTPUT"
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: deploy/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: HONESTROBIN_VERSION=${{ github.ref_name }}
-          # A list of everything inside, with licences where known (docs/self-host.md).
-          sbom: true
+      # A new index for the same per-architecture images (and their SBOMs), which says it's this
+      # release. The images themselves, and what they say about themselves, are unchanged.
+      - name: Publish it under the release's tags
+        env:
+          SOURCE: ${{ steps.tested.outputs.source }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          args=()
+          while IFS= read -r tag; do [ -n "$tag" ] && args+=(--tag "$tag"); done <<<"$TAGS"
+          docker buildx imagetools create "${args[@]}" \
+            --annotation "index:org.opencontainers.image.title=Honest Robin: Time $VERSION" \
+            --annotation "index:org.opencontainers.image.description=Release $VERSION of Honest Robin: Time: the image CI built from commit $GITHUB_SHA after every check passed." \
+            --annotation "index:org.opencontainers.image.version=$VERSION" \
+            --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA" \
+            --annotation "index:org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --annotation "index:org.opencontainers.image.licenses=AGPL-3.0-only" \
+            "$SOURCE"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
       - name: Changelog from conventional commits
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         with:
           args: --latest --strip header
         env:
           OUTPUT: RELEASE_NOTES.md
+      # The jar inside was built by ci.yml, which gives it the version main-<commit>.
+      - name: Which image it is
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          {
+            echo
+            echo "The image: \`$IMAGE:$VERSION\`, for amd64 and arm64. It's the image CI built from commit $GITHUB_SHA once every check on it had passed, not a new build, so the app inside gives its version as \`main-${GITHUB_SHA::7}\`."
+          } >> RELEASE_NOTES.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: RELEASE_NOTES.md

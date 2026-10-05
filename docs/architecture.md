@@ -105,7 +105,9 @@ changes nothing ([0024](decisions/0024-read-only-can-end-connections.md)).
 - **CI** (`.github/workflows/ci.yml`): sign-offs, licences, generated code up to date, backend
   tests in both editions on a real PostgreSQL, web app and extension tests, then end-to-end tests
   on the Compose setup in both editions, which fail on any error in the app's log. When all pass
-  on `main`, CI publishes the image (Java 25, non-root) for amd64 and arm64; tags use `release.yml`.
+  on `main`, CI publishes the image (Java 25, non-root) for amd64 and arm64. A version tag releases
+  that same image under the version's tags, without building again (`release.yml`); a commit CI
+  hasn't published an image for gets no release.
 - **Docker Compose:** the app and PostgreSQL, with Caddy for HTTPS ([self-host.md](self-host.md)).
   Honest Robin Cloud runs the same setup on one server in Nuremberg, behind Cloudflare.
 - **Backups:** the database dump and the data volume together, since the volume's secrets key

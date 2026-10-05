@@ -62,9 +62,10 @@ Caddy gets the certificate by itself. Without SMTP settings, sign-in links and i
 ## Prebuilt images
 
 CI builds an image of every change to `main` that passes all tests, for x86 (amd64) and Arm
-(arm64) servers, at `ghcr.io/honestrobin/time`. For now these images are private: they run our
-own test server. Public images will come with the first release. Until then, build from source
-as above; it's the same code.
+(arm64) servers, at `ghcr.io/honestrobin/time`. A release is one of these images, tagged with its
+version, not a new build. For now these images are private: they run our own test server. Public
+images will come with the first release. Until then, build from source as above; it's the same
+code.
 
 ## Reverse proxy and TLS
 

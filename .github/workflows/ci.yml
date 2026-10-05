@@ -148,9 +148,9 @@ jobs:
           path: e2e/playwright-report
 
   # Publishes ghcr.io/honestrobin/time:main (and :sha-<commit>) once every check above passed, for
-  # test servers. Releases get :latest and version tags from release.yml. The jar is built once
-  # here; each architecture's image only adds it to the Java runtime, so nothing compiles under
-  # emulation.
+  # test servers. A release is this same image: release.yml gives it :latest and version tags
+  # without building again. The jar is built once here; each architecture's image only adds it to
+  # the Java runtime, so nothing compiles under emulation.
   image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [licences, backend, frontend, e2e]
@@ -159,10 +159,11 @@ jobs:
       contents: read
       packages: write
     env:
-      # Said on the image itself, where everyone who pulls it sees it.
+      # Said on the image itself, where everyone who pulls it sees it. A release is this same
+      # image under a version tag (release.yml), so the words hold for both.
       IMAGE_NOTES: |
-        org.opencontainers.image.title=Honest Robin: Time (development build)
-        org.opencontainers.image.description=Development build of the main branch: the newest code that passed every test. Not a release: it can break, and it comes with no promises. For real work, use a release.
+        org.opencontainers.image.title=Honest Robin: Time
+        org.opencontainers.image.description=Built from one commit of the main branch once every test passed. Tagged main or sha-<commit>, it's a development build: it can break, and it comes with no promises. For real work, use a release: the same kind of image, tagged with a version number.
         org.opencontainers.image.licenses=AGPL-3.0-only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
