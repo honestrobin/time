@@ -320,16 +320,21 @@
       "title": "Cancel the Team plan",
       "until": "Everything stays as it is until {{date}}, the end of the period you've paid for. The plan doesn't renew after that.",
       "untilEnd": "Everything stays as it is until the end of the period you've paid for. The plan doesn't renew after that.",
+      "pastDue": "The last payment didn't go through, so this period isn't paid for. Cancelling ends the Team plan now, and Paddle stops asking for the payment.",
       "after_one": "Then the account moves to the free plan, for {{count}} person.",
       "after_other": "Then the account moves to the free plan, for {{count}} people.",
       "choose_one": "Now {{used}} people can sign in. If more than {{count}} still can on that day, the account is read-only until you choose who stays: deactivating someone keeps everything they tracked. Or start Team again.",
       "choose_other": "Now {{used}} people can sign in. If more than {{count}} still can on that day, the account is read-only until you choose who stays: deactivating someone keeps everything they tracked. Or start Team again.",
       "data": "Your data stays as it is, and export works on every plan.",
+      "price": "Your locked price of {{price}} ends with the plan. If you start Team again later, it's at the list price of that day.",
       "undo": "Until then, you can keep the Team plan here with one click.",
+      "again": "You can start Team again at any time.",
       "confirm": "Cancel at the end of this period",
+      "confirmNow": "Cancel now",
       "scheduled": "The Team plan ends on {{date}}. Until then, everything stays as it is.",
       "keep": "Keep the Team plan",
-      "keepHint": "It then renews on {{date}} as before, at your locked price of {{price}}."
+      "keepHint_one": "It then renews on {{date}} as before: {{count}} person at your locked price of {{price}}.",
+      "keepHint_other": "It then renews on {{date}} as before: {{count}} people at your locked price of {{price}}."
     }
   },
   "developers": {

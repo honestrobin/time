@@ -31,6 +31,13 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
   const free = s.free_plan_seats;
+  // The locked price, per person for each billing period.
+  const price =
+    s.locked_unit_price_minor != null && s.currency
+      ? t(`billing.unitPrice.${s.interval ?? "month"}`, { price: formatMoney(s.locked_unit_price_minor, s.currency) })
+      : undefined;
+  // While a payment is past due, the period isn't paid for: the plan ends now, not at its end.
+  const pastDue = s.status === "past_due";
   // What happens once the free plan starts: who may stay, and that the admin chooses.
   const after = (
     <p>
@@ -40,10 +47,6 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
   );
 
   if (s.cancel_at) {
-    const price =
-      s.locked_unit_price_minor != null && s.currency
-        ? t(`billing.unitPrice.${s.interval ?? "month"}`, { price: formatMoney(s.locked_unit_price_minor, s.currency) })
-        : undefined;
     return (
       <div className="notice stack" role="status">
         <p>{t("billing.cancel.scheduled", { date: day(s.cancel_at) })}</p>
@@ -53,7 +56,7 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
             {t("billing.cancel.keep")}
           </Button>
         </div>
-        {price && <p className="muted small">{t("billing.cancel.keepHint", { date: day(s.cancel_at), price })}</p>}
+        {price && <p className="muted small">{t("billing.cancel.keepHint", { date: day(s.cancel_at), price, count: s.seats_billed ?? s.seats_used })}</p>}
       </div>
     );
   }
@@ -66,17 +69,18 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
       </div>
       <Dialog open={open} onOpenChange={(o) => !cancel.isPending && setOpen(o)} title={t("billing.cancel.title")}>
         <div className="stack">
-          <p>{ends ? t("billing.cancel.until", { date: ends }) : t("billing.cancel.untilEnd")}</p>
+          <p>{pastDue ? t("billing.cancel.pastDue") : ends ? t("billing.cancel.until", { date: ends }) : t("billing.cancel.untilEnd")}</p>
           {after}
           <p>{t("billing.cancel.data")}</p>
-          <p>{t("billing.cancel.undo")}</p>
+          {price && <p>{t("billing.cancel.price", { price })}</p>}
+          <p>{t(pastDue ? "billing.cancel.again" : "billing.cancel.undo")}</p>
         </div>
         <DialogActions>
           <Button onClick={() => setOpen(false)} disabled={cancel.isPending}>
             {t("app.close")}
           </Button>
           <Button variant="primary" busy={cancel.isPending} onClick={() => cancel.mutate()}>
-            {t("billing.cancel.confirm")}
+            {t(pastDue ? "billing.cancel.confirmNow" : "billing.cancel.confirm")}
           </Button>
         </DialogActions>
       </Dialog>

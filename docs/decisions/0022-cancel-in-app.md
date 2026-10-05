@@ -16,14 +16,23 @@ opened Paddle's customer portal, where cancelling took several screens on anothe
    as it is until the end of the period that's paid for, with the date; then the free plan, for as
    many people as it holds, and if more can sign in, the account is read-only until the admin
    chooses who stays (decision record 0021) or starts Team again; the data and the export don't
-   change. No question about leaving, no offer, no survey. The other button says "Close".
-2. **At the end of the period, never at once.** `POST /api/v1/billing/cancellation` asks Paddle to
+   change; the locked price ends with the plan, and Team started again later is at the list price
+   of that day (0013's open question). No question about leaving, no offer, no survey. The other
+   button says "Close".
+2. **At the end of the period, not at once.** `POST /api/v1/billing/cancellation` asks Paddle to
    cancel with `effective_from: next_billing_period`. Nothing is refunded and nothing more is
-   charged for the period already paid; the plan just doesn't renew. Cancelling at once stays for
-   deleting an account and for a second subscription made by mistake, as before.
-3. **Asked twice, Paddle hears it once.** The end date is claimed on our record before Paddle is
-   asked. If Paddle can't be reached, the claim is given back, nothing changes, and the admin is
-   told so (`502 billing_provider_unavailable`).
+   charged for the period already paid; the plan just doesn't renew. **One exception: while a
+   payment is past due,** that period isn't paid for, and Paddle takes no scheduled change, so the
+   plan ends at once and Paddle stops asking for the payment. The dialog says so, and its button
+   says "Cancel now". Otherwise cancelling at once stays for deleting an account and for a second
+   subscription made by mistake, as before.
+3. **Paddle first, and asked once.** The change runs in a transaction that holds the
+   subscription's lock (the one webhooks take) while Paddle answers, and our record changes only
+   once Paddle said yes. A second click waits, then finds it done. If we stop between Paddle's yes
+   and our commit, Paddle's webhook for the change brings our record in line. If Paddle can't be
+   reached, the admin sees `502 billing_provider_unavailable`; if it refuses (it takes no changes
+   in the 30 minutes before a renewal), `409 billing_provider_refused`, with that reason. Either
+   way nothing changed.
 4. **It can be taken back until that day.** "Keep the Team plan" (`DELETE
    /api/v1/billing/cancellation`) asks Paddle to drop the scheduled cancellation, and the plan
    renews as before, on the same day and at the same locked price. Nothing is charged at that
@@ -37,8 +46,13 @@ opened Paddle's customer portal, where cancelling took several screens on anothe
 
 - The customer portal stays for payment methods and Paddle's invoices; a cancellation made there
   still reaches us by webhook.
+- In the 30 minutes before a renewal, or before the end date, Paddle takes no changes: cancelling
+  or keeping is refused then, and the admin is told why. A renewal charged after a refused
+  cancellation needs a person; that's a gap until Paddle's rule is checked.
 - VERIFY with Paddle's sandbox: that `effective_from: next_billing_period` schedules the
   cancellation and its answer carries `scheduled_change.effective_at`; that `PATCH
-  /subscriptions/{id}` with `scheduled_change: null` removes it and charges nothing; and whether
-  Paddle accepts seat changes on a subscription with a scheduled cancellation. If it doesn't, the
-  seat sync keeps retrying until the plan ends, and a person who joins in that time isn't billed.
+  /subscriptions/{id}` with `scheduled_change: null` removes it and charges nothing; that a
+  past-due subscription can be cancelled at once and Paddle stops collecting; the 30-minute rule;
+  and whether Paddle accepts seat changes on a subscription with a scheduled cancellation. If it
+  doesn't, the seat sync keeps retrying until the plan ends, and a person who joins in that time
+  isn't billed.

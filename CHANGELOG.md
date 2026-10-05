@@ -11,7 +11,7 @@ as they're made.
 
 - Cancel the Team plan in the app, in two clicks, on the billing page. It ends with the period
   you've paid for, and nothing changes before then. Until that day, you can keep it with one more
-  click.
+  click. While a payment is past due, that period isn't paid for, so the plan ends at once.
 - On Honest Robin Cloud, an account that turned read-only when its Team plan ended can deactivate
   people. As soon as no more people can sign in than the free plan holds, it works again. The
   billing page and the read-only notice say how.
