@@ -18,7 +18,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 | Features you have don't move to a more expensive plan. There's one paid plan, Team, and it differs from the free plan only in how many people can sign in. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::only the number of seats depends on the plan` |
 | Each version of the API keeps working for at least 12 months after the next one comes out. Every endpoint is under `/api/v1`, and there's no v2 yet. | By hand | |
 | A feature you use is never removed without 90 days' notice. | By hand | |
-| Changes to how you work are in a public, dated changelog before they ship. | Not built | |
+| Changes to how you work are in a public, dated changelog, [`CHANGELOG.md`](CHANGELOG.md), before they ship: every change people will notice adds its line in the same pull request. | By hand | |
 
 ## No surprise bills
 
