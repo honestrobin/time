@@ -8,6 +8,7 @@ import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
 import com.honestrobin.time.accounts.SeatCounter
 import com.honestrobin.time.accounts.SeatGate
+import com.honestrobin.time.accounts.SeatPrice
 import com.honestrobin.time.accounts.SeatStart
 import com.honestrobin.time.accounts.SeatTaken
 import com.honestrobin.time.analytics.Funnel
@@ -38,7 +39,12 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
+import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -105,9 +111,19 @@ class BillingService(
     private val funnel: Funnel,
     private val json: ObjectMapper,
     private val clock: Clock,
+    transactions: PlatformTransactionManager,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val paddle = PaddleClient(settings, json)
+
+    /**
+     * A short transaction of its own, never joined to the caller's: seat changes run after the
+     * change that caused them committed, where joining would write into a finished transaction.
+     */
+    private val alone = TransactionTemplate(transactions).apply { propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> system(block: () -> T): T = alone.execute { DbContext.system(block) } as T
 
     private fun current(): SubscriptionsRecord? = dsl.selectFrom(SUBSCRIPTIONS).fetchOne()
 
@@ -270,35 +286,54 @@ class BillingService(
 
     /**
      * Keeps Paddle's seat count in step with the people who can sign in (the job, every 15
-     * minutes). Open invitations aren't counted: nobody is billed for one until it's accepted.
+     * minutes): it lowers the count after someone is deactivated, and catches up on a seat Paddle
+     * couldn't be told about at once. Open invitations aren't counted: nobody is billed for one
+     * until it's accepted.
      */
     fun syncSeats(): Int {
         if (!settings.configured) return 0
-        val subs = tx.system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetch() }
+        val subs = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetch() }
         return subs.count { sync(it) }
     }
 
     /**
-     * Someone can sign in from now on (an invitation accepted, a person back): Paddle hears at
-     * once, so the seat is billed from this moment, prorated. If Paddle can't be reached, the job
-     * tries again; the person can sign in either way.
+     * Someone can sign in from now on (an invitation accepted, a person back). Only once that is
+     * saved does Paddle hear, so the seat is billed from this moment, prorated, and never for a
+     * change that was rolled back. If Paddle can't be reached, the job tries again; the person can
+     * sign in either way.
      */
-    @org.springframework.context.event.EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     fun onSeatTaken(e: SeatTaken) {
         if (!settings.configured) return
-        val s = tx.system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(e.accountId)).fetchOne() } ?: return
-        if (isPaying(s)) sync(s)
+        try {
+            val s = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(e.accountId)).fetchOne() } ?: return
+            if (isPaying(s)) sync(s)
+        } catch (ex: Exception) {
+            // The change is saved already; the job catches up.
+            log.error("Seat update for account {} failed; the seat sync will try again", e.accountId, ex)
+        }
     }
 
-    /** Sets the subscription's seats at Paddle to the people who can sign in; true if it changed them. */
+    /**
+     * Sets the subscription's seats at Paddle to the people who can sign in; true if it changed
+     * them. Each database step is a short transaction of its own, so nothing stays locked while
+     * Paddle answers. The new count is claimed before Paddle is asked, so two syncs at once (the
+     * job and an accepted invitation) can't both send it.
+     */
     private fun sync(s: SubscriptionsRecord): Boolean {
-        val used = maxOf(1, tx.system { seats.used(s.accountId) })
-        if (used == s.seats) return false
+        val billed = system { dsl.select(SUBSCRIPTIONS.SEATS).from(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ID.eq(s.id)).fetchOne()?.value1() } ?: return false
+        val used = maxOf(1, system { seats.used(s.accountId) })
+        if (used == billed) return false
+        val claimed = system {
+            dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.SEATS, used).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.SEATS.eq(billed)).execute()
+        }
+        if (claimed == 0) return false
         return try {
             paddle.updateQuantity(s.externalId, s.externalPriceId, used)
-            tx.system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.SEATS, used).where(SUBSCRIPTIONS.ID.eq(s.id)).execute() }
             true
         } catch (e: PaddleException) {
+            // Not changed at Paddle: back to what Paddle bills, so the next sync sends it again.
+            system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.SEATS, billed).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.SEATS.eq(used)).execute() }
             log.warn("Seat update for subscription {} failed: {}", s.externalId, e.message)
             false
         }
@@ -333,8 +368,9 @@ class BillingService(
  * Limits are kept at the moment you act (the Robin's Code, "We trust you too"; decision record
  * 0020). On the free plan, a person beyond it needs a Team subscription: refused with the Team
  * prices. On the Team plan, everyone who can sign in is billed, so giving someone sign-in access
- * adds a paid seat: refused with its price until an admin confirms. Nothing is charged here; the
- * seat is billed from the moment the person can sign in (BillingService.onSeatTaken).
+ * adds a paid seat: refused with its price until an admin says yes to that same price. Nothing is
+ * charged here; the seat is billed from the moment the person can sign in
+ * (BillingService.onSeatTaken).
  */
 @Component
 @Primary
@@ -346,16 +382,21 @@ class SubscriptionSeatGate(
     private val prices: BillingPrices,
     private val freePlan: FreePlan,
 ) : SeatGate {
-    override fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: Boolean) {
+    override fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: SeatPrice?, counted: Boolean) {
         // Without Paddle there is nothing to buy, so nothing to hold back.
         if (!settings.configured) return
         val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId))
             .and(SUBSCRIPTIONS.STATUS.`in`("trialing", "active", "past_due")).fetchOne()
         if (s == null) {
-            if (seats.claimed(accountId) >= freePlan.seats) throw subscriptionRequired()
+            if (seats.claimed(accountId) + (if (counted) 0 else 1) > freePlan.seats) throw subscriptionRequired()
             return
         }
-        if (!confirmed) throw confirmationRequired(s, starts)
+        // Back at once into a seat that's still paid for (someone deactivated in the last 15
+        // minutes, before the seat sync lowered the count): nothing more to pay, nothing to ask.
+        if (starts == SeatStart.NOW && seats.used(accountId) + 1 <= s.seats) return
+        val price = SeatPrice(s.lockedUnitPriceMinor, s.currency, s.billingInterval)
+        if (confirmed == price) return
+        throw confirmationRequired(s, price, starts, stale = confirmed != null)
     }
 
     private fun subscriptionRequired(): ApiException {
@@ -363,8 +404,9 @@ class SubscriptionSeatGate(
         val currency = prices.currency
         return ApiException(
             HttpStatus.PAYMENT_REQUIRED, "subscription_required",
-            "The free plan is for $who. To invite your team, start a Team subscription: ${money(prices.teamAnnualMonthlyMinor, currency)} " +
-                "per person per month, paid yearly, or ${money(prices.teamMonthlyMinor, currency)} paid monthly, for each person who can sign in.",
+            "The free plan is for $who. To give more people sign-in access, start a Team subscription: " +
+                "${money(prices.teamAnnualMonthlyMinor, currency)} per person per month paid yearly " +
+                "(${money(prices.teamAnnualMonthlyMinor * 12, currency)} a year), or ${money(prices.teamMonthlyMinor, currency)} paid monthly.",
             details = mapOf(
                 "free_plan_seats" to freePlan.seats,
                 // The same list prices as the billing page (GET /api/v1/billing/subscription).
@@ -376,22 +418,31 @@ class SubscriptionSeatGate(
         )
     }
 
-    private fun confirmationRequired(s: SubscriptionsRecord, starts: SeatStart): ApiException {
+    private fun confirmationRequired(s: SubscriptionsRecord, price: SeatPrice, starts: SeatStart, stale: Boolean): ApiException {
         // The subscription's own price per seat for each billing period, which Paddle charges. (VERIFY
         // with Paddle's sandbox that a yearly price's unit_price is the amount for the whole year.)
-        val price = "${money(s.lockedUnitPriceMinor, s.currency)} a ${s.billingInterval}"
-        val message = when (starts) {
-            SeatStart.WHEN_ACCEPTED -> "When they accept, your plan goes up by one person: $price, charged from that day. Nothing is charged before then."
-            SeatStart.NOW -> "Once they're back, your plan goes up by one person: $price, charged from today."
+        val unit = money(price.unitPriceMinor, price.currency)
+        val perPeriod = if (price.interval == "year") "$unit a year, paid yearly" else "$unit a month"
+        val message = buildString {
+            if (stale) append("That's not the price now. ")
+            append(
+                when (starts) {
+                    SeatStart.WHEN_ACCEPTED -> "When they accept, you pay for them: $perPeriod. That day, Paddle charges for what's left of the current billing period, up to $unit. Nothing is charged before they accept."
+                    SeatStart.NOW -> "Once they're back, you pay for them: $perPeriod. Today, Paddle charges for what's left of the current billing period, up to $unit."
+                },
+            )
+            append(" To go ahead, send the request again with confirm_unit_price_minor=${price.unitPriceMinor}, confirm_currency=${price.currency} and confirm_interval=${price.interval}.")
         }
         return ConflictException(
-            "seat_confirmation_required", "$message To go ahead, send the request again with confirm_new_seat=true.",
+            "seat_confirmation_required", message,
             details = mapOf(
-                "unit_price_minor" to s.lockedUnitPriceMinor,
-                "currency" to s.currency,
-                "interval" to s.billingInterval,
+                "unit_price_minor" to price.unitPriceMinor,
+                "currency" to price.currency,
+                "interval" to price.interval,
                 "billing_starts" to (if (starts == SeatStart.NOW) "now" else "when_accepted"),
                 "seats_billed" to s.seats,
+                "current_period_end" to s.currentPeriodEnd?.toString(),
+                "stale" to stale,
             ),
         )
     }

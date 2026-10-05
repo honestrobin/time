@@ -341,7 +341,13 @@ class HarvestImporter(
                 r.canSeeRates = admin || "billable_rates_manager" in roles
                 r.canManageProjects = admin || "project_creator" in roles
                 r.canManageInvoices = admin || "managed_projects_invoice_manager" in roles
-                r.isActive = u.isActive
+                if (id != null && r.isActive == false && u.isActive) {
+                    // Someone deactivated here stays deactivated: bringing them back is an admin's
+                    // choice in Time, and on Honest Robin Cloud it can add a paid seat (decision record 0020).
+                    issue(run, "user", u.id, "${u.fullName} is active in Harvest but deactivated here; bring them back in Time if you want", "warning")
+                } else {
+                    r.isActive = u.isActive
+                }
             }
             r.isContractor = u.isContractor
             r.hasAccessToAllFutureProjects = u.hasAccessToAllFutureProjects

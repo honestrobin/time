@@ -6338,7 +6338,9 @@ export interface operations {
     people_create: {
         parameters: {
             query?: {
-                confirm_new_seat?: boolean;
+                confirm_unit_price_minor?: number;
+                confirm_currency?: string;
+                confirm_interval?: string;
             };
             header?: never;
             path?: never;
@@ -6386,7 +6388,9 @@ export interface operations {
     people_update: {
         parameters: {
             query?: {
-                confirm_new_seat?: boolean;
+                confirm_unit_price_minor?: number;
+                confirm_currency?: string;
+                confirm_interval?: string;
             };
             header?: never;
             path: {
@@ -6414,7 +6418,9 @@ export interface operations {
     people_invite: {
         parameters: {
             query?: {
-                confirm_new_seat?: boolean;
+                confirm_unit_price_minor?: number;
+                confirm_currency?: string;
+                confirm_interval?: string;
             };
             header?: never;
             path: {
@@ -6438,7 +6444,9 @@ export interface operations {
     people_invite_link: {
         parameters: {
             query?: {
-                confirm_new_seat?: boolean;
+                confirm_unit_price_minor?: number;
+                confirm_currency?: string;
+                confirm_interval?: string;
             };
             header?: never;
             path: {

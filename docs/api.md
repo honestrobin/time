@@ -106,27 +106,38 @@ the meantime. Without `If-Match` the last write wins.
 
 On Honest Robin Cloud you pay for each person who can sign in. An invitation is free until it's
 accepted. Four requests give someone sign-in access: `POST /api/v1/people` (with `send_invite`
-left on), `POST /api/v1/people/{id}/invite`, `POST /api/v1/people/{id}/invite_link`, and
-`PATCH /api/v1/people/{id}` with `"is_active": true` for a deactivated person who could sign in or
-had an invitation. None of them adds to the bill without asking first:
+left on), `POST /api/v1/people/{id}/invite` (also when sending an invitation again),
+`POST /api/v1/people/{id}/invite_link`, and `PATCH /api/v1/people/{id}` with `"is_active": true`
+for a deactivated person who could sign in or had an invitation. None of them adds to the bill
+without a yes to the price first:
 
 - **On the free plan,** a person beyond it is refused with `402 subscription_required`. `details`
   has `free_plan_seats` and the Team plan's list `prices` (`interval`, `currency`,
   `per_seat_per_month_minor`), the same ones `GET /api/v1/billing/subscription` shows.
-- **On the Team plan,** the request is refused with `409 seat_confirmation_required` until you
-  confirm the price. `details` has `unit_price_minor`, `currency` and `interval` (the price of one
-  more person, per month or per year), `billing_starts` (`when_accepted` for an invitation, `now`
-  for someone coming back) and `seats_billed`. Send the same request again with
-  `?confirm_new_seat=true` to go ahead. Nothing is charged then: the person is billed, prorated,
-  from the moment they can sign in.
+- **On the Team plan,** the request is refused with `409 seat_confirmation_required`. `details`
+  has the price of one more person: `unit_price_minor` and `currency` for each `interval`
+  (`month`, or `year` for a price paid yearly), plus `billing_starts` (`when_accepted` for an
+  invitation, `now` for someone coming back), `seats_billed`, `current_period_end` and `stale`.
+  Show that price, and once it's agreed, send the same request again with it:
+  `confirm_unit_price_minor`, `confirm_currency` and `confirm_interval`. If the price changed in
+  between, the answer is the same 409 with the price now and `"stale": true`.
 
-Sending an invitation again doesn't ask again. The self-hosted edition has no seats, so it never
-asks, and `confirm_new_seat` changes nothing there.
+Nothing is charged when you say yes. The person is billed from the moment they can sign in: that
+day, Paddle charges for what's left of the current billing period, at most one period's price,
+and the full price at each renewal after that. Bringing back someone whose seat is still paid for
+(they were deactivated less than 15 minutes ago) asks nothing, because nothing more is charged.
+The self-hosted edition has no seats, so it never asks, and the `confirm_` parameters change
+nothing there.
 
 ```sh
+# 1. Ask: on the Team plan, the answer is 409 with the price in "details".
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"Tui","email":"tui@example.com","role":"member"}' \
-  "https://your-instance.example/api/v1/people?confirm_new_seat=true"
+  https://your-instance.example/api/v1/people
+# 2. Once the price is agreed, send it back with the same request.
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Tui","email":"tui@example.com","role":"member"}' \
+  "https://your-instance.example/api/v1/people?confirm_unit_price_minor=8400&confirm_currency=EUR&confirm_interval=year"
 ```
 
 ## Examples
