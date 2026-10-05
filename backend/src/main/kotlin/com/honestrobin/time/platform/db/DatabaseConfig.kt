@@ -32,8 +32,8 @@ class DatabaseConfig {
 
     /**
      * Runs once every bean exists: after the migrations, and before the web server takes
-     * requests, so an app that can't keep accounts apart never serves one. Jobs may already have
-     * started; without the role, their transactions can't begin either.
+     * requests, so an app that can't keep accounts apart never serves one. Jobs start after it
+     * (db-scheduler.delay-startup-until-context-ready).
      */
     @Bean
     fun rowLevelSecurityCheck(dataSource: DataSource, transactions: PlatformTransactionManager, props: HonestRobinProperties) =
