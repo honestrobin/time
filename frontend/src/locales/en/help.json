@@ -1,0 +1,11 @@
+{
+  "help": {
+    "title": "Help",
+    "personTitle": "Ask a person",
+    "personLead": "Write to us. A person reads every message and answers it: yes, no or later, and why.",
+    "more": "More",
+    "selfHost": "Self-hosting guide, on GitHub",
+    "api": "API guide, on GitHub",
+    "export": "Export all data"
+  }
+}

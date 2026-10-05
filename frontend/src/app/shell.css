@@ -148,11 +148,25 @@
   font-weight: 500;
 }
 
+/* Help, at the foot of the sidebar on every page, just above the account. */
+.sidebar-help {
+  width: 100%;
+  margin-top: auto;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
 .sidebar-foot {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+}
+
+.sidebar-help + .sidebar-foot {
+  margin-top: calc(var(--s2) - var(--s5));
 }
 
 .account-button {
@@ -286,6 +300,53 @@
   .sidebar.menu-open .sidebar-foot {
     display: flex;
   }
+
+  /* Help stays in the bar, next to Menu, so a person is one tap away on a phone too. With the
+     menu open, it's a row below the links. */
+  .sidebar-help {
+    order: 3;
+    width: auto;
+    min-height: 40px;
+    margin-top: 0;
+    border: 1px solid var(--rule-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .sidebar.menu-open .sidebar-help {
+    order: 4;
+    flex-basis: 100%;
+    min-height: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  .sidebar-help + .sidebar-foot {
+    margin-top: 0;
+  }
+
+  .sidebar-help .kbd {
+    display: none;
+  }
+}
+
+/* The help dialog: a person first, then the guides, then the keyboard shortcuts. */
+.help section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.help ul {
+  margin: 0;
+  padding-left: var(--s5);
+}
+
+.help-email {
+  font-weight: 600;
 }
 
 /* Read-only accounts (lapsed, or awaiting deletion) say so on every page. */
