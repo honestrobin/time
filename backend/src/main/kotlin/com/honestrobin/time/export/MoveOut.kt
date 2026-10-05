@@ -238,7 +238,7 @@ object LeavingGuide {
         appendLine("- Delete the account under Settings > Account > Delete this account. After 14 days the account")
         appendLine("  and everything in it are deleted for good, a subscription is cancelled, and our access to")
         appendLine("  Stripe, QuickBooks, Xero and Storecove ends. Until then it's read-only, you can still")
-        appendLine("  export, and any admin can cancel.")
+        appendLine("  export, and any admin can cancel the deletion.")
     }
 
     /** When cancelling ends a subscription: the request asks Paddle for the end of the current period, or now while a payment is past due. */
