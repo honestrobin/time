@@ -3,8 +3,10 @@
 - Status: accepted
 - Date: 2026-10-05
 - Spec reference: §14, AT-6.3
-- Supersedes: decision 5 of 0013 in part (how a lapsed account gets out), and settles the open
-  question in 0020's consequences (an invitation accepted after a subscription ended)
+- Supersedes: decision 5 of 0013 in part (how a lapsed account gets out); settles the open
+  question in 0020's consequences (an invitation accepted after a subscription ended); and, for
+  lapsed accounts only, 0024's "deactivating people stays refused while read-only", which 0024
+  left to this change
 
 ## Context
 
@@ -58,5 +60,7 @@ you too": nothing you already have ever stops working):
 - Asking the seat gate from sign-in widens the guard `only the number of seats depends on the
   plan`: `requireSeatToJoin` is one of its markers, and `AuthService.kt` is allowed to name the
   gate, with the reason.
+- An account waiting to be deleted still can't deactivate people (0024); the Move out page and the
+  export's README say which of the two read-only states can.
 - The invited person learns that the workspace's Team plan isn't active. That's what they need to
   know to act, and nothing more about the account.

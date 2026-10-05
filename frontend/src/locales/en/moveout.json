@@ -17,6 +17,7 @@
     "connectedTitle": "Still connected",
     "connectedLead": "Everything that still connects to this account, and how to end each one. People in your team who sign in aren't listed: deactivate them in Team.",
     "readOnly": "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. Deactivating people waits until the account is active again.",
+    "readOnlyLapsed": "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. You can also deactivate people in Team; once few enough can sign in for the free plan, the account works again.",
     "nothingConnected": "Nothing is connected: no tokens, devices, invitations, outside services or invoice links.",
     "what": "What",
     "howToEnd": "How to end it",
