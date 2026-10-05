@@ -46,7 +46,7 @@ Reports of anything that looks wrong are very welcome; see
 - **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
 - **Reports** for time, uninvoiced work, budgets and expenses, exported to CSV or Excel.
 - **A browser extension** (Chrome, Firefox) with a timer and a "Track time" button on Jira, Asana, GitHub, Linear and Trello.
-- **Your data stays yours:** a full export on every plan and in every state, a public REST API, and two-factor sign-in.
+- **Your data stays yours:** one Move out button, on every plan and in every state, gives you a full export, says where you can go next and lists what's still connected. A public REST API, and two-factor sign-in.
 
 <p>
   <img src="docs/screenshots/report.png" alt="The time report" width="49%">

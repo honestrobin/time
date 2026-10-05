@@ -1,8 +1,9 @@
 # Account export format
 
-An account export is one zip file. Admins create it under **Settings → Account → Export all
-data**. It works on every plan and in both editions, also while an account is lapsed or waiting
-to be deleted, because the data belongs to the customer (spec §13).
+An account export is one zip file. Admins create it under **Settings → Account → Move out**
+(`POST /api/v1/account/move_out`, or `POST /api/v1/exports` for the zip alone). It works on every
+plan and in both editions, also while an account is lapsed or waiting to be deleted, because the
+data belongs to the customer (spec §13). Moving out changes nothing else in the account.
 
 The same zip imports into any Honest Robin instance, cloud or self-hosted, under
 **Settings → Account → Import an export** (`POST /api/v1/accounts/import`, raw zip body).
@@ -11,16 +12,21 @@ The same zip imports into any Honest Robin instance, cloud or self-hosted, under
 
 ```
 manifest.json          format, version, checksums (see below)
-README.txt             what's inside, in plain words
+README.txt             what's inside, where you can go next, and what was still connected to
+                       the account when the export was made, with how to end each one
 data/<table>.json      the complete record: one file per table
 csv/*.csv              spreadsheets for people (time entries, expenses, invoices, clients,
                        contacts, projects, tasks, people)
-invoices/*.pdf         every issued invoice as its client received it
+invoices/*.pdf         every issued invoice as its client gets it: a Factur-X hybrid PDF where
+                       the account sends those
+invoices/e-invoices/   each invoice as XRechnung (`…-xrechnung.xml`) and Peppol BIS
+                       (`…-peppol.xml`), where the invoice has what that format needs
 files/<id>/<filename>  receipts and other uploads; <id> is the row in data/files.json
 ```
 
-`data/` is the source of truth. The CSVs and PDFs are a convenience, and the importer ignores
-them.
+`data/` is the source of truth. The CSVs, PDFs and e-invoice files are a convenience, and the
+importer ignores them. The CSVs are UTF-8 with a header row; dates are `YYYY-MM-DD`, hours are
+decimal and amounts are plain numbers.
 
 ## manifest.json
 
