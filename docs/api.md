@@ -166,6 +166,15 @@ Everything in the account, as one zip (admins; see [export-format.md](export-for
 curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/exports
 ```
 
+Moving out does the same and also lists everything still connected to the account (tokens,
+devices, Stripe, QuickBooks, Xero, Peppol, a Harvest sync, invoice links, invoice reminders), with
+the page in Time where each is ended. It changes nothing else in the account:
+
+```sh
+curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/account/move_out
+curl -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/account/connections
+```
+
 ## Stability
 
 Paths are versioned (`/api/v1`). Within v1, fields and endpoints are added but not removed or

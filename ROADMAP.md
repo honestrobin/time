@@ -25,8 +25,9 @@ services.
 - **Browser extension** for Chrome and Firefox: a timer in the toolbar and a "Track time" button
   on Jira, Asana, GitHub, Linear and Trello. Timers started anywhere show everywhere within two
   seconds.
-- **Your data:** a full export that imports into any instance, on every plan and in every state,
-  and account deletion after a grace period.
+- **Your data:** Move out, one step on every plan and in every state: a full export that imports
+  into any instance, where you can go next, and what's still connected with how to end each. And
+  account deletion after a grace period.
 - **Security:** row-level security per account, two-factor sign-in (which accounts can require),
   a password re-check before sensitive actions, breached-password checks, and an audit log.
 - **A public REST API** with personal access tokens, documented in [docs/api.md](docs/api.md) and

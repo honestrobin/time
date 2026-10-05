@@ -9,6 +9,12 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Move out, in Settings → Account: one step gets everything ready for leaving, and changes
+  nothing in your account. You get one zip of all your data, with every invoice as a PDF and as an
+  e-invoice where it has the data. The Move out page says where you can go next, and lists
+  everything still connected to the account (tokens, devices, outside services, invoice links),
+  with how to end each. Invoice PDFs in the export are now the ones your clients get, Factur-X
+  included.
 - Honest Robin Cloud bills a person from the moment they can sign in. An invitation is free until
   it's accepted; checkout and the billing page now count the same people.
 - On the Team plan, inviting someone, sending an invitation again or bringing someone back shows
