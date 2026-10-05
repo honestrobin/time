@@ -57,10 +57,13 @@ class BillingTest : IntegrationTest() {
         subscription: String = "sub_test_$account",
         signature: String? = null,
         occurredAt: Instant = Instant.now(),
+        // A cancellation Paddle has scheduled for the end of the period.
+        cancelAt: String? = null,
     ) = """{"event_id":"evt_${UUID.randomUUID()}","event_type":"$type","occurred_at":"$occurredAt",
         "data":{"id":"$subscription","status":"$status","customer_id":"ctm_${account.toString().take(8)}","currency_code":"EUR",
         "billing_cycle":{"interval":"year","frequency":1},
-        "current_billing_period":{"starts_at":"2026-10-01T00:00:00Z","ends_at":"2027-10-01T00:00:00Z"},
+        "current_billing_period":{"starts_at":"2026-10-01T00:00:00Z","ends_at":"${MockPaddle.PERIOD_END}"},
+        "scheduled_change":${if (cancelAt == null) "null" else """{"action":"cancel","effective_at":"$cancelAt","resume_at":null}"""},
         "items":[{"quantity":$quantity,"price":{"id":"$priceId","unit_price":{"amount":"$unitPrice","currency_code":"EUR"}}}],
         "custom_data":{"account_id":"$account","signature":"${signature ?: PaddleClient.sign(MockPaddle.WEBHOOK_SECRET, 0, "account:$account")}"}}}"""
 
@@ -81,6 +84,9 @@ class BillingTest : IntegrationTest() {
 
     /** Every request about this account's subscription; other tests' subscriptions may be synced meanwhile. */
     private fun paddleCalls(account: UUID) = MockPaddle.calls.filter { it.path.startsWith("/subscriptions/sub_test_$account") }
+
+    /** Requests that cancel this account's subscription, now or later. */
+    private fun cancellations(account: UUID) = MockPaddle.calls.filter { it.method == "POST" && it.path == "/subscriptions/sub_test_$account/cancel" }
 
     private fun seatChanges(account: UUID) = MockPaddle.calls.filter { it.method == "PATCH" && it.path == "/subscriptions/sub_test_$account" }
 
@@ -513,6 +519,108 @@ class BillingTest : IntegrationTest() {
             assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
             exportWorks(admin)
         }
+    }
+
+    @Test
+    fun `an admin cancels in the app in two clicks, and nothing changes until the period ends`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // The Robin's Code: "Cancel in the app, in two clicks." The app's two clicks (a button,
+        // then the dialog's answer) send this one request.
+        val admin = signup(accountName = "Kamahi Ltd")
+        val account = admin.accountId!!
+        val member = invite(admin)
+        assertThat(deliver(subscriptionEvent(account, quantity = 2))).isEqualTo(200)
+        MockPaddle.calls.clear()
+
+        val cancelled = admin.post("/api/v1/billing/cancellation").expect(200)
+        assertThat(cancelled["plan"].asText()).isEqualTo("team")
+        assertThat(cancelled["status"].asText()).isEqualTo("active")
+        assertThat(cancelled["cancel_at"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+        assertThat(cancelled["current_period_end"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+        assertThat(cancellations(account).single().body!!["effective_from"].asText()).isEqualTo("next_billing_period")
+
+        // Until the period ends, everything stays as it is: the plan, the seats, the price, everyone's work.
+        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 2, cancelAt = MockPaddle.PERIOD_END))
+        val team = admin.get("/api/v1/billing/subscription").expect(200)
+        assertThat(team["plan"].asText()).isEqualTo("team")
+        assertThat(team["cancel_at"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+        assertThat(team["seats_billed"].asInt()).isEqualTo(2)
+        assertThat(team["locked_unit_price_minor"].asLong()).isEqualTo(YEARLY)
+        assertThat(accountStatus(admin)).isEqualTo("active")
+        admin.post("/api/v1/clients", mapOf("name" to "Still here", "currency" to "EUR")).expect(201)
+        member.get("/api/v1/me").expect(200)
+        exportWorks(admin)
+        assertThat(seatChanges(account)).isEmpty()
+
+        // On that day Paddle ends it, and the account is on the free plan; its data stays.
+        deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2))
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["plan"].asText()).isEqualTo("free")
+        exportWorks(admin)
+        assertThat(cancellations(account)).hasSize(1)
+    }
+
+    @Test
+    fun `cancelling reaches Paddle once, at the end of the period`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Mangeao Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        MockPaddle.calls.clear()
+
+        // Paddle can't be reached: nothing changes, and the admin is told so.
+        MockPaddle.whileDown { admin.post("/api/v1/billing/cancellation").expectError(502, "billing_provider_unavailable") }
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["cancel_at"].isNull).isTrue()
+
+        // Asked again, and once more after that: Paddle hears it once, and never "immediately".
+        admin.post("/api/v1/billing/cancellation").expect(200)
+        admin.post("/api/v1/billing/cancellation").expect(200)
+        val sent = cancellations(account).filter { it.status == 200 }
+        assertThat(sent).hasSize(1)
+        assertThat(sent.single().body!!["effective_from"].asText()).isEqualTo("next_billing_period")
+        assertThat(cancellations(account).map { it.body!!["effective_from"].asText() }).doesNotContain("immediately")
+        assertThat(seatChanges(account)).isEmpty()
+    }
+
+    @Test
+    fun `the Team plan can be kept until the day it ends`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Hinau Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        admin.post("/api/v1/billing/cancellation").expect(200)
+        MockPaddle.calls.clear()
+
+        val kept = admin.delete("/api/v1/billing/cancellation").expect(200)
+        assertThat(kept["plan"].asText()).isEqualTo("team")
+        assertThat(kept["cancel_at"].isNull).isTrue()
+        // Paddle is asked to drop the scheduled cancellation, and nothing else: no seats, no price.
+        val change = MockPaddle.calls.single { it.path == "/subscriptions/sub_test_$account" }
+        assertThat(change.method).isEqualTo("PATCH")
+        assertThat(change.body!!.has("scheduled_change")).isTrue()
+        assertThat(change.body!!["scheduled_change"].isNull).isTrue()
+        assertThat(change.body!!.has("items")).isFalse()
+        // Paddle's webhook agrees; keeping it again asks Paddle nothing.
+        deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 1))
+        admin.delete("/api/v1/billing/cancellation").expect(200)
+        assertThat(MockPaddle.calls.filter { it.path.startsWith("/subscriptions/sub_test_$account") }).hasSize(1)
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["cancel_at"].isNull).isTrue()
+    }
+
+    @Test
+    fun `only an admin can cancel the Team plan`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Tawa Ltd")
+        val account = admin.accountId!!
+        val manager = invite(admin, role = "manager")
+        val member = invite(admin)
+        assertThat(deliver(subscriptionEvent(account, quantity = 3))).isEqualTo(200)
+        MockPaddle.calls.clear()
+
+        manager.post("/api/v1/billing/cancellation").expect(403)
+        member.post("/api/v1/billing/cancellation").expect(403)
+        member.delete("/api/v1/billing/cancellation").expect(403)
+        assertThat(MockPaddle.calls.filter { it.path.startsWith("/subscriptions/sub_test_$account") }).isEmpty()
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["cancel_at"].isNull).isTrue()
     }
 
     @Test

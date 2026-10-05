@@ -33,8 +33,8 @@ services.
 - **A public REST API** with personal access tokens, documented in [docs/api.md](docs/api.md) and
   in the app.
 - **Honest Robin Cloud** additions only: billing through Paddle with a price locked per
-  subscription, and privacy-respecting product analytics (decision record 0015). The
-  self-hosted edition has every feature.
+  subscription, cancelling in the app in two clicks, and privacy-respecting product analytics
+  (decision record 0015). The self-hosted edition has every feature.
 
 ## Before the first release
 
@@ -49,8 +49,6 @@ services.
   differences in the meantime.
 - Sign in to Harvest with OAuth, which needs a registered Harvest app (today: a personal access
   token).
-- Honest Robin Cloud: cancel a subscription inside the app (today the billing page opens
-  Paddle's page for it).
 - Decide whether a timer that ran past midnight should end "the next day".
 - Publish the extension in the Chrome Web Store and Firefox Add-ons.
 

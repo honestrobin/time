@@ -60,7 +60,7 @@ What we promise, and what holds us to it:
 1. **No usage-based pricing.** Nothing is metered for billing. Honest Robin Cloud's plans differ only in seats (where anyone can sign up, daily mail limits guard against abuse), and the self-hosted edition has no limits.
 2. **Export always works,** including on free and lapsed accounts.
 3. **The self-hosted edition is complete:** the same code with the same features. A test fails if the editions differ.
-4. **No dark patterns:** no hidden fees and no forced annual plans. Cancelling will be in the app; today it's on Paddle's page.
+4. **No dark patterns:** no hidden fees, no forced annual plans, and you cancel in the app, in two clicks.
 
 The second and third are guarded by tests, so they can't break by accident; the first isn't
 tested yet. Code can't stop us breaking a promise on purpose, though, so all four will also go into the terms of service. And the last
