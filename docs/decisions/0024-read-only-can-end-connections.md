@@ -1,6 +1,6 @@
 # 0024. A read-only account can still end its connections
 
-- Status: proposed
+- Status: accepted (by Claude on 5 October 2026, following the Robin's Code, "You can always leave"; the maintainer reviews the architecture and may revisit it)
 - Date: 2026-10-05
 - Spec reference: §1.2.2, §13, AT-6.3
 
