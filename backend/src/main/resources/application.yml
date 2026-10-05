@@ -27,6 +27,8 @@ spring:
       # JIT compilation costs ~100 ms per report query and never pays off at our query sizes.
       connection-init-sql: "set jit = off"
   flyway:
+    # For the whole session, so the migrations see every account. Flyway gets connections of its
+    # own for this, never the app's pool (DatabaseConfig.migrationsOnConnectionsOfTheirOwn).
     init-sqls: "set honestrobin.rls_bypass = 'on'"
   jooq:
     sql-dialect: postgres

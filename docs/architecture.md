@@ -47,8 +47,10 @@ paying for Honest Robin Cloud. Who may sign up is a setting ([0004](decisions/00
   for example after a restore without that role, the app refuses to start
   ([0026](decisions/0026-rls-fails-closed.md)). Since migration V15, keys
   between account tables include `account_id`, so a reference into another account is refused.
-- **Migrations and jOOQ.** Flyway runs the migrations at startup. Queries are typed SQL through
-  jOOQ, its classes generated from the migrations and committed ([0006](decisions/0006-generated-code-committed.md)).
+- **Migrations and jOOQ.** Flyway runs the migrations at startup, on connections of its own that
+  are closed afterwards, because they run with row-level security's bypass switched on. Queries
+  are typed SQL through jOOQ, its classes generated from the migrations and committed
+  ([0006](decisions/0006-generated-code-committed.md)).
 - **The audit log** is written by a trigger on every business table: who, from which address, and
   each changed column before and after, secrets left out. The application's role can't change or
   delete audit rows ([0003](decisions/0003-audit-by-trigger.md)).
