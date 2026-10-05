@@ -115,11 +115,11 @@ class SecurityRegressionTest : IntegrationTest() {
     }
 
     /**
-     * Found on 5 October 2026, when jOOQ began refusing queries outside a transaction (decision
-     * record 0027): since 4 October, editing an invoice ran without one, so as the database user,
-     * which row-level security doesn't apply to in the Compose setup. Someone allowed to invoice in
-     * one account could read and change another account's invoice by its id, payment instructions
-     * included, and a refused edit kept what it had saved before the refusal.
+     * Found on 5 October 2026 by a change that makes jOOQ refuse a query outside a transaction:
+     * since 4 October, editing an invoice ran without one, so as the database user, which
+     * row-level security doesn't apply to in the Compose setup. Someone allowed to invoice in one
+     * account could read and change another account's invoice by its id (an admin, its payment
+     * instructions too), and a refused edit kept what it had saved before the refusal.
      */
     @Test
     fun `another account's invoice can't be read or changed by its id, and a refused edit changes nothing`() {
