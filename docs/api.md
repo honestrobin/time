@@ -204,8 +204,9 @@ curl -H "Authorization: Bearer $TOKEN" https://your-instance.example/api/v1/acco
 
 Ending a connection works in every state of an account, also while it's read-only: the
 Disconnect endpoints of Stripe, QuickBooks, Xero and Peppol, stopping a Harvest sync or cancelling
-an import, `DELETE /api/v1/account/api_tokens/{id}` (an admin revokes anyone's token or device)
-and `DELETE /api/v1/people/{id}/invite` (withdraws an invitation).
+an import, `DELETE /api/v1/account/api_tokens/{id}` (an admin revokes anyone's token or device),
+`DELETE /api/v1/people/{id}/invite` (withdraws an invitation), and on Honest Robin Cloud
+`POST /api/v1/billing/cancellation` (cancels the Team plan).
 
 ## Stability
 
