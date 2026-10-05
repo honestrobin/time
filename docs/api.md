@@ -94,10 +94,10 @@ the meantime. Without `If-Match` the last write wins.
 |---|---|
 | 400 | `bad_request`, `bad_cursor`, `invalid_link`, `invalid_password`, `invalid_code`, `challenge_expired`, `not_an_export`, `export_damaged`, `export_too_large` |
 | 401 | `unauthenticated` |
-| 402 | `account_read_only` (lapsed or scheduled for deletion; reading, exports and ending connections still work), `subscription_required` (cloud; see Seats) |
+| 402 | `account_read_only` (lapsed or scheduled for deletion; reading, exports and ending connections still work, and a lapsed account can deactivate people: see Seats), `subscription_required` (cloud; see Seats) |
 | 403 | `forbidden`, `insufficient_scope`, `reauth_required` (web sessions: sign in again or confirm the password with `POST /api/v1/auth/reauth`), `two_factor_required` (the account requires two-factor sign-in, which this person hasn't set up) |
 | 404 | `not_found` |
-| 409 | `invoiced`, `entry_locked`, `week_submitted`, `week_approved`, `seat_confirmation_required` (cloud; see Seats), and others named after the conflict |
+| 409 | `invoiced`, `entry_locked`, `week_submitted`, `week_approved`, `seat_confirmation_required` and `invitation_needs_team_plan` (cloud; see Seats), and others named after the conflict |
 | 412 | `stale` (the `If-Match` ETag is out of date) |
 | 422 | `validation_failed`, with `fields` |
 | 429 | `invite_limit`, `invite_cooldown`, `invoice_email_limit`, `too_many_signups`, `too_many_attempts`, `import_running`, `import_limit` |
@@ -128,6 +128,14 @@ and the full price at each renewal after that. Bringing back someone whose seat 
 (they were deactivated less than 15 minutes ago) asks nothing, because nothing more is charged.
 The self-hosted edition has no seats, so it never asks, and the `confirm_` parameters change
 nothing there.
+
+**When a subscription ends** with more people who can sign in than the free plan holds, the
+account turns read-only (`402 account_read_only`), and export keeps working. Its admins can still
+deactivate people: `PATCH /api/v1/people/{id}` with `{"is_active": false}` and no other field.
+Once no more people can sign in than `free_plan_seats` (in `GET /api/v1/billing/subscription`),
+the account works again at once. Starting Team again works too. While the subscription is ended,
+accepting an invitation that the free plan has no room for is refused with
+`409 invitation_needs_team_plan`, and nothing changes; the link keeps working until it expires.
 
 ```sh
 # 1. Ask: on the Team plan, the answer is 409 with the price in "details".

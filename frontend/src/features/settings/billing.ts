@@ -25,6 +25,8 @@ export interface Subscription {
   cancel_at?: string;
   billing_available: boolean;
   prices: PlanPrice[];
+  /** How many people the free plan has room for: a lapsed account works again once no more than this can sign in. */
+  free_plan_seats: number;
 }
 interface Checkout {
   environment: string;

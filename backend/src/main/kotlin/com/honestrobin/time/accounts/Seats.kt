@@ -21,6 +21,14 @@ data class SeatPrice(val unitPriceMinor: Long, val currency: String, val interva
  */
 fun interface SeatGate {
     fun requireSeat(accountId: UUID, starts: SeatStart, confirmed: SeatPrice?, counted: Boolean)
+
+    /**
+     * Asked when someone accepts an invitation, before anything changes. The yes to a paid seat was
+     * given when the invitation went out (or at checkout), so this never asks for a price. It only
+     * refuses someone the account's plan can't hold any more, so that joining never turns an
+     * account read-only. Everywhere but Honest Robin Cloud, everyone fits.
+     */
+    fun requireSeatToJoin(accountId: UUID) = Unit
 }
 
 @Component
@@ -33,6 +41,13 @@ class OpenSeats : SeatGate {
  * cloud edition's billing listens, so the seat counts from this moment and not before.
  */
 data class SeatTaken(val accountId: UUID)
+
+/**
+ * Someone in [accountId] can't sign in any more: they were deactivated. The cloud edition's
+ * billing listens in the same transaction, so an account that turned read-only when its paid plan
+ * ended works again as soon as it's back within the free plan.
+ */
+data class SeatFreed(val accountId: UUID)
 
 /**
  * Seats as billed (spec §14, decision record 0020): active people who can sign in. Deactivated

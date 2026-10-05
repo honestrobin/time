@@ -3,6 +3,7 @@ package com.honestrobin.time.billing
 
 import com.honestrobin.time.auth.AuthService
 import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
+import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.edition.Edition
 import com.honestrobin.time.support.IntegrationTest
@@ -77,7 +78,26 @@ class BillingTest : IntegrationTest() {
 
     private fun seatsBilled(admin: TestClient) = admin.get("/api/v1/billing/subscription").expect(200)["seats_billed"].asInt()
 
+    /** Every request about this account's subscription; other tests' subscriptions may be synced meanwhile. */
+    private fun paddleCalls(account: UUID) = MockPaddle.calls.filter { it.path.startsWith("/subscriptions/sub_test_$account") }
+
     private fun seatChanges(account: UUID) = MockPaddle.calls.filter { it.method == "PATCH" && it.path == "/subscriptions/sub_test_$account" }
+
+    private fun accountStatus(admin: TestClient) = admin.get("/api/v1/account").expect(200)["status"].asText()
+
+    /** Asks for a full export and waits until it's ready to download: it works in every state of an account. */
+    private fun exportWorks(admin: TestClient) {
+        val id = admin.post("/api/v1/exports").expect(202).id()
+        val deadline = System.currentTimeMillis() + 30_000
+        while (true) {
+            val e = admin.get("/api/v1/exports").expect(200).body.first { it["id"].asText() == id.toString() }
+            if (e["status"].asText() == "ready") break
+            assertThat(e["status"].asText()).withFailMessage { "Export failed: $e" }.isIn("queued", "running")
+            check(System.currentTimeMillis() < deadline) { "Export did not finish: $e" }
+            Thread.sleep(100)
+        }
+        admin.get("/api/v1/exports/$id/download").expect(200)
+    }
 
     private fun locked(account: UUID) = tx.system { dsl.select(SUBSCRIPTIONS.LOCKED_UNIT_PRICE_MINOR).from(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(account)).fetchOne()!!.value1() }
 
@@ -385,6 +405,81 @@ class BillingTest : IntegrationTest() {
         assertThat(free["plan"].asText()).isEqualTo("free")
         assertThat(free["seats_used"].asInt()).isEqualTo(2)
         assertThat(admin.post("/api/v1/billing/checkout", mapOf("interval" to "year")).expect(200)["quantity"].asInt()).isEqualTo(2)
+    }
+
+    @Test
+    fun `a lapsed account can deactivate people and is active again within the free plan`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Kahikatea Ltd")
+        val account = admin.accountId!!
+        val aroha = invite(admin, name = "Aroha").membershipId!!
+        val hemi = invite(admin, name = "Hemi").membershipId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 3))).isEqualTo(200)
+        withFreePlanOfOne {
+            // The Team plan ends with three people who can sign in: read-only, export still works.
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 3))).isEqualTo(200)
+            assertThat(accountStatus(admin)).isEqualTo("lapsed")
+            admin.post("/api/v1/clients", mapOf("name" to "New", "currency" to "EUR")).expectError(402, "account_read_only")
+            exportWorks(admin)
+            // The billing page says how many may stay.
+            assertThat(admin.get("/api/v1/billing/subscription").expect(200)["free_plan_seats"].asInt()).isEqualTo(1)
+
+            // Deactivating someone works, and only that: no other change, not even with it, and nobody back.
+            admin.patch("/api/v1/people/$aroha", mapOf("name" to "Aroha T")).expectError(402, "account_read_only")
+            admin.patch("/api/v1/people/$aroha", mapOf("is_active" to false, "name" to "Aroha T")).expectError(402, "account_read_only")
+            MockPaddle.calls.clear()
+            admin.patch("/api/v1/people/$aroha", mapOf("is_active" to false)).expect(200)
+            assertThat(admin.get("/api/v1/people/$aroha")["name"].asText()).isEqualTo("Aroha")
+            // Two can still sign in, one more than the free plan: still read-only.
+            assertThat(accountStatus(admin)).isEqualTo("lapsed")
+            admin.patch("/api/v1/people/$aroha", mapOf("is_active" to true)).expectError(402, "account_read_only")
+            exportWorks(admin)
+
+            // Back within the free plan: active again at once, and the job leaves it that way.
+            admin.patch("/api/v1/people/$hemi", mapOf("is_active" to false)).expect(200)
+            assertThat(accountStatus(admin)).isEqualTo("active")
+            billing().lapseDue()
+            assertThat(accountStatus(admin)).isEqualTo("active")
+            admin.post("/api/v1/clients", mapOf("name" to "Back to work", "currency" to "EUR")).expect(201)
+            exportWorks(admin)
+            // Nothing was sent to Paddle on the way.
+            assertThat(paddleCalls(account)).isEmpty()
+        }
+    }
+
+    @Test
+    fun `an invitation accepted after the subscription ended is refused and changes nothing`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Before, the person got in and the account turned read-only for everyone (decision record 0021).
+        val admin = signup(accountName = "Rewarewa Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        val email = uniqueEmail("tane")
+        val tane = confirmed(admin, HttpMethod.POST, "/api/v1/people", mapOf("name" to "Tane", "email" to email, "role" to "member")).expect(201).id()
+        val token = mail.linkToken(email)
+        withFreePlanOfOne {
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 1))).isEqualTo(200)
+            assertThat(accountStatus(admin)).isEqualTo("active")
+
+            MockPaddle.calls.clear()
+            val refused = accept(token).expectError(409, "invitation_needs_team_plan")
+            assertThat(refused["message"].asText()).contains("Team plan", "Ask the person who invited you")
+            // Nothing changed: the account, the invitation, no new user, nothing charged.
+            assertThat(accountStatus(admin)).isEqualTo("active")
+            assertThat(admin.get("/api/v1/people/$tane")["status"].asText()).isEqualTo("invited")
+            assertThat(tx.system { dsl.fetchExists(USERS, USERS.EMAIL.eq(email)) }).isFalse()
+            billing().lapseDue()
+            assertThat(accountStatus(admin)).isEqualTo("active")
+            admin.post("/api/v1/clients", mapOf("name" to "Still working", "currency" to "EUR")).expect(201)
+            exportWorks(admin)
+            assertThat(paddleCalls(account)).isEmpty()
+
+            // Once Team runs again, the same link works, and the person is billed from that moment.
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.resumed", status = "active", quantity = 1))).isEqualTo(200)
+            accept(token).expect(200)
+            assertThat(seatChanges(account).single().body!!["items"][0]["quantity"].asInt()).isEqualTo(2)
+            exportWorks(admin)
+        }
     }
 
     @Test

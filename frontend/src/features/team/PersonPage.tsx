@@ -435,6 +435,11 @@ function AccessSection({ person }: { person: Person }) {
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people"] });
+      // A read-only account may be back within the free plan: the notice and billing look again.
+      if (!p.is_active) {
+        void qc.invalidateQueries({ queryKey: ["account"] });
+        void qc.invalidateQueries({ queryKey: ["billing"] });
+      }
       setConfirming(false);
       toast(p.is_active ? t("team.reactivated", { name: p.name }) : t("team.deactivated", { name: p.name }));
     },

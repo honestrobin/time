@@ -10,6 +10,7 @@ import { formatDate } from "../../lib/format";
 import { useMe, usePermissions } from "../../lib/session";
 import { accountQuery } from "./AccountSettingsPage";
 import { MoveOutSection } from "./MoveOut";
+import { subscriptionQuery } from "./billing";
 
 /** Move out, bring an account over from another instance, or delete this one. */
 export function AccountDataSection() {
@@ -155,11 +156,20 @@ export function AccountStatusBanner() {
   const { t } = useTranslation();
   const perms = usePermissions();
   const { data: account } = useQuery({ ...accountQuery, staleTime: 60_000 });
+  // Lapsed when the Team plan ended (Honest Robin Cloud only): its admins see the way back.
+  const lapsed = account?.status === "lapsed" && perms.isAdmin;
+  const { data: sub } = useQuery({ ...subscriptionQuery, enabled: lapsed, retry: false });
   if (!account || account.status === "active") return null;
   const pending = account.status === "pending_deletion" && account.deletes_at;
+  const wayBack = lapsed && sub ? sub.free_plan_seats : null;
   return (
     <div className="account-banner" role="status">
-      {pending ? t("settings.data.bannerPending", { date: formatDate(account.deletes_at!.slice(0, 10), "long") }) : t("settings.data.bannerReadOnly")}
+      {pending
+        ? t("settings.data.bannerPending", { date: formatDate(account.deletes_at!.slice(0, 10), "long") })
+        : wayBack !== null
+          ? t("settings.data.bannerLapsed", { count: wayBack })
+          : t("settings.data.bannerReadOnly")}
+      {wayBack !== null && <Link to="/settings/billing">{t("settings.data.bannerBilling")}</Link>}
       {perms.isAdmin && (
         <Link to="/settings/account" hash={pending ? "delete" : "export"}>
           {pending ? t("settings.data.bannerCancel") : t("settings.data.bannerExport")}

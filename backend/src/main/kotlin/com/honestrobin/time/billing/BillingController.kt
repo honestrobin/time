@@ -7,6 +7,7 @@ import com.github.kagkarlsson.scheduler.task.helper.RecurringTask
 import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
 import com.honestrobin.time.accounts.SeatCounter
+import com.honestrobin.time.accounts.SeatFreed
 import com.honestrobin.time.accounts.SeatGate
 import com.honestrobin.time.accounts.SeatPrice
 import com.honestrobin.time.accounts.SeatStart
@@ -77,6 +78,8 @@ data class SubscriptionView(
     /** Whether Paddle is set up on this instance; without it there is nothing to buy. */
     val billingAvailable: Boolean,
     val prices: List<PlanPrice>,
+    /** How many people the free plan has room for: a lapsed account works again once no more than this can sign in. */
+    val freePlanSeats: Int,
 )
 
 data class CheckoutRequest(val interval: String = "year")
@@ -140,6 +143,7 @@ class BillingService(
             invitationsPending = seats.invited(m.accountId), seatsBilled = s?.seats, interval = s?.billingInterval, currency = s?.currency, lockedUnitPriceMinor = s?.lockedUnitPriceMinor,
             currentPeriodEnd = s?.currentPeriodEnd, cancelAt = s?.cancelAt, billingAvailable = settings.configured,
             prices = listOf(PlanPrice("month", prices.currency, prices.teamMonthlyMinor), PlanPrice("year", prices.currency, prices.teamAnnualMonthlyMinor)),
+            freePlanSeats = freePlan.seats,
         )
     }
 
@@ -357,6 +361,16 @@ class BillingService(
         return true
     }
 
+    /**
+     * Someone was deactivated. A lapsed account that is back within the free plan works again at
+     * once, in the same transaction as the deactivation (decision record 0021). Paddle's count is
+     * left to the seat sync, as before; a lapsed account has no subscription paying for seats.
+     */
+    @org.springframework.context.event.EventListener
+    fun onSeatFreed(e: SeatFreed) {
+        if (seats.used(e.accountId) <= freePlan.seats) reactivate(e.accountId)
+    }
+
     private fun reactivate(accountId: UUID) {
         dsl.update(ACCOUNTS).set(ACCOUNTS.STATUS, "active").setNull(ACCOUNTS.LAPSED_AT)
             .where(ACCOUNTS.ID.eq(accountId)).and(ACCOUNTS.STATUS.eq("lapsed")).execute()
@@ -397,6 +411,25 @@ class SubscriptionSeatGate(
         val price = SeatPrice(s.lockedUnitPriceMinor, s.currency, s.billingInterval)
         if (confirmed == price) return
         throw confirmationRequired(s, price, starts, stale = confirmed != null)
+    }
+
+    /**
+     * Someone accepting an invitation after the subscription ended, when the free plan has no room
+     * for them, is refused, and nothing changes: before, they got in and the account turned
+     * read-only for everyone (decision record 0021). On the Team plan the yes was given when the
+     * invitation went out, so joining asks nothing more. An account that never had a subscription
+     * doesn't turn read-only, so it isn't refused either.
+     */
+    override fun requireSeatToJoin(accountId: UUID) {
+        // One at a time for each account, so two people can't both take the last free seat.
+        dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 7234004))", "join:$accountId")
+        val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).fetchOne() ?: return
+        if (s.status in setOf("trialing", "active", "past_due")) return
+        if (seats.used(accountId) + 1 <= freePlan.seats) return
+        throw ConflictException(
+            "invitation_needs_team_plan",
+            "This invitation needs the workspace's Team plan, which isn't active right now. Ask the person who invited you.",
+        )
     }
 
     private fun subscriptionRequired(): ApiException {
