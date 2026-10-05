@@ -1,9 +1,9 @@
 # Roadmap
 
-**Status: feature-complete for version 1, not yet released.** Everything in the
-[specification](docs/spec.md) is built and tested (milestones M0–M6). Before a first release, it
-needs trying out by real teams, and the integrations below need checking against the real
-services.
+**Status: built, not yet released.** Version 1 is built from the
+[specification](docs/spec.md), milestone by milestone (M0–M6), but not all of the specification is
+built: see [below](#not-in-version-1). Before a first release, it needs trying out by real teams,
+and the integrations below need checking against the real services.
 
 ## What's in version 1
 
@@ -26,7 +26,8 @@ services.
   on Jira, Asana, GitHub, Linear and Trello. Timers started anywhere show everywhere within two
   seconds.
 - **Your data:** Move out, one step on every plan and in every state: a full export that imports
-  into any instance, where you can go next, and what's still connected with how to end each. And
+  into any instance (tested within one edition, not yet from Honest Robin Cloud into a
+  self-hosted one), where you can go next, and what's still connected with how to end each. And
   account deletion after a grace period.
 - **Security:** row-level security per account, two-factor sign-in (which accounts can require),
   a password re-check before sensitive actions, breached-password checks, and an audit log.
@@ -35,6 +36,19 @@ services.
 - **Honest Robin Cloud** additions only: billing through Paddle with a price locked per
   subscription, cancelling in the app in two clicks, and privacy-respecting product analytics
   (decision record 0015). The self-hosted edition has every feature.
+
+## Not in version 1
+
+Parts of the specification that aren't built, each in
+[decision record 0025](docs/decisions/0025-what-version-1-leaves-out.md) with what Time does
+instead. The list may not be complete.
+
+- Sign-in with Google and Microsoft.
+- A limit on API requests per token.
+- A key service (KMS) for Honest Robin Cloud's secrets.
+- Code scanning (SAST) in CI.
+- Keeping each invoice as it was sent.
+- The switcher offer for teams leaving Harvest.
 
 ## Before the first release
 
