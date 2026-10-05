@@ -62,6 +62,9 @@ const CONNECTIONS: Schemas["ConnectionView"][] = [
 ];
 
 const READ_ONLY_NOTE =
+  "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. You can also deactivate people in Team; once few enough can sign in for the free plan, the account works again.";
+// An account waiting to be deleted can't deactivate people until the deletion is cancelled.
+const READ_ONLY_NOTE_DELETING =
   "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. Deactivating people waits until the account is active again.";
 
 /** Stands in for the server's answer to a DELETE, and records what was called. */
@@ -101,6 +104,13 @@ describe("Move out", () => {
     expect(screen.getByRole("link", { name: "Delete the account, under Settings → Account" }).getAttribute("href")).toBe("/settings/account#delete");
   });
 
+  it("waiting to be deleted, the read-only note says deactivating people waits", async () => {
+    renderPage(MoveOutPage, "pending_deletion", CONNECTIONS);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+    expect(screen.getByText(READ_ONLY_NOTE_DELETING)).toBeTruthy();
+    expect(screen.queryByText(READ_ONLY_NOTE)).toBeNull();
+  });
+
   it("revoke and withdraw end a token and an invitation while the account is read-only", async () => {
     const del = spyOnDelete();
     renderPage(MoveOutPage, "lapsed", CONNECTIONS);
@@ -125,6 +135,7 @@ describe("Move out", () => {
     renderPage(MoveOutPage, "active", CONNECTIONS);
     await screen.findByRole("heading", { name: "Moving out changes nothing" });
     expect(screen.queryByText(READ_ONLY_NOTE)).toBeNull();
+    expect(screen.queryByText(READ_ONLY_NOTE_DELETING)).toBeNull();
     expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
     const dialog = await screen.findByRole("dialog", { name: "Withdraw the invitation for Ana Manager?" });

@@ -195,9 +195,9 @@ object LeavingGuide {
         appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
         appendLine()
         appendLine("While the account is read-only (lapsed, or waiting to be deleted), an admin can still end")
-        appendLine("each of these, except invoice links, which end only when the account is deleted.")
-        appendLine("Deactivating people waits until the account is active again. Deleting the account ends")
-        appendLine("our access to all of them.")
+        appendLine("each of these, except invoice links, which end only when the account is deleted. A lapsed")
+        appendLine("account can also deactivate people under Team; one waiting to be deleted can't until the")
+        appendLine("deletion is cancelled. Deleting the account ends our access to all of them.")
     }
 
     fun cancellingAndDeleting(): String = """

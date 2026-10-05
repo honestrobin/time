@@ -170,7 +170,8 @@ export function MoveOutPage() {
       <section className="section stack" id="connected">
         <h2>{t("moveOut.connectedTitle")}</h2>
         <p className="muted">{t("moveOut.connectedLead")}</p>
-        {readOnly && <p className="notice">{t("moveOut.readOnly")}</p>}
+        {/* A lapsed account can also deactivate people (decision record 0021); one waiting to be deleted can't. */}
+        {readOnly && <p className="notice">{t(account?.status === "lapsed" ? "moveOut.readOnlyLapsed" : "moveOut.readOnly")}</p>}
         {connections.error && <p className="notice notice-error">{errorInfo(connections.error).message}</p>}
         <ConnectionList connections={connections.data} subscription={subscribed ? subscription.data : undefined} readOnly={readOnly} />
       </section>
