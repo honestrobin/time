@@ -101,8 +101,9 @@ class MoveOutTest : IntegrationTest() {
     @Test
     fun `move out works in every state of an account and changes nothing`() {
         val cloud = props.edition == Edition.CLOUD
-        // Cancelled is a state of Honest Robin Cloud: a Team subscription that ended.
-        val states = listOfNotNull("free", "team", "lapsed", "waiting to be deleted", if (cloud) "cancelled" else null)
+        // Unpaid and cancelled are states of Honest Robin Cloud: a Team subscription whose payment
+        // failed, and one that ended.
+        val states = listOf("free", "team", "lapsed", "waiting to be deleted") + if (cloud) listOf("unpaid", "cancelled") else emptyList()
         for (state in states) {
             val s = seed("Kowhai Studio")
             val accountId = s.admin.accountId!!
@@ -114,6 +115,7 @@ class MoveOutTest : IntegrationTest() {
                     }
                     "lapsed" -> setStatus(accountId, "lapsed")
                     "waiting to be deleted" -> s.admin.post("/api/v1/account/deletion", mapOf("confirm_name" to "Kowhai Studio")).expect(204)
+                    "unpaid" -> subscribe(accountId, "past_due", seats = 1)
                     "cancelled" -> {
                         invite(s.admin)
                         subscribe(accountId, "canceled", seats = 2)
@@ -138,7 +140,7 @@ class MoveOutTest : IntegrationTest() {
                 val readme = zip["README.txt"]!!.toString(Charsets.UTF_8)
                 assertThat(readme).describedAs(state)
                     .contains("WHERE YOU CAN GO NEXT", LeavingGuide.SELF_HOSTING_GUIDE, "Import an export", "csv/")
-                    .contains("STILL CONNECTED", "Invoice links: your clients can open 1 invoice from the links they were sent.")
+                    .contains("STILL CONNECTED", "Invoice links: 1 issued invoice has a link that opens it for anyone who has it, such as your client.")
                     .contains("CANCELLING AND DELETING", "Making this export changed nothing in the account")
 
                 // Nothing changed: not the state, not the data, not a connection. The only new
@@ -173,6 +175,8 @@ class MoveOutTest : IntegrationTest() {
             admin.post("/api/v1/device_authorizations/${start["user_code"].asText()}/approve").expect(204)
             device.post("/api/v1/auth/device/token", mapOf("device_code" to start["device_code"].asText())).expect(200)
             admin.patch("/api/v1/invoice_settings", mapOf("reminders_enabled" to true)).expect(200)
+            // An invitation not yet accepted: its link still lets someone in.
+            admin.post("/api/v1/people", mapOf("name" to "Ana Pending", "email" to uniqueEmail("ana"), "role" to "member")).expect(201)
             // Outside services, as connecting them leaves them (each module's own tests connect them for real).
             tx.system {
                 for ((kind, mode, name) in listOf(
@@ -203,7 +207,7 @@ class MoveOutTest : IntegrationTest() {
 
             val list = admin.get("/api/v1/account/connections").expect(200).body.values().toList()
             assertThat(list.map { it["kind"].asText() }).containsExactlyInAnyOrder(
-                "api_token", "api_token", "device", "stripe", "qbo", "xero", "storecove", "harvest_sync", "harvest_import", "invoice_links", "invoice_reminders",
+                "api_token", "api_token", "device", "invitation", "stripe", "qbo", "xero", "storecove", "harvest_sync", "harvest_import", "invoice_links", "invoice_reminders",
             )
             fun one(kind: String, name: String? = null): JsonNode = list.single { it["kind"].asText() == kind && (name == null || it["name"].asText() == name) }
             fun JsonNode.text(field: String): String? = get(field)?.takeIf { !it.isNull }?.asText()
@@ -218,13 +222,15 @@ class MoveOutTest : IntegrationTest() {
             assertThat(one("harvest_sync").text("name")).isEqualTo("1234567")
             assertThat(one("harvest_sync").text("ends_at")).isNotNull()
             assertThat(one("invoice_links")["count"].asInt()).isEqualTo(1)
+            assertThat(one("invitation").text("person")).isEqualTo("Ana Pending")
+            assertThat(one("invitation").text("ends_at")).isNotNull()
             // Where each one is ended in Time; invoice links end only with the account.
             assertThat(list.associate { "${it["kind"].asText()}:${it.text("name")}" to it.text("end_in") }).containsAllEntriesOf(
                 mapOf(
                     "api_token:Reports script" to "/settings/profile", "device:Browser extension (Firefox)" to "/settings/profile",
                     "stripe:Totara Works Ltd" to "/settings/payments", "qbo:Totara Books" to "/settings/accounting", "xero:Totara Ledger" to "/settings/accounting",
                     "storecove:Storecove" to "/settings/invoices", "harvest_sync:1234567" to "/settings/import", "harvest_import:7654321" to "/settings/import",
-                    "invoice_links:null" to null, "invoice_reminders:null" to "/settings/invoices",
+                    "invoice_links:null" to null, "invoice_reminders:null" to "/settings/invoices", "invitation:Ana Pending" to "/team",
                 ),
             )
 
@@ -246,7 +252,9 @@ class MoveOutTest : IntegrationTest() {
                 "Harvest sync: changes in Harvest account 1234567 come over until",
                 "Harvest import: an import from Harvest account 7654321 hasn't finished",
                 "delete the personal access token in Harvest",
-                "Invoice links: your clients can open 1 invoice",
+                "Invoice links: 1 issued invoice has a link",
+                "Invitation for Ana Pending: its link lets them join the account until",
+                "deactivates Ana Pending under Team, and the link stops working",
                 "stop for good when it's deleted",
                 "Invoice reminders: we email your clients about unpaid invoices",
                 "Not in this list: a Team subscription to Honest Robin Cloud.",

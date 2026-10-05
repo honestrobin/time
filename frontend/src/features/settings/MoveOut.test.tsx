@@ -63,6 +63,7 @@ describe("Move out", () => {
     renderPage(MoveOutPage, "lapsed", [
       { kind: "api_token", name: "Scripts", membership_id: "membership-1", person: "Marta Owner", last_used_at: "2026-10-01T09:00:00Z" },
       { kind: "device", name: "Browser extension (Firefox)", membership_id: "membership-2", person: "Ivo Designer" },
+      { kind: "invitation", name: "Ana Manager", membership_id: "membership-3", person: "Ana Manager", ends_at: "2026-10-19T09:00:00Z", end_in: "/team" },
       { kind: "stripe", name: "Tour & Co Ltd", mode: "connect", end_in: "/settings/payments" },
       { kind: "invoice_links", count: 3 },
     ]);
@@ -74,7 +75,8 @@ describe("Move out", () => {
     expect(screen.getByText("Signed-in device “Browser extension (Firefox)”")).toBeTruthy();
     expect(screen.getByText("Ivo Designer revokes it in their profile, or you deactivate Ivo Designer in Team, which stops all their tokens.")).toBeTruthy();
     expect(screen.getByText("Disconnect Stripe under Online payments. That ends our access at Stripe.")).toBeTruthy();
-    expect(screen.getByText("Your clients can open 3 invoices from the links they were sent.")).toBeTruthy();
+    expect(screen.getByText("Invitation for Ana Manager")).toBeTruthy();
+    expect(screen.getByText("3 issued invoices each have a link that opens it for anyone who has it, such as your client.")).toBeTruthy();
     expect(screen.getByText(/^This account is read-only/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Online payments" }).getAttribute("href")).toBe("/settings/payments");
     expect(screen.getByRole("link", { name: "Delete the account, under Settings → Account" }).getAttribute("href")).toBe("/settings/account#delete");

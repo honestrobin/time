@@ -17,8 +17,10 @@ README.txt             what's inside, where you can go next, and what was still 
 data/<table>.json      the complete record: one file per table
 csv/*.csv              spreadsheets for people (time entries, expenses, invoices, clients,
                        contacts, projects, tasks, people)
-invoices/*.pdf         every issued invoice as its client gets it: a Factur-X hybrid PDF where
-                       the account sends those
+invoices/*.pdf         every issued invoice as a PDF, with Factur-X inside where the account
+                       sends those. Drawn at export time from today's data: Time doesn't keep
+                       invoices as they were sent, so one edited or paid since differs from
+                       what the client received
 invoices/e-invoices/   each invoice as XRechnung (`…-xrechnung.xml`) and Peppol BIS
                        (`…-peppol.xml`), where the invoice has what that format needs
 files/<id>/<filename>  receipts and other uploads; <id> is the row in data/files.json

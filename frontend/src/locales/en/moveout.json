@@ -15,14 +15,14 @@
     "toolsTitle": "Another tool",
     "toolsBody": "The zip's csv folder has spreadsheets of your time entries, expenses, invoices, clients, contacts, projects, tasks and people. Most time tracking, invoicing and accounting tools can import them.",
     "connectedTitle": "Still connected",
-    "connectedLead": "Everything that still connects to this account, and how to end each one.",
-    "readOnly": "This account is read-only, so its Disconnect and Stop buttons don't work now. You can still end each connection at the other service. Deleting the account ends our access to all of them.",
-    "nothingConnected": "Nothing is connected: no tokens, devices, outside services or invoice links.",
+    "connectedLead": "Everything that still connects to this account, and how to end each one. People in your team who sign in aren't listed: deactivate them in Team.",
+    "readOnly": "This account is read-only, so its Disconnect and Stop buttons don't work now. You can still end each connection at the other service, except Peppol on Honest Robin's Storecove contract, which only deleting the account ends. Deleting the account ends our access to all of them.",
+    "nothingConnected": "Nothing is connected: no tokens, devices, invitations, outside services or invoice links.",
     "what": "What",
     "howToEnd": "How to end it",
     "unchangedTitle": "Moving out changes nothing",
     "unchangedBody": "Your account keeps working as it is. Cancelling and deleting are separate steps, and you choose them.",
-    "cancelSubscription": "Cancel the subscription, under Billing",
+    "cancelSubscription": "Cancel the subscription on Paddle's page, from Billing",
     "deleteAccount": "Delete the account, under Settings → Account",
     "kind": {
       "api_token": {
@@ -38,6 +38,11 @@
       "token": {
         "howMine": "Revoke it in your profile, under Personal access tokens.",
         "howOther": "{{person}} revokes it in their profile, or you deactivate {{person}} in Team, which stops all their tokens."
+      },
+      "invitation": {
+        "title": "Invitation for {{name}}",
+        "detail": "Its link lets them join this account until {{until}}.",
+        "how": "Deactivate {{name}} in Team, and the link stops working. It also stops by itself on {{until}}."
       },
       "stripe": {
         "title": "Stripe",
@@ -75,8 +80,8 @@
       },
       "invoice_links": {
         "title": "Invoice links",
-        "detail_one": "Your clients can open {{count}} invoice from the link they were sent.",
-        "detail_other": "Your clients can open {{count}} invoices from the links they were sent.",
+        "detail_one": "{{count}} issued invoice has a link that opens it for anyone who has it, such as your client.",
+        "detail_other": "{{count}} issued invoices each have a link that opens it for anyone who has it, such as your client.",
         "how": "They work while this account exists, and stop for good when it's deleted. A single link can't be turned off yet."
       },
       "invoice_reminders": {
@@ -88,11 +93,12 @@
         "title": "Honest Robin Cloud subscription",
         "renews": "Team plan, renews on {{date}}.",
         "ends": "Team plan, ends on {{date}}.",
-        "how": "Cancel it under Billing. Deleting the account cancels it too."
+        "how": "Cancel it on Paddle's page, from Billing (Payment method and invoices). Deleting the account cancels it too, when the account is deleted 14 days later."
       },
       "other": {
         "how": "Write to us and we'll tell you how to end it."
       }
-    }
+    },
+    "dataRedrawn": "Time doesn't keep a copy of each invoice as it was sent: the files are drawn from today's data. An invoice that changed since you sent it (edited, paid, or with a new company address) looks different from the one your client received."
   }
 }
