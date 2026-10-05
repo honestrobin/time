@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.billing
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.honestrobin.time.auth.AuthService
+import com.honestrobin.time.db.Tables.BILLING_EVENTS
 import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.platform.HonestRobinProperties
@@ -14,6 +19,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.http.HttpMethod
@@ -807,6 +813,55 @@ class BillingTest : IntegrationTest() {
         MockPaddle.calls.clear()
         context.getBean(com.honestrobin.time.export.AccountDeletionService::class.java).purge(admin.accountId!!)
         assertThat(MockPaddle.calls.single { it.path == "/subscriptions/$subscription/cancel" }.body!!["effective_from"].asText()).isEqualTo("immediately")
+    }
+
+    @Test
+    fun `a higher price from Paddle keeps the lock and tells the admin and us`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        val admin = signup(accountName = "Ngaio Ltd")
+        val account = admin.accountId!!
+        val second = invite(admin, role = "admin", name = "Rua Admin")
+        val member = invite(admin)
+        assertThat(deliver(subscriptionEvent(account, quantity = 3))).isEqualTo(200)
+        // We hear of it through the app's log: there's no operator address in the mail setup.
+        val log = ListAppender<ILoggingEvent>().apply { start() }
+        val billingLog = LoggerFactory.getLogger("com.honestrobin.time.billing") as Logger
+        billingLog.addAppender(log)
+        try {
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 3, unitPrice = 9000))).isEqualTo(200)
+            // A retry of Paddle's report, or another event with the same price, tells nobody twice.
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.updated", quantity = 3, unitPrice = 9000))).isEqualTo(200)
+        } finally {
+            billingLog.detachAppender(log)
+        }
+
+        // The lock stays.
+        assertThat(locked(account)).isEqualTo(YEARLY)
+        // It's recorded, and the billing page shows it, with both prices.
+        val reports = admin.get("/api/v1/billing/subscription").expect(200)["price_reports"]
+        assertThat(reports.size()).isEqualTo(1)
+        assertThat(reports[0]["reported_unit_price_minor"].asLong()).isEqualTo(9000)
+        assertThat(reports[0]["locked_unit_price_minor"].asLong()).isEqualTo(YEARLY)
+        assertThat(reports[0]["currency"].asText()).isEqualTo("EUR")
+        assertThat(reports[0]["interval"].asText()).isEqualTo("year")
+        // Every admin is emailed once, with both prices; nobody else is.
+        for (email in listOf(admin.email!!, second.email!!)) {
+            val sent = mail.to(email).filter { it.template == "price-above-lock" }
+            assertThat(sent).hasSize(1)
+            assertThat(sent.single().text).contains("EUR 90.00", "EUR 84.00", "refund the difference")
+        }
+        assertThat(mail.to(member.email!!).filter { it.template == "price-above-lock" }).isEmpty()
+        // And us: an error in the log, which names what to refund.
+        val errors = log.list.filter { it.level == Level.ERROR && it.formattedMessage.startsWith("PRICE LOCK:") }
+        assertThat(errors).isNotEmpty()
+        assertThat(errors.first().formattedMessage).contains("sub_test_$account", "9000", "8400")
+
+        // Once a person has refunded the difference and marked it so, the billing page stops saying it.
+        tx.system {
+            dsl.update(BILLING_EVENTS).set(BILLING_EVENTS.EVENT_TYPE, BillingService.PRICE_ABOVE_LOCK_REFUNDED)
+                .where(BILLING_EVENTS.ACCOUNT_ID.eq(account)).and(BILLING_EVENTS.EVENT_TYPE.eq(BillingService.PRICE_ABOVE_LOCK)).execute()
+        }
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["price_reports"].size()).isEqualTo(0)
     }
 
     @Test
