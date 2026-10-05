@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, PageHeader, useToast } from "../../design";
+import { Button, PageHeader, useConfirm, useToast } from "../../design";
 import { api, downloadFile, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
@@ -274,33 +274,12 @@ function ConnectionRow({ c }: { c: Connection }) {
           title={t(`${k}.title`, values)}
           detail={used}
           how={mine ? t("moveOut.kind.token.howMine") : t("moveOut.kind.token.howOther", values)}
-          link={
-            mine ? (
-              <Link to="/settings/profile">{t("nav.profile")}</Link>
-            ) : c.membership_id ? (
-              <Link to="/team/$personId" params={{ personId: c.membership_id }}>
-                {t("nav.team")}
-              </Link>
-            ) : undefined
-          }
+          link={<RevokeButton c={c} />}
         />
       );
     }
     case "invitation":
-      return (
-        <Row
-          title={t(`${k}.title`, values)}
-          detail={t(`${k}.detail`, values)}
-          how={t(`${k}.how`, values)}
-          link={
-            c.membership_id ? (
-              <Link to="/team/$personId" params={{ personId: c.membership_id }}>
-                {t("nav.team")}
-              </Link>
-            ) : undefined
-          }
-        />
-      );
+      return <Row title={t(`${k}.title`, values)} detail={t(`${k}.detail`, values)} how={t(`${k}.how`, values)} link={<WithdrawButton c={c} />} />;
     case "stripe":
       return (
         <Row
@@ -333,4 +312,52 @@ function ConnectionRow({ c }: { c: Connection }) {
       // A kind this version of the app doesn't know yet: still listed, never hidden.
       return <Row title={c.name ?? c.kind} how={t("moveOut.kind.other.how")} />;
   }
+}
+
+/** Ends anyone's token or signed-in device in the account (admins), also while it's read-only. */
+function RevokeButton({ c }: { c: Connection }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const revoke = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE("/api/v1/account/api_tokens/{id}", { params: { path: { id } } })),
+    onSuccess: () => {
+      toast(t("settings.tokenRevoked"));
+      void qc.invalidateQueries({ queryKey: connectionsQuery.queryKey });
+    },
+    onError: (e) => toast(errorInfo(e).message, "error"),
+  });
+  const [dialog, ask] = useConfirm({ title: t("settings.revoke"), body: t("settings.revokeConfirm", { name: c.name ?? "" }), confirmLabel: t("settings.revoke") });
+  const id = c.id;
+  if (!id) return null;
+  return (
+    <>
+      {dialog}
+      <Button size="sm" variant="ghost" busy={revoke.isPending} onClick={() => ask(() => revoke.mutate(id))}>
+        {t("settings.revoke")}
+      </Button>
+    </>
+  );
+}
+
+/** Withdraws an invitation, so its link stops working (admins), also while the account is read-only. */
+function WithdrawButton({ c }: { c: Connection }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const withdraw = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE("/api/v1/people/{id}/invite", { params: { path: { id } } })),
+    onSuccess: () => {
+      toast(t("moveOut.withdrawn"));
+      void qc.invalidateQueries({ queryKey: connectionsQuery.queryKey });
+    },
+    onError: (e) => toast(errorInfo(e).message, "error"),
+  });
+  const id = c.membership_id;
+  if (!id) return null;
+  return (
+    <Button size="sm" variant="ghost" busy={withdraw.isPending} onClick={() => withdraw.mutate(id)}>
+      {t("moveOut.withdraw")}
+    </Button>
+  );
 }
