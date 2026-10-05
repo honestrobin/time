@@ -12,6 +12,7 @@ import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.db.Tables.PROJECTS
 import com.honestrobin.time.db.Tables.TASKS
+import com.honestrobin.time.einvoice.EInvoiceService
 import com.honestrobin.time.files.FileStorage
 import com.honestrobin.time.invoicing.InvoicePdf
 import com.honestrobin.time.platform.Money
@@ -67,6 +68,8 @@ class AccountExporter(
     private val dsl: DSLContext,
     private val storage: FileStorage,
     private val pdf: InvoicePdf,
+    private val einvoices: EInvoiceService,
+    private val connections: ConnectionsService,
     private val reports: ReportExportService,
     private val json: ObjectMapper,
     private val build: ObjectProvider<BuildProperties>,
@@ -76,11 +79,13 @@ class AccountExporter(
 
     fun write(accountId: UUID, target: Path): ExportManifest {
         val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).fetchOne() ?: error("Account $accountId not visible")
+        // What's still connected, at the same moment as the data.
+        val connected = connections.of(accountId)
         Files.newOutputStream(target).buffered().use { raw ->
             ZipOutputStream(raw).use { zip ->
                 val tables = ExportFormat.TABLES.map { t -> entry(zip, "data/${t.name}.json") { out -> writeTable(t, accountId, out) }.let { (rows, sha) -> ExportedTable(t.name, rows, sha) } }
                 writeCsvs(zip, accountId)
-                writeInvoicePdfs(zip)
+                writeInvoices(zip)
                 val files = writeFiles(zip)
                 val manifest = ExportManifest(
                     format = ExportFormat.FORMAT, version = ExportFormat.VERSION, exportedAt = Instant.now(clock),
@@ -88,7 +93,7 @@ class AccountExporter(
                     accountId = accountId, accountName = account.name, tables = tables, files = files,
                     excluded = ExportFormat.EXCLUDED.mapKeys { it.key.name },
                 )
-                entry(zip, "README.txt") { out -> out.write(readme(manifest).toByteArray()); 0 }
+                entry(zip, "README.txt") { out -> out.write(readme(manifest, connected).toByteArray()); 0 }
                 entry(zip, "manifest.json") { out -> json.writer(SerializationFeature.INDENT_OUTPUT).writeValue(NonClosing(out), manifest); 0 }
                 return manifest
             }
@@ -175,15 +180,24 @@ class AccountExporter(
         }
     }
 
-    /** Every issued invoice as the PDF its client received (drafts have no number yet). */
-    private fun writeInvoicePdfs(zip: ZipOutputStream) {
+    /**
+     * Every issued invoice as the PDF its client gets (a Factur-X hybrid where the account sends
+     * those), and as XRechnung and Peppol BIS files where it has what they need. Drafts have no
+     * number yet.
+     */
+    private fun writeInvoices(zip: ZipOutputStream) {
         dsl.selectFrom(INVOICES).where(INVOICES.STATE.ne("draft")).orderBy(INVOICES.ISSUE_DATE, INVOICES.ID).fetch().forEach { inv ->
+            // One broken invoice must not cost the whole export; its data is in the JSON.
             try {
-                val bytes = pdf.pdf(inv)
+                val bytes = einvoices.invoicePdf(inv)
                 entry(zip, "invoices/${pdf.filename(inv)}") { out -> out.write(bytes); 0 }
             } catch (e: Exception) {
-                // One broken invoice must not cost the whole export; its data is in the JSON.
                 log.warn("Invoice {} could not be rendered for the export: {}", inv.id, e.message)
+            }
+            try {
+                einvoices.xmlFiles(inv).forEach { f -> entry(zip, "invoices/e-invoices/${f.filename}") { out -> out.write(f.bytes); 0 } }
+            } catch (e: Exception) {
+                log.warn("The e-invoices of invoice {} could not be made for the export: {}", inv.id, e.message)
             }
         }
     }
@@ -200,22 +214,34 @@ class AccountExporter(
             }
         }
 
-    private fun readme(m: ExportManifest) = buildString {
+    /** Moving out, in plain words: what's inside, where to go next, what's still connected. */
+    private fun readme(m: ExportManifest, connected: List<ConnectionView>) = buildString {
         appendLine("Honest Robin Time: export of ${m.accountName}")
         appendLine("Exported ${m.exportedAt} from Honest Robin ${m.appVersion}.")
+        appendLine()
+        appendLine("Everything you need to leave: your data in open formats, where you can go next, and")
+        appendLine("what is still connected. Making this export changed nothing in the account.")
+        appendLine()
+        appendLine("WHAT'S INSIDE")
         appendLine()
         appendLine("data/       Everything in the account, one JSON file per table. This is the complete")
         appendLine("            record; docs/export-format.md in the source code describes every field.")
         appendLine("csv/        The same data as spreadsheets, for reading and for other tools.")
-        appendLine("invoices/   Every issued invoice as a PDF.")
+        appendLine("invoices/   Every issued invoice as a PDF, as your client gets it. Where you send")
+        appendLine("            Factur-X, the e-invoice is inside the PDF.")
+        appendLine("invoices/e-invoices/")
+        appendLine("            The XRechnung and Peppol BIS files of each invoice that has what they need.")
         appendLine("files/      Receipts and other uploaded files.")
         appendLine("manifest.json  Row counts and SHA-256 checksums of every data file.")
         appendLine()
-        appendLine("To move this account to another Honest Robin instance, cloud or self-hosted, sign in")
-        appendLine("there and choose Settings > Account > Import an export. You become its admin; invite")
-        appendLine("everyone else again from Team. Their history comes along; passwords don't.")
+        append(LeavingGuide.whereToGo())
         appendLine()
-        appendLine("Not included:")
+        append(LeavingGuide.stillConnected(connected, m.exportedAt))
+        appendLine()
+        append(LeavingGuide.cancellingAndDeleting())
+        appendLine()
+        appendLine("NOT INCLUDED")
+        appendLine()
         m.excluded.values.distinct().forEach { appendLine("- $it") }
     }
 }

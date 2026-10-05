@@ -20,6 +20,23 @@ export interface paths {
         patch: operations["account_update"];
         trace?: never;
     };
+    "/api/v1/account/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everything still connected to the account, and where each is ended (admins) */
+        get: operations["account_data_list_connections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/deletion": {
         parameters: {
             query?: never;
@@ -33,6 +50,23 @@ export interface paths {
         post: operations["account_data_request_deletion"];
         /** Cancel a scheduled deletion (admins) */
         delete: operations["account_data_cancel_deletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/move_out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move out (admins): export everything and list what's still connected. Changes nothing else. */
+        post: operations["account_data_move_out"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2399,6 +2433,21 @@ export interface components {
             updated_at: string;
             vat_id?: string;
         };
+        ConnectionView: {
+            /** Format: int32 */
+            count?: number;
+            end_in?: string;
+            /** Format: date-time */
+            ends_at?: string;
+            kind: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            /** Format: uuid */
+            membership_id?: string;
+            mode?: string;
+            name?: string;
+            person?: string;
+        };
         ContactInput: {
             email?: string;
             is_invoice_recipient?: boolean;
@@ -3022,6 +3071,10 @@ export interface components {
             role?: string;
             two_factor_enabled: boolean;
             two_factor_setup_required: boolean;
+        };
+        MoveOutView: {
+            connections: components["schemas"]["ConnectionView"][];
+            export: components["schemas"]["AccountExportView"];
         };
         MyAccount: {
             /** Format: uuid */
@@ -3788,6 +3841,26 @@ export interface operations {
             };
         };
     };
+    account_data_list_connections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"][];
+                };
+            };
+        };
+    };
     account_data_request_deletion: {
         parameters: {
             query?: never;
@@ -3825,6 +3898,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    account_data_move_out: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoveOutView"];
+                };
             };
         };
     };
