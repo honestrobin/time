@@ -87,6 +87,9 @@ springdoc:
 
 db-scheduler:
   enabled: true
+  # Jobs start once the context is ready, after RowLevelSecurityCheck, so none runs while the app
+  # can't yet show it keeps accounts apart (decision record 0026).
+  delay-startup-until-context-ready: true
   polling-interval: 5s
   threads: 4
   table-name: scheduled_tasks

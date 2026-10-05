@@ -3,15 +3,20 @@ package com.honestrobin.time.platform
 
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
+import com.honestrobin.time.HonestRobinApplication
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.RowLevelSecurityCheck
+import com.honestrobin.time.platform.db.RowLevelSecurityNotEffective
 import com.honestrobin.time.platform.db.TenantAwareTransactionManager
 import com.honestrobin.time.support.IntegrationTest
+import com.honestrobin.time.support.TestDatabase
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.diagnostics.FailureAnalyzedException
+import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.transaction.CannotCreateTransactionException
 import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
@@ -91,7 +96,41 @@ class RowLevelSecurityTest : IntegrationTest() {
             dsl.execute("drop role $late")
         }
 
+        // A database user that may not switch to the role.
+        val outsider = "honestrobin_outsider_${UUID.randomUUID().toString().take(8)}"
+        dsl.execute("create role $outsider login password 'outsider-test-password'")
+        try {
+            val asOutsider = DriverManagerDataSource(TestDatabase.sharedUrl, outsider, "outsider-test-password")
+            assertThatThrownBy {
+                RowLevelSecurityCheck(asOutsider, TenantAwareTransactionManager(asOutsider, "honestrobin_app"), "honestrobin_app").verify()
+            }.isInstanceOf(FailureAnalyzedException::class.java).hasMessageContaining("may not switch to the role")
+        } finally {
+            dsl.execute("drop role $outsider")
+        }
+
         // As it ships, it starts.
         check("honestrobin_app").verify()
+    }
+
+    /** The check above runs at startup, before the web server takes requests: a second app without its role doesn't start. */
+    @Test
+    fun `the app doesn't start without its database role`() {
+        val started = runCatching {
+            SpringApplicationBuilder(HonestRobinApplication::class.java)
+                .profiles("test")
+                .run(
+                    "--honestrobin.db.app-role=honestrobin_missing_${UUID.randomUUID().toString().take(8)}",
+                    "--server.port=0",
+                    "--db-scheduler.enabled=false",
+                    "--spring.datasource.url=${TestDatabase.sharedUrl}",
+                    "--spring.datasource.username=${TestDatabase.username}",
+                    "--spring.datasource.password=${TestDatabase.password}",
+                ).close()
+        }
+        val failure = started.exceptionOrNull()
+        assertThat(failure).describedAs("the app started without its database role").isNotNull()
+        assertThat(generateSequence(failure) { it.cause }.toList()).anySatisfy { cause ->
+            assertThat(cause).isInstanceOf(RowLevelSecurityNotEffective::class.java).hasMessageContaining("doesn't exist")
+        }
     }
 }

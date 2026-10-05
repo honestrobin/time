@@ -116,8 +116,10 @@ To restore, create the app's role first, then load the dump into an empty databa
 starts on it. A dump holds the rights given to the role `honestrobin_app`, but not the role itself
 (roles live outside any one database). Without the role, those rights are skipped and the restore
 still finishes, but row-level security can't keep accounts apart, so the app refuses to start and
-its log says why. Creating the role afterwards isn't enough, because its rights were skipped:
-restore again, in this order.
+its log says why. Then create the role, give it its rights (see [Database role](#database-role)),
+and start the app again.
+
+A restore, in this order:
 
 ```sh
 C="docker compose -f deploy/docker-compose.yml"   # add -f deploy/docker-compose.https.yml if you use it
@@ -128,7 +130,7 @@ $C exec -T db psql -U honestrobin -d honestrobin -q < honestrobin.sql
 ```
 
 Then put back the `data` volume, start the app (`$C up -d`), and check that its startup log says
-row-level security is active: `$C logs app | grep "Row-level security"`.
+row-level security is active: `$C logs app | grep -i "row-level security"`.
 
 Test a restore now and then.
 
@@ -164,7 +166,7 @@ git pull
 $C up -d db                                                        # PostgreSQL 18, on the new volume
 $C exec -T db psql -U honestrobin -d postgres -q < honestrobin-pg16.sql
 $C up -d --build
-$C logs app | grep "Row-level security"                            # should say it's active
+$C logs app | grep -i "row-level security"                         # should say it's active
 ```
 
 The restore reports that the role `honestrobin` and the database `honestrobin` already exist;
@@ -180,3 +182,17 @@ full copy of the database, password hashes included:
 ## Database role
 
 The app runs every transaction as the unprivileged role `honestrobin_app`, so Postgres row-level security isolates accounts even if the configured database user is a superuser. The first migration creates this role. If your database user may not create roles, ask your DBA to run `CREATE ROLE honestrobin_app NOLOGIN; GRANT honestrobin_app TO <your user>;` before the first start. If row-level security can't keep accounts apart (the role is missing or has no rights on the tables, your user may not switch to it, or it bypasses row-level security), the app refuses to start, and its log says what's wrong and how to fix it.
+
+A role created after the app's tables, for example after a restore without it, has none of its rights. Give them to it as the app's database user (`honestrobin` in the Compose setup; use yours in the two `FOR ROLE` lines). These are the rights the migrations give it:
+
+```sql
+GRANT USAGE ON SCHEMA public TO honestrobin_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO honestrobin_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM honestrobin_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO honestrobin_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE honestrobin IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO honestrobin_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE honestrobin IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO honestrobin_app;
+GRANT EXECUTE ON FUNCTION honestrobin_purge_audit(uuid), honestrobin_purge_user_audit(uuid[]) TO honestrobin_app;
+```
+
+In the Compose setup: `docker compose -f deploy/docker-compose.yml exec -T db psql -U honestrobin -d honestrobin < grants.sql`, with the lines above in `grants.sql`.
