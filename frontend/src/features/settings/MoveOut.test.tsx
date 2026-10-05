@@ -61,8 +61,8 @@ describe("Move out", () => {
 
   it("the Move out page lists what's still connected, how to end each, and that moving out changes nothing", async () => {
     renderPage(MoveOutPage, "lapsed", [
-      { kind: "api_token", name: "Scripts", membership_id: "membership-1", person: "Marta Owner", last_used_at: "2026-10-01T09:00:00Z" },
-      { kind: "device", name: "Browser extension (Firefox)", membership_id: "membership-2", person: "Ivo Designer" },
+      { kind: "api_token", id: "token-1", name: "Scripts", membership_id: "membership-1", person: "Marta Owner", last_used_at: "2026-10-01T09:00:00Z" },
+      { kind: "device", id: "token-2", name: "Browser extension (Firefox)", membership_id: "membership-2", person: "Ivo Designer" },
       { kind: "invitation", name: "Ana Manager", membership_id: "membership-3", person: "Ana Manager", ends_at: "2026-10-19T09:00:00Z", end_in: "/team" },
       { kind: "stripe", name: "Tour & Co Ltd", mode: "connect", end_in: "/settings/payments" },
       { kind: "invoice_links", count: 3 },
@@ -71,9 +71,12 @@ describe("Move out", () => {
     expect(screen.getByRole("heading", { name: "Where you can go next" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Move out" })).toBeTruthy();
     expect(screen.getByText("API token “Scripts”")).toBeTruthy();
-    expect(screen.getByText("Revoke it in your profile, under Personal access tokens.")).toBeTruthy();
+    expect(screen.getByText("Revoke it here, or in your profile under Personal access tokens.")).toBeTruthy();
     expect(screen.getByText("Signed-in device “Browser extension (Firefox)”")).toBeTruthy();
-    expect(screen.getByText("Ivo Designer revokes it in their profile, or you deactivate Ivo Designer in Team, which stops all their tokens.")).toBeTruthy();
+    expect(screen.getByText("Revoke it here. Ivo Designer can also revoke it in their profile.")).toBeTruthy();
+    // Read-only or not, each token, device and invitation can be ended right here.
+    expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy();
     expect(screen.getByText("Disconnect Stripe under Online payments. That ends our access at Stripe.")).toBeTruthy();
     expect(screen.getByText("Invitation for Ana Manager")).toBeTruthy();
     expect(screen.getByText("3 issued invoices each have a link that opens it for anyone who has it, such as your client.")).toBeTruthy();
