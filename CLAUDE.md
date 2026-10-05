@@ -17,7 +17,8 @@ particular to Time, and where the two disagree, stop and ask.
   (decision record 0009). Country rules go in modules behind a neutral core.
 - **The ledger.** `PROMISES.md` lists every promise Time makes and what keeps it today. A change
   that builds, breaks, renames or moves what a row points at updates that row in the same commit,
-  and a test it names changes only with the maintainer. Edition-specific code (cloud vs self-host)
+  and a test it names is never weakened, skipped or deleted to make a check pass: when one has to
+  change, say so at the top of the pull request. Edition-specific code (cloud vs self-host)
   lives only in `billing`, `analytics` and `platform.edition`; `EditionParityTest` checks it.
 - **The changelog.** A change people will notice adds a line under "Unreleased" in `CHANGELOG.md`,
   in their words, in the same pull request, so it's there before it reaches Honest Robin Cloud.

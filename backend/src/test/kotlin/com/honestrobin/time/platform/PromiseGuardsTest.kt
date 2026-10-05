@@ -74,8 +74,9 @@ class PromiseGuardsTest : IntegrationTest() {
     /**
      * The plan lives in the `subscriptions` table and the billing package, and nowhere else. Code
      * that can reach neither can't give the paid plan a feature the free one lacks. The billing
-     * package may read the plan; everything else may only ask the seat gate, before someone is
-     * given sign-in access.
+     * package may read the plan. Everything else may only ask the seat gate, before someone is
+     * given sign-in access, or, for Move out, ask whether a subscription is running so it can be
+     * listed among what's still connected.
      */
     @Test
     fun `only the number of seats depends on the plan`() {
@@ -93,7 +94,7 @@ class PromiseGuardsTest : IntegrationTest() {
             if (found.isEmpty()) null else "$path: ${found.joinToString()}"
         }
         assertThat(offenders)
-            .describedAs("Only the billing package may know the plan; other code may only ask the seat gate. If one of these is right, allowlist it with a reason")
+            .describedAs("Only the billing package may know the plan; other code may only ask the seat gate, or list the subscription for Move out. If one of these is right, allowlist it with a reason")
             .isEmpty()
     }
 
@@ -131,6 +132,8 @@ private val PLAN_MARKERS = listOf(
     ".plan", ".PLAN",
     // The seat gate: the one way the plan may change what someone can do.
     "SeatGate", "requireSeat", "requireSeatToJoin",
+    // Move out's question to billing: is a subscription running, so it can be listed?
+    "SubscriptionConnection",
 )
 
 /** Main code outside the billing package that may name some of the markers, and why. */
@@ -146,6 +149,10 @@ private val PLAN_ALLOWED = mapOf(
     "com/honestrobin/time/auth/AuthService.kt" to PlanAllowance(
         setOf("SeatGate", "requireSeatToJoin"),
         "asks the seat gate when an invitation is accepted, before the person can sign in",
+    ),
+    "com/honestrobin/time/export/MoveOut.kt" to PlanAllowance(
+        setOf("SubscriptionConnection"),
+        "asks billing for a running subscription only to list it among what's still connected; it changes nothing anyone can do",
     ),
     "com/honestrobin/time/export/ExportFormat.kt" to PlanAllowance(
         setOf("SUBSCRIPTIONS", "BILLING_EVENTS"),
