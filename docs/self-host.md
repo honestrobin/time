@@ -105,20 +105,30 @@ people, say so in your privacy notice.
 
 The Honest Robin extension (Chrome and Firefox) works with your instance: in its sign-in screen, enter your instance's address instead of leaving it empty. It asks for access to that address only, opens your instance to approve a code, and keeps a personal access token, which you can see and revoke under Profile.
 
-## Backups
+## Backups and restore
 
 Back up two things together:
 
 1. The Postgres database: `docker compose exec db pg_dump -U honestrobin honestrobin > honestrobin.sql`
 2. The `data` volume. It contains `secrets.key` and uploaded files. Without `secrets.key`, stored integration credentials (Stripe, accounting, e-invoicing) cannot be decrypted and must be re-entered.
 
-To restore, load the database into an empty database before the app first starts on it, and
-create the app's role first: `CREATE ROLE honestrobin_app NOLOGIN;`. A dump holds the rights given
-to that role, but not the role itself (roles live outside any one database), so without it those
-rights are skipped and the restore still finishes. The app then starts but can't switch to the
-role, and row-level security stops keeping accounts apart; only a warning in the log says so.
-Then put back the `data` volume, start the app, and check that its startup log says row-level
-security is active.
+To restore, create the app's role first, then load the dump into an empty database before the app
+starts on it. A dump holds the rights given to the role `honestrobin_app`, but not the role itself
+(roles live outside any one database). Without the role, those rights are skipped and the restore
+still finishes, but row-level security can't keep accounts apart, so the app refuses to start and
+its log says why. Creating the role afterwards isn't enough, because its rights were skipped:
+restore again, in this order.
+
+```sh
+C="docker compose -f deploy/docker-compose.yml"   # add -f deploy/docker-compose.https.yml if you use it
+$C stop app
+$C exec -T db psql -U honestrobin -d postgres -c 'DROP DATABASE IF EXISTS honestrobin' -c 'CREATE DATABASE honestrobin'   # empty: the dump replaces it
+$C exec -T db psql -U honestrobin -d postgres -c 'CREATE ROLE honestrobin_app NOLOGIN'   # "already exists" is fine
+$C exec -T db psql -U honestrobin -d honestrobin -q < honestrobin.sql
+```
+
+Then put back the `data` volume, start the app (`$C up -d`), and check that its startup log says
+row-level security is active: `$C logs app | grep "Row-level security"`.
 
 Test a restore now and then.
 
@@ -169,4 +179,4 @@ full copy of the database, password hashes included:
 
 ## Database role
 
-The app runs every transaction as the unprivileged role `honestrobin_app`, so Postgres row-level security isolates accounts even if the configured database user is a superuser. The first migration creates this role. If your database user may not create roles, ask your DBA to run `CREATE ROLE honestrobin_app NOLOGIN; GRANT honestrobin_app TO <your user>;` before the first start. The startup log reports whether row-level security is effective.
+The app runs every transaction as the unprivileged role `honestrobin_app`, so Postgres row-level security isolates accounts even if the configured database user is a superuser. The first migration creates this role. If your database user may not create roles, ask your DBA to run `CREATE ROLE honestrobin_app NOLOGIN; GRANT honestrobin_app TO <your user>;` before the first start. If row-level security can't keep accounts apart (the role is missing or has no rights on the tables, your user may not switch to it, or it bypasses row-level security), the app refuses to start, and its log says what's wrong and how to fix it.
