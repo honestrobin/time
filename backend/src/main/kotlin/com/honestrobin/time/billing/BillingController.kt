@@ -177,35 +177,39 @@ class BillingService(
     }
 
     /**
-     * Cancels the Team plan at the end of the period that's paid for (the Robin's Code: "Cancel in
-     * the app, in two clicks"; decision record 0022). Nothing changes until then. Paddle doesn't
-     * renew it, and its webhook ends the subscription on that day like any other cancellation.
-     * Asked again, or twice at once, Paddle hears it once: the date is claimed on our record before
-     * Paddle is asked, and given back if Paddle can't be reached.
+     * Cancels the Team plan (the Robin's Code: "Cancel in the app, in two clicks"; decision record
+     * 0022). Normally at the end of the period that's paid for: nothing changes until then, Paddle
+     * doesn't renew it, and its webhook ends the subscription on that day like any other
+     * cancellation. While a payment is past due, that period isn't paid for and Paddle takes no
+     * scheduled change, so the plan ends now and Paddle stops asking for the payment.
+     *
+     * Our record changes only once Paddle has said yes, in the same transaction, which holds the
+     * subscription's lock while Paddle answers: a second click waits and then finds it done, and
+     * Paddle's webhook for the change waits too. If we stop between Paddle's yes and our commit,
+     * that webhook brings our record in line.
      */
     fun cancel(m: Member) {
         m.requireAdmin()
-        val s = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(m.accountId)).fetchOne() }
-            ?.takeIf { isPaying(it) } ?: throw ConflictException("no_subscription", "This account has no Team plan to cancel")
-        if (s.cancelAt != null) return
-        val ends = s.currentPeriodEnd
-            ?: throw ConflictException("period_unknown", "Paddle hasn't said yet when this billing period ends. Try again in a minute.")
-        val claimed = system {
-            dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, ends).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.isNull).execute()
+        withPaddle(m.accountId) { s ->
+            when {
+                s.cancelAt != null -> Unit
+                s.status == "past_due" -> {
+                    paddle.cancel(s.externalId)
+                    s.status = "canceled"
+                    s.canceledAt = Instant.now(clock)
+                    s.store()
+                    lapseIfOverFree(s.accountId)
+                    log.info("Account {} cancelled subscription {} while a payment was past due: ended now", m.accountId, s.externalId)
+                }
+                else -> {
+                    val answer = paddle.cancelAtPeriodEnd(s.externalId)
+                    // The day Paddle says it takes effect; its webhook says the same.
+                    s.cancelAt = scheduledCancel(answer["data"]) ?: s.currentPeriodEnd
+                    s.store()
+                    log.info("Account {} cancelled subscription {} at the end of its period", m.accountId, s.externalId)
+                }
+            }
         }
-        if (claimed == 0) return
-        val answer = try {
-            paddle.cancelAtPeriodEnd(s.externalId)
-        } catch (e: PaddleException) {
-            system { dsl.update(SUBSCRIPTIONS).setNull(SUBSCRIPTIONS.CANCEL_AT).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.eq(ends)).execute() }
-            log.warn("Cancelling subscription {} at the end of its period failed: {}", s.externalId, e.message)
-            throw paddleUnavailable()
-        }
-        // The day Paddle says it takes effect is the one shown; its webhook says the same.
-        scheduledCancel(answer["data"])?.takeIf { it != ends }?.let { at ->
-            system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, at).where(SUBSCRIPTIONS.ID.eq(s.id)).execute() }
-        }
-        log.info("Account {} cancelled subscription {} at the end of its period", m.accountId, s.externalId)
     }
 
     /**
@@ -214,25 +218,44 @@ class BillingService(
      */
     fun keep(m: Member) {
         m.requireAdmin()
-        val s = system { dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(m.accountId)).fetchOne() }
-            ?.takeIf { isPaying(it) } ?: throw ConflictException("no_subscription", "This account has no Team plan running")
-        val at = s.cancelAt ?: return
-        val claimed = system {
-            dsl.update(SUBSCRIPTIONS).setNull(SUBSCRIPTIONS.CANCEL_AT).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.eq(at)).execute()
+        withPaddle(m.accountId) { s ->
+            if (s.cancelAt != null) {
+                paddle.removeScheduledChange(s.externalId)
+                s.cancelAt = null
+                s.store()
+                log.info("Account {} kept subscription {}", m.accountId, s.externalId)
+            }
         }
-        if (claimed == 0) return
-        try {
-            paddle.removeScheduledChange(s.externalId)
-        } catch (e: PaddleException) {
-            system { dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, at).where(SUBSCRIPTIONS.ID.eq(s.id)).and(SUBSCRIPTIONS.CANCEL_AT.isNull).execute() }
-            log.warn("Keeping subscription {} failed: {}", s.externalId, e.message)
-            throw paddleUnavailable()
-        }
-        log.info("Account {} kept subscription {}", m.accountId, s.externalId)
     }
 
-    private fun paddleUnavailable() =
-        ApiException(HttpStatus.BAD_GATEWAY, "billing_provider_unavailable", "Paddle couldn't be reached, so nothing changed. Try again in a moment.")
+    /**
+     * Runs [change] on the account's running subscription in a transaction of its own that holds
+     * the subscription's lock (the one webhooks take), and keeps it only if Paddle said yes.
+     */
+    private fun withPaddle(accountId: UUID, change: (SubscriptionsRecord) -> Unit) {
+        try {
+            system {
+                val running = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).fetchOne()?.takeIf { isPaying(it) }
+                    ?: throw ConflictException("no_subscription", "This account has no Team plan running")
+                dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 7234004))", "paddle:${running.externalId}")
+                // Read again under the lock: a click or a webhook just before may have changed it.
+                val s = dsl.selectFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ID.eq(running.id)).fetchOne()?.takeIf { isPaying(it) }
+                    ?: throw ConflictException("no_subscription", "This account has no Team plan running")
+                change(s)
+            }
+        } catch (e: PaddleException) {
+            log.warn("Paddle didn't take a change to account {}'s subscription: {} {}", accountId, e.status, e.message)
+            throw if (e.status in 400..499) {
+                ConflictException(
+                    "billing_provider_refused",
+                    "Paddle didn't accept the change, so nothing changed. Paddle takes no changes in the 30 minutes before a renewal. " +
+                        "If that's not it, write to us and a person will help.",
+                )
+            } else {
+                ApiException(HttpStatus.BAD_GATEWAY, "billing_provider_unavailable", "Paddle couldn't be reached, so nothing changed. Try again in a moment.")
+            }
+        }
+    }
 
     /** When a subscription's scheduled cancellation takes effect, if it has one. */
     private fun scheduledCancel(data: JsonNode?): Instant? =

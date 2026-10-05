@@ -607,6 +607,47 @@ class BillingTest : IntegrationTest() {
     }
 
     @Test
+    fun `while a payment is past due, cancelling ends the plan now`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // That period isn't paid for, and Paddle takes no scheduled change while a payment is open.
+        val admin = signup(accountName = "Kohekohe Ltd")
+        val account = admin.accountId!!
+        invite(admin)
+        assertThat(deliver(subscriptionEvent(account, quantity = 2))).isEqualTo(200)
+        assertThat(deliver(subscriptionEvent(account, type = "subscription.past_due", status = "past_due", quantity = 2))).isEqualTo(200)
+        MockPaddle.calls.clear()
+        withFreePlanOfOne {
+            val ended = admin.post("/api/v1/billing/cancellation").expect(200)
+            assertThat(ended["plan"].asText()).isEqualTo("free")
+            assertThat(ended["status"].asText()).isEqualTo("canceled")
+            assertThat(cancellations(account).single().body!!["effective_from"].asText()).isEqualTo("immediately")
+            assertThat(seatChanges(account)).isEmpty()
+            // More people than the free plan: read-only until the admin chooses who stays, and export works.
+            assertThat(accountStatus(admin)).isEqualTo("lapsed")
+            exportWorks(admin)
+            // Paddle's webhook agrees, and asking again sends nothing.
+            assertThat(deliver(subscriptionEvent(account, type = "subscription.canceled", status = "canceled", quantity = 2))).isEqualTo(200)
+            admin.post("/api/v1/billing/cancellation").expectError(409, "no_subscription")
+            assertThat(cancellations(account)).hasSize(1)
+        }
+    }
+
+    @Test
+    fun `when Paddle refuses a change, nothing changes and the admin is told why`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Paddle takes no changes in the 30 minutes before a renewal; that's not "couldn't be reached".
+        val admin = signup(accountName = "Makomako Ltd")
+        assertThat(deliver(subscriptionEvent(admin.accountId!!, quantity = 1))).isEqualTo(200)
+        val refused = MockPaddle.whileRefusing { admin.post("/api/v1/billing/cancellation").expectError(409, "billing_provider_refused") }
+        assertThat(refused["message"].asText()).contains("nothing changed", "30 minutes before a renewal")
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["cancel_at"].isNull).isTrue()
+
+        admin.post("/api/v1/billing/cancellation").expect(200)
+        MockPaddle.whileRefusing { admin.delete("/api/v1/billing/cancellation").expectError(409, "billing_provider_refused") }
+        assertThat(admin.get("/api/v1/billing/subscription").expect(200)["cancel_at"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+    }
+
+    @Test
     fun `only an admin can cancel the Team plan`() {
         assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
         val admin = signup(accountName = "Tawa Ltd")
