@@ -35,6 +35,19 @@ object MockPaddle {
         }
     }
 
+    /** While true, Paddle answers every request with 400, as it refuses changes in the 30 minutes before a renewal. */
+    @Volatile var refusing = false
+
+    /** Runs [block] with Paddle refusing, and lets it accept again afterwards. */
+    fun <T> whileRefusing(block: () -> T): T {
+        refusing = true
+        try {
+            return block()
+        } finally {
+            refusing = false
+        }
+    }
+
     private val mapper = ObjectMapper()
     private val server: HttpServer by lazy {
         HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
@@ -43,6 +56,7 @@ object MockPaddle {
                 val body = if (raw.isEmpty()) null else mapper.readTree(raw)
                 val (status, response) = when {
                     down -> 503 to mapOf("error" to mapOf("detail" to "Service unavailable"))
+                    refusing -> 400 to mapOf("error" to mapOf("detail" to "Changes can't be made to this subscription right now"))
                     ex.requestHeaders.getFirst("Authorization") != "Bearer $API_KEY" -> 403 to mapOf("error" to mapOf("detail" to "Invalid API key"))
                     ex.requestMethod == "PATCH" && ex.requestURI.path.startsWith("/subscriptions/") -> 200 to mapOf("data" to mapOf("id" to ex.requestURI.path.substringAfterLast('/')))
                     // At the end of the period, the subscription runs on with the cancellation scheduled.

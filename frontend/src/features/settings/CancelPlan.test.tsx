@@ -61,6 +61,7 @@ describe("CancelPlan", () => {
     expect(within(dialog).getByText(/^Then the account moves to the free plan, for 1 person\. Now 3 people can sign in\./)).toBeTruthy();
     expect(within(dialog).getByText(/until you choose who stays/)).toBeTruthy();
     expect(within(dialog).getByText("Your data stays as it is, and export works on every plan.")).toBeTruthy();
+    expect(within(dialog).getByText("Your locked price of €84.00 per person a year ends with the plan. If you start Team again later, it's at the list price of that day.")).toBeTruthy();
     expect(within(dialog).getByText("Until then, you can keep the Team plan here with one click.")).toBeTruthy();
     // Two ways out of the dialog, and nothing else: no offer, no question about leaving.
     expect(within(dialog).getAllByRole("button").map((b) => b.textContent)).toEqual(["Close", "Cancel at the end of this period"]);
@@ -72,6 +73,18 @@ describe("CancelPlan", () => {
     expect(fetch.mock.calls[0][0]).toBe("/api/v1/billing/cancellation");
     expect(fetch.mock.calls[0][1]?.method).toBe("POST");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("while a payment is past due, says the plan ends now, and cancels in two clicks", async () => {
+    const fetch = server({ ...team, plan: "free", status: "canceled" });
+    show({ ...team, status: "past_due" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel the Team plan" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/^The last payment didn't go through, so this period isn't paid for\. Cancelling ends the Team plan now/)).toBeTruthy();
+    expect(within(dialog).getByText("You can start Team again at any time.")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel now" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch.mock.calls[0][1]?.method).toBe("POST");
   });
 
   it("closing the dialog cancels nothing", () => {
@@ -87,7 +100,7 @@ describe("CancelPlan", () => {
     const fetch = server(team);
     show({ ...team, cancel_at: "2027-10-01T00:00:00Z" });
     expect(screen.getByText(/^The Team plan ends on .*2027\. Until then, everything stays as it is\.$/)).toBeTruthy();
-    expect(screen.getByText(/^It then renews on .*2027 as before, at your locked price of €84\.00 per person a year\.$/)).toBeTruthy();
+    expect(screen.getByText(/^It then renews on .*2027 as before: 3 people at your locked price of €84\.00 per person a year\.$/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Keep the Team plan" }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
