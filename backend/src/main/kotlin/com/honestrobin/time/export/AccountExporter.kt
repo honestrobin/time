@@ -12,7 +12,9 @@ import com.honestrobin.time.db.Tables.INVOICES
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.db.Tables.PROJECTS
 import com.honestrobin.time.db.Tables.TASKS
+import com.honestrobin.time.db.tables.records.InvoicesRecord
 import com.honestrobin.time.einvoice.EInvoiceService
+import com.honestrobin.time.einvoice.ExportedEInvoice
 import com.honestrobin.time.files.FileStorage
 import com.honestrobin.time.invoicing.InvoicePdf
 import com.honestrobin.time.platform.Money
@@ -85,7 +87,7 @@ class AccountExporter(
             ZipOutputStream(raw).use { zip ->
                 val tables = ExportFormat.TABLES.map { t -> entry(zip, "data/${t.name}.json") { out -> writeTable(t, accountId, out) }.let { (rows, sha) -> ExportedTable(t.name, rows, sha) } }
                 writeCsvs(zip, accountId)
-                writeInvoices(zip)
+                val missingInvoices = writeInvoices(zip)
                 val files = writeFiles(zip)
                 val manifest = ExportManifest(
                     format = ExportFormat.FORMAT, version = ExportFormat.VERSION, exportedAt = Instant.now(clock),
@@ -93,7 +95,7 @@ class AccountExporter(
                     accountId = accountId, accountName = account.name, tables = tables, files = files,
                     excluded = ExportFormat.EXCLUDED.mapKeys { it.key.name },
                 )
-                entry(zip, "README.txt") { out -> out.write(readme(manifest, connected).toByteArray()); 0 }
+                entry(zip, "README.txt") { out -> out.write(readme(manifest, connected, missingInvoices).toByteArray()); 0 }
                 entry(zip, "manifest.json") { out -> json.writer(SerializationFeature.INDENT_OUTPUT).writeValue(NonClosing(out), manifest); 0 }
                 return manifest
             }
@@ -181,25 +183,50 @@ class AccountExporter(
     }
 
     /**
-     * Every issued invoice as the PDF its client gets (a Factur-X hybrid where the account sends
-     * those), and as XRechnung and Peppol BIS files where it has what they need. Drafts have no
-     * number yet.
+     * Every issued invoice as a PDF, drawn the way it's drawn for the client today (a Factur-X
+     * hybrid where the account sends those), and as XRechnung and Peppol BIS files where it has
+     * what they need. Drafts have no number yet. Returns what couldn't be written, for the README:
+     * one broken invoice must not cost the whole export (its data is in the JSON), and nobody
+     * should have to read a log to know it's missing.
      */
-    private fun writeInvoices(zip: ZipOutputStream) {
+    private fun writeInvoices(zip: ZipOutputStream): List<String> {
+        val missing = mutableListOf<String>()
+        val names = mutableSetOf<String>()
+        // Two numbers can make the same file name ("INV/1" and "INV-1"); the second keeps both.
+        // (A v7 id starts with its time, so the end of it tells two invoices apart.)
+        fun unique(name: String, inv: InvoicesRecord): String {
+            if (names.add(name)) return name
+            val other = name.substringBeforeLast('.') + "-" + inv.id.toString().takeLast(12) + "." + name.substringAfterLast('.')
+            names.add(other)
+            return other
+        }
         dsl.selectFrom(INVOICES).where(INVOICES.STATE.ne("draft")).orderBy(INVOICES.ISSUE_DATE, INVOICES.ID).fetch().forEach { inv ->
-            // One broken invoice must not cost the whole export; its data is in the JSON.
+            val number = inv.number ?: inv.id.toString()
             try {
                 val bytes = einvoices.invoicePdf(inv)
-                entry(zip, "invoices/${pdf.filename(inv)}") { out -> out.write(bytes); 0 }
+                entry(zip, "invoices/${unique(pdf.filename(inv), inv)}") { out -> out.write(bytes); 0 }
             } catch (e: Exception) {
                 log.warn("Invoice {} could not be rendered for the export: {}", inv.id, e.message)
+                missing += "Invoice $number as a PDF: it couldn't be drawn (${e.message}). Its data is in data/invoices.json."
             }
-            try {
-                einvoices.xmlFiles(inv).forEach { f -> entry(zip, "invoices/e-invoices/${f.filename}") { out -> out.write(f.bytes); 0 } }
+            val xml = try {
+                einvoices.xmlFiles(inv)
             } catch (e: Exception) {
                 log.warn("The e-invoices of invoice {} could not be made for the export: {}", inv.id, e.message)
+                missing += "Invoice $number as an e-invoice: it couldn't be checked or made (${e.message})."
+                emptyList<ExportedEInvoice>()
+            }
+            xml.forEach { x ->
+                val f = x.file
+                if (f != null) {
+                    entry(zip, "invoices/e-invoices/${unique(f.filename, inv)}") { out -> out.write(f.bytes); 0 }
+                } else {
+                    log.warn("Invoice {} has no {} file in the export: {}", inv.id, x.format.label, x.error)
+                    missing += "Invoice $number as ${x.format.label}: it couldn't be made (${x.error})."
+                }
             }
         }
+        return missing
     }
 
     private fun writeFiles(zip: ZipOutputStream): List<ExportedFile> =
@@ -215,7 +242,7 @@ class AccountExporter(
         }
 
     /** Moving out, in plain words: what's inside, where to go next, what's still connected. */
-    private fun readme(m: ExportManifest, connected: List<ConnectionView>) = buildString {
+    private fun readme(m: ExportManifest, connected: List<ConnectionView>, missingInvoices: List<String>) = buildString {
         appendLine("Honest Robin Time: export of ${m.accountName}")
         appendLine("Exported ${m.exportedAt} from Honest Robin ${m.appVersion}.")
         appendLine()
@@ -227,10 +254,15 @@ class AccountExporter(
         appendLine("data/       Everything in the account, one JSON file per table. This is the complete")
         appendLine("            record; docs/export-format.md in the source code describes every field.")
         appendLine("csv/        The same data as spreadsheets, for reading and for other tools.")
-        appendLine("invoices/   Every issued invoice as a PDF, as your client gets it. Where you send")
-        appendLine("            Factur-X, the e-invoice is inside the PDF.")
+        appendLine("invoices/   Every issued invoice as a PDF. Where you send Factur-X, the e-invoice is")
+        appendLine("            inside the PDF.")
         appendLine("invoices/e-invoices/")
         appendLine("            The XRechnung and Peppol BIS files of each invoice that has what they need.")
+        appendLine()
+        appendLine("Time doesn't keep a copy of each invoice as it was sent. These files are drawn now, from")
+        appendLine("the account's data as it is today. An invoice that changed since it was sent (edited,")
+        appendLine("paid, or with a new company address) looks different from the one your client received.")
+        appendLine("Invoices imported from Harvest are drawn in Time's layout.")
         appendLine("files/      Receipts and other uploaded files.")
         appendLine("manifest.json  Row counts and SHA-256 checksums of every data file.")
         appendLine()
@@ -242,6 +274,7 @@ class AccountExporter(
         appendLine()
         appendLine("NOT INCLUDED")
         appendLine()
+        missingInvoices.forEach { appendLine("- $it") }
         m.excluded.values.distinct().forEach { appendLine("- $it") }
     }
 }

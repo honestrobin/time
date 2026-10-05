@@ -12,9 +12,10 @@ as they're made.
 - Move out, in Settings → Account: one step gets everything ready for leaving, and changes
   nothing in your account. You get one zip of all your data, with every invoice as a PDF and as an
   e-invoice where it has the data. The Move out page says where you can go next, and lists
-  everything still connected to the account (tokens, devices, outside services, invoice links),
-  with how to end each. Invoice PDFs in the export are now the ones your clients get, Factur-X
-  included.
+  everything still connected to the account (tokens, devices, invitations, outside services,
+  invoice links), with how to end each. Invoice PDFs in the export now have Factur-X inside where
+  your clients get it. They're drawn from today's data, as before, so an invoice that changed
+  since it was sent differs from the one your client received.
 - Honest Robin Cloud bills a person from the moment they can sign in. An invitation is free until
   it's accepted; checkout and the billing page now count the same people.
 - On the Team plan, inviting someone, sending an invitation again or bringing someone back shows

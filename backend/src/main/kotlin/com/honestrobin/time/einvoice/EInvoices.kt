@@ -71,6 +71,9 @@ data class EInvoiceReadiness(val format: String, val ready: Boolean, val problem
 
 class EInvoiceFile(val bytes: ByteArray, val filename: String, val contentType: String)
 
+/** One e-invoice for the account export: the file, or why it couldn't be made. */
+class ExportedEInvoice(val format: EInvoiceFormat, val file: EInvoiceFile?, val error: String?)
+
 /**
  * E-invoices (spec §7): the EN 16931 data of an invoice, as Factur-X/ZUGFeRD, XRechnung or
  * Peppol BIS. Mustangproject writes the CII XML and the hybrid PDF; the Peppol UBL is converted
@@ -119,17 +122,17 @@ class EInvoiceService(
 
     /**
      * For the account export: the invoice as XRechnung and as Peppol BIS, each where the invoice
-     * has what that format needs. Factur-X travels inside the PDF ([invoicePdf]).
+     * has what that format needs, or why it couldn't be made. Factur-X travels inside the PDF
+     * ([invoicePdf]).
      */
-    fun xmlFiles(r: InvoicesRecord): List<EInvoiceFile> {
+    fun xmlFiles(r: InvoicesRecord): List<ExportedEInvoice> {
         if (r.number == null || r.state == "draft" || r.state == "void") return emptyList()
         val d = load(r)
-        return listOf(EInvoiceFormat.XRECHNUNG, EInvoiceFormat.PEPPOL).filter { problems(d, it).isEmpty() }.mapNotNull { format ->
+        return listOf(EInvoiceFormat.XRECHNUNG, EInvoiceFormat.PEPPOL).filter { problems(d, it).isEmpty() }.map { format ->
             try {
-                file(d, format)
+                ExportedEInvoice(format, file(d, format), null)
             } catch (e: Exception) {
-                log.warn("Invoice {} has no {} file in the export: {}", r.id, format.label, e.message)
-                null
+                ExportedEInvoice(format, null, e.message ?: e.javaClass.simpleName)
             }
         }
     }
