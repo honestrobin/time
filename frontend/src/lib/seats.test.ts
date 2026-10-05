@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { ApiError } from "@honestrobin/api-client";
 import { describe, expect, it } from "vitest";
-import { seatQuestion } from "./seats";
+import { confirmQuery, seatQuestion } from "./seats";
 
 // The bodies BillingController.kt sends (SubscriptionSeatGate).
 const freePlanFull = new ApiError(402, {
@@ -20,11 +20,19 @@ const newSeat = (billingStarts: "when_accepted" | "now") =>
   new ApiError(409, {
     code: "seat_confirmation_required",
     message: "When they accept, your plan goes up by one person: …",
-    details: { unit_price_minor: 850, currency: "EUR", interval: "month", billing_starts: billingStarts, seats_billed: 3 },
+    details: {
+      unit_price_minor: 850,
+      currency: "EUR",
+      interval: "month",
+      billing_starts: billingStarts,
+      seats_billed: 3,
+      current_period_end: "2026-11-01T00:00:00Z",
+      stale: false,
+    },
   });
 
 describe("seatQuestion", () => {
-  it("shows the Team prices when the free plan is full", () => {
+  it("reads the Team prices when the free plan is full", () => {
     expect(seatQuestion(freePlanFull)).toEqual({
       kind: "subscribe",
       freeSeats: 1,
@@ -35,11 +43,23 @@ describe("seatQuestion", () => {
     });
   });
 
-  it("asks before an invitation that adds a paid seat, billed once it's accepted", () => {
-    expect(seatQuestion(newSeat("when_accepted"))).toEqual({ kind: "confirm", unitPriceMinor: 850, currency: "EUR", interval: "month", startsNow: false });
+  it("reads the price of one more person, billed once the invitation is accepted", () => {
+    expect(seatQuestion(newSeat("when_accepted"))).toEqual({
+      kind: "confirm",
+      price: { unitPriceMinor: 850, currency: "EUR", interval: "month" },
+      startsNow: false,
+      periodEnd: "2026-11-01T00:00:00Z",
+      stale: false,
+    });
   });
 
-  it("asks before bringing someone back, billed from that moment", () => {
+  it("sends back exactly the price it read, so the yes is to that price", () => {
+    const question = seatQuestion(newSeat("when_accepted"));
+    expect(question?.kind === "confirm" && confirmQuery(question.price)).toEqual({ confirm_unit_price_minor: 850, confirm_currency: "EUR", confirm_interval: "month" });
+    expect(confirmQuery(null)).toEqual({});
+  });
+
+  it("reads that bringing someone back is billed from that moment", () => {
     expect(seatQuestion(newSeat("now"))).toMatchObject({ kind: "confirm", startsNow: true });
   });
 

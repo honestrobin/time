@@ -130,21 +130,39 @@
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
     "seats": {
-      "price": {
+      "per": {
         "month": "{{price}} a month",
         "year": "{{price}} a year"
       },
-      "costWhenAccepted": "When {{name}} accepts, your plan goes up by one person: {{price}}, charged from that day. Nothing is charged before then.",
-      "costNow": "Once {{name}} is back, your plan goes up by one person: {{price}}, charged from today.",
-      "confirmTitle": "Add {{name}} to your plan?",
+      "billed": {
+        "month": "{{price}} a month",
+        "year": "{{price}} a year, paid yearly"
+      },
+      "costWhenAccepted": "When {{name}} accepts, you pay for them: {{price}}. That day, Paddle charges for what's left of your current billing period, up to {{unit}}. Nothing is charged before they accept.",
+      "costNow": "Once {{name}} is back, you pay for them: {{price}}. Today, Paddle charges for what's left of your current billing period, up to {{unit}}.",
+      "periodEnds": "Your current billing period ends on {{date}}.",
+      "stale": "The price is different from the one shown before. This is the price now.",
+      "confirmTitle": "Add {{name}} to your bill?",
+      "confirm": {
+        "invite": "Invite for {{price}}",
+        "link": "Get link for {{price}}",
+        "back": "Bring back for {{price}}"
+      },
       "freeFull_one": "The free plan is for one person. For more people to sign in, start a Team subscription.",
       "freeFull_other": "The free plan is for {{count}} people. For more people to sign in, start a Team subscription.",
       "perPerson": "You pay for each person who can sign in. An invitation is free until it's accepted.",
       "howToPay": "How you pay",
-      "option": "{{interval}}: {{price}} per person per month",
+      "option": {
+        "month": "Monthly: {{price}} per person per month",
+        "year": "Yearly: {{price}} per person per month, paid yearly ({{total}} a year)"
+      },
+      "atCheckout_one": "Checkout counts {{count}} person who can sign in: {{total}}. Paddle shows the amount before you pay.",
+      "atCheckout_other": "Checkout counts {{count}} people who can sign in: {{total}}. Paddle shows the amount before you pay.",
+      "waitingInvitations_one": "{{count}} invitation is waiting. Starting Team is your yes to it: once it's accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
+      "waitingInvitations_other": "{{count}} invitations are waiting. Starting Team is your yes to them: as each is accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
       "subscribe": "Start a Team subscription",
       "waiting": "Thanks! You can go ahead as soon as Paddle confirms your subscription.",
-      "ready": "Your Team subscription is active. You can go ahead now."
+      "ready": "Your Team subscription is active. Try again to go ahead."
     }
   }
 }
