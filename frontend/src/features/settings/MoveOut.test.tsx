@@ -3,11 +3,11 @@
 // of an account, which shows what's still connected and changes nothing.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import type { Schemas } from "../../lib/api";
+import { api, type Schemas } from "../../lib/api";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
 import { AccountDataSection } from "./AccountData";
 import { accountQuery } from "./AccountSettingsPage";
@@ -47,7 +47,27 @@ beforeAll(async () => {
   if (!i18n.isInitialized) await new Promise((done) => i18n.on("initialized", done));
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+const CONNECTIONS: Schemas["ConnectionView"][] = [
+  { kind: "api_token", id: "token-1", name: "Scripts", membership_id: "membership-1", person: "Marta Owner", last_used_at: "2026-10-01T09:00:00Z", end_in: "/settings/move-out" },
+  { kind: "device", id: "token-2", name: "Browser extension (Firefox)", membership_id: "membership-2", person: "Ivo Designer", end_in: "/settings/move-out" },
+  { kind: "invitation", name: "Ana Manager", membership_id: "membership-3", person: "Ana Manager", ends_at: "2026-10-19T09:00:00Z", end_in: "/settings/move-out" },
+  { kind: "stripe", name: "Tour & Co Ltd", mode: "connect", end_in: "/settings/payments" },
+  { kind: "harvest_import", id: "import-7", name: "7654321", end_in: "/settings/import#import-import-7" },
+  { kind: "invoice_links", count: 3 },
+];
+
+const READ_ONLY_NOTE =
+  "This account is read-only. You can still end each of these, here or on the page it links to, except invoice links, which end only when the account is deleted. Deactivating people waits until the account is active again.";
+
+/** Stands in for the server's answer to a DELETE, and records what was called. */
+function spyOnDelete() {
+  return vi.spyOn(api, "DELETE").mockResolvedValue({ data: undefined, error: undefined, response: new Response(null, { status: 204 }) } as never);
+}
 
 describe("Move out", () => {
   it("the Move out button is in Settings → Account, in every state of an account", async () => {
@@ -60,13 +80,7 @@ describe("Move out", () => {
   });
 
   it("the Move out page lists what's still connected, how to end each, and that moving out changes nothing", async () => {
-    renderPage(MoveOutPage, "lapsed", [
-      { kind: "api_token", id: "token-1", name: "Scripts", membership_id: "membership-1", person: "Marta Owner", last_used_at: "2026-10-01T09:00:00Z" },
-      { kind: "device", id: "token-2", name: "Browser extension (Firefox)", membership_id: "membership-2", person: "Ivo Designer" },
-      { kind: "invitation", name: "Ana Manager", membership_id: "membership-3", person: "Ana Manager", ends_at: "2026-10-19T09:00:00Z", end_in: "/team" },
-      { kind: "stripe", name: "Tour & Co Ltd", mode: "connect", end_in: "/settings/payments" },
-      { kind: "invoice_links", count: 3 },
-    ]);
+    renderPage(MoveOutPage, "lapsed", CONNECTIONS);
     expect(await screen.findByRole("heading", { name: "Moving out changes nothing" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Where you can go next" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Move out" })).toBeTruthy();
@@ -80,8 +94,42 @@ describe("Move out", () => {
     expect(screen.getByText("Disconnect Stripe under Online payments. That ends our access at Stripe.")).toBeTruthy();
     expect(screen.getByText("Invitation for Ana Manager")).toBeTruthy();
     expect(screen.getByText("3 issued invoices each have a link that opens it for anyone who has it, such as your client.")).toBeTruthy();
-    expect(screen.getByText(/^This account is read-only/)).toBeTruthy();
+    expect(screen.getByText(READ_ONLY_NOTE)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Online payments" }).getAttribute("href")).toBe("/settings/payments");
+    // Straight to that import on the Import page, where it's cancelled.
+    expect(screen.getByRole("link", { name: "Import from Harvest" }).getAttribute("href")).toBe("/settings/import#import-import-7");
     expect(screen.getByRole("link", { name: "Delete the account, under Settings → Account" }).getAttribute("href")).toBe("/settings/account#delete");
+  });
+
+  it("revoke and withdraw end a token and an invitation while the account is read-only", async () => {
+    const del = spyOnDelete();
+    renderPage(MoveOutPage, "lapsed", CONNECTIONS);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+
+    // Revoke asks first, as the profile does, then ends the token of someone else.
+    fireEvent.click(screen.getAllByRole("button", { name: "Revoke" })[1]);
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Revoke" }));
+    await waitFor(() => expect(del).toHaveBeenCalledWith("/api/v1/account/api_tokens/{id}", { params: { path: { id: "token-2" } } }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    // Withdraw asks first too, and says that inviting again waits until the account is active.
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
+    const dialog = await screen.findByRole("dialog", { name: "Withdraw the invitation for Ana Manager?" });
+    expect(within(dialog).getByText("Its link stops working. Inviting them again waits until the account is active again.")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Withdraw" }));
+    await waitFor(() => expect(del).toHaveBeenCalledWith("/api/v1/people/{id}/invite", { params: { path: { id: "membership-3" } } }));
+  });
+
+  it("in an active account the page has the same ways to end each one, without the read-only note", async () => {
+    const del = spyOnDelete();
+    renderPage(MoveOutPage, "active", CONNECTIONS);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+    expect(screen.queryByText(READ_ONLY_NOTE)).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
+    const dialog = await screen.findByRole("dialog", { name: "Withdraw the invitation for Ana Manager?" });
+    expect(within(dialog).getByText("Its link stops working.")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Withdraw" }));
+    await waitFor(() => expect(del).toHaveBeenCalledWith("/api/v1/people/{id}/invite", { params: { path: { id: "membership-3" } } }));
   });
 });

@@ -172,7 +172,7 @@ export function MoveOutPage() {
         <p className="muted">{t("moveOut.connectedLead")}</p>
         {readOnly && <p className="notice">{t("moveOut.readOnly")}</p>}
         {connections.error && <p className="notice notice-error">{errorInfo(connections.error).message}</p>}
-        <ConnectionList connections={connections.data} subscription={subscribed ? subscription.data : undefined} />
+        <ConnectionList connections={connections.data} subscription={subscribed ? subscription.data : undefined} readOnly={readOnly} />
       </section>
 
       <section className="section stack">
@@ -195,7 +195,7 @@ export function MoveOutPage() {
   );
 }
 
-function ConnectionList({ connections, subscription }: { connections?: Connection[]; subscription?: Subscription }) {
+function ConnectionList({ connections, subscription, readOnly }: { connections?: Connection[]; subscription?: Subscription; readOnly: boolean }) {
   const { t } = useTranslation();
   if (!connections) return <p className="muted">{t("app.loading")}</p>;
   if (connections.length === 0 && !subscription) return <p>{t("moveOut.nothingConnected")}</p>;
@@ -211,7 +211,7 @@ function ConnectionList({ connections, subscription }: { connections?: Connectio
         <tbody>
           {subscription && <SubscriptionRow s={subscription} />}
           {connections.map((c, i) => (
-            <ConnectionRow key={`${c.kind}-${i}`} c={c} />
+            <ConnectionRow key={`${c.kind}-${i}`} c={c} readOnly={readOnly} />
           ))}
         </tbody>
       </table>
@@ -253,7 +253,7 @@ function SubscriptionRow({ s }: { s: Subscription }) {
   );
 }
 
-function ConnectionRow({ c }: { c: Connection }) {
+function ConnectionRow({ c, readOnly }: { c: Connection; readOnly: boolean }) {
   const { t } = useTranslation();
   const me = useMe();
   const k = `moveOut.kind.${c.kind}`;
@@ -279,7 +279,7 @@ function ConnectionRow({ c }: { c: Connection }) {
       );
     }
     case "invitation":
-      return <Row title={t(`${k}.title`, values)} detail={t(`${k}.detail`, values)} how={t(`${k}.how`, values)} link={<WithdrawButton c={c} />} />;
+      return <Row title={t(`${k}.title`, values)} detail={t(`${k}.detail`, values)} how={t(`${k}.how`, values)} link={<WithdrawButton c={c} readOnly={readOnly} />} />;
     case "stripe":
       return (
         <Row
@@ -303,7 +303,19 @@ function ConnectionRow({ c }: { c: Connection }) {
       );
     case "harvest_sync":
     case "harvest_import":
-      return <Row title={t(`${k}.title`)} detail={t(`${k}.detail`, values)} how={t(`${k}.how`)} link={<Link to="/settings/import">{t("nav.import")}</Link>} />;
+      // Straight to that import on the Import page, where it's stopped or cancelled.
+      return (
+        <Row
+          title={t(`${k}.title`)}
+          detail={t(`${k}.detail`, values)}
+          how={t(`${k}.how`)}
+          link={
+            <Link to="/settings/import" hash={c.id ? `import-${c.id}` : undefined}>
+              {t("nav.import")}
+            </Link>
+          }
+        />
+      );
     case "invoice_links":
       return <Row title={t(`${k}.title`)} detail={t(`${k}.detail`, values)} how={t(`${k}.how`)} />;
     case "invoice_reminders":
@@ -341,7 +353,7 @@ function RevokeButton({ c }: { c: Connection }) {
 }
 
 /** Withdraws an invitation, so its link stops working (admins), also while the account is read-only. */
-function WithdrawButton({ c }: { c: Connection }) {
+function WithdrawButton({ c, readOnly }: { c: Connection; readOnly: boolean }) {
   const { t } = useTranslation();
   const toast = useToast();
   const qc = useQueryClient();
@@ -353,11 +365,19 @@ function WithdrawButton({ c }: { c: Connection }) {
     },
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
+  const [dialog, ask] = useConfirm({
+    title: t("moveOut.withdrawTitle", { name: c.person ?? "" }),
+    body: readOnly ? `${t("moveOut.withdrawBody")} ${t("moveOut.withdrawBodyReadOnly")}` : t("moveOut.withdrawBody"),
+    confirmLabel: t("moveOut.withdraw"),
+  });
   const id = c.membership_id;
   if (!id) return null;
   return (
-    <Button size="sm" variant="ghost" busy={withdraw.isPending} onClick={() => withdraw.mutate(id)}>
-      {t("moveOut.withdraw")}
-    </Button>
+    <>
+      {dialog}
+      <Button size="sm" variant="ghost" busy={withdraw.isPending} onClick={() => ask(() => withdraw.mutate(id))}>
+        {t("moveOut.withdraw")}
+      </Button>
+    </>
   );
 }

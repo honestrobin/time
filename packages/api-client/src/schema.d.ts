@@ -2778,6 +2778,7 @@ export interface components {
         };
         ImportJobView: {
             can_resume: boolean;
+            connected: boolean;
             /** Format: date-time */
             created_at: string;
             error?: string;

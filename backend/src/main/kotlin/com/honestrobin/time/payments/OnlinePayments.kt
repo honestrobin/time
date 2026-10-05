@@ -172,8 +172,8 @@ class OnlinePaymentService(
     }
 
     /**
-     * Forgets the connection, and ends Honest Robin's access at Stripe where it can. Ending access
-     * only removes access, so it works while the account is read-only ("You can always leave").
+     * Forgets the connection, and ends Honest Robin's access at Stripe where it can. Ending a
+     * connection works while the account is read-only (decision record 0024).
      */
     fun disconnect(m: Member): Disconnected {
         m.requireAdmin()

@@ -313,8 +313,7 @@ class PeppolService(
     /**
      * Removes the sender registered at Storecove, then forgets the connection. Left there, the
      * account's Peppol ID would stay registered with Storecove, and no other access point could
-     * register it. Ending access only removes access, so it works while the account is read-only
-     * ("You can always leave").
+     * register it. Ending a connection works while the account is read-only (decision record 0024).
      */
     fun disconnect(m: Member): Disconnected {
         m.requireAdmin()

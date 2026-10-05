@@ -218,8 +218,8 @@ class AccountingService(
     }
 
     /**
-     * Forgets the connection, and ends Honest Robin's access at the provider. Ending access only
-     * removes access, so it works while the account is read-only ("You can always leave").
+     * Forgets the connection, ends Honest Robin's access at the provider, and drops what wasn't
+     * pushed yet. Ending a connection works while the account is read-only (decision record 0024).
      */
     fun disconnect(m: Member, kind: String): Disconnected {
         m.requireAdmin()

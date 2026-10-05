@@ -171,6 +171,10 @@
       "skipped_other": "{{count}} rows were skipped; see the list below.",
       "another": "Import another file",
       "chooseOrder": "Choose how dates are written"
-    }
+    },
+    "connectedTitle": "Older imports still connected to Harvest",
+    "connectedLead": "Each keeps a Harvest token until you stop or cancel it here. Then delete the token in Harvest too.",
+    "connectedSyncing": "Harvest account {{account}}, started {{date}}: syncing until {{until}}.",
+    "connectedKept": "Harvest account {{account}}, started {{date}}: stopped, and keeps its token so it can go on."
   }
 }
