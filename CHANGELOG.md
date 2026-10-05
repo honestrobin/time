@@ -9,6 +9,12 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Self-hosted: after every start, for up to 30 minutes, two of the app's database connections kept
+  row-level security's bypass switched on, left over from the migrations. Everything the app reads
+  from an account runs in a transaction, which sets the bypass again for itself, so we found no
+  way it showed one account's data to another. It would have mattered to a query outside a
+  transaction on a database user that row-level security applies to; with the Compose setup's
+  default user, a superuser, it changed nothing. The migrations now get connections of their own.
 - Self-hosted: when the database can't keep accounts apart, for example after a restore without
   the app's database role, the app refuses to start, and its log says how to fix it. Before, it
   started with only a warning, and with the default database user only each query's own filter
