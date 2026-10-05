@@ -6362,6 +6362,9 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "interval" : {
+            "type" : "string"
+          },
           "kind" : {
             "type" : "string"
           },
@@ -6380,6 +6383,16 @@
             "type" : "string"
           },
           "person" : {
+            "type" : "string"
+          },
+          "plan" : {
+            "type" : "string"
+          },
+          "renews_at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
             "type" : "string"
           }
         },
