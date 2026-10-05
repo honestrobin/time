@@ -10,6 +10,7 @@ import com.honestrobin.time.platform.db.RowLevelSecurityNotEffective
 import com.honestrobin.time.platform.db.TenantAwareTransactionManager
 import com.honestrobin.time.support.IntegrationTest
 import com.honestrobin.time.support.TestDatabase
+import com.zaxxer.hikari.HikariDataSource
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -19,6 +20,7 @@ import org.springframework.boot.diagnostics.FailureAnalyzedException
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.transaction.CannotCreateTransactionException
 import org.springframework.transaction.support.TransactionTemplate
+import java.sql.Connection
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -131,6 +133,56 @@ class RowLevelSecurityTest : IntegrationTest() {
         assertThat(failure).describedAs("the app started without its database role").isNotNull()
         assertThat(generateSequence(failure) { it.cause }.toList()).anySatisfy { cause ->
             assertThat(cause).isInstanceOf(RowLevelSecurityNotEffective::class.java).hasMessageContaining("doesn't exist")
+        }
+    }
+
+    private data class Session(val user: String, val bypass: String, val account: String)
+
+    /**
+     * Second review of #25: the migrations switch row-level security's bypass on for their whole
+     * database session. On a connection from the app's pool, that would outlast them, and a query
+     * outside a transaction on that connection would bypass the policies. A second app starts on an
+     * empty database, so every migration runs, and every connection its pool can give is read.
+     */
+    @Test
+    fun `no pooled connection is left bypassing row-level security after startup`() {
+        val context = SpringApplicationBuilder(HonestRobinApplication::class.java)
+            .profiles("test")
+            .run(
+                "--server.port=0",
+                "--db-scheduler.enabled=false",
+                "--spring.datasource.url=${TestDatabase.freshDatabase("pool")}",
+                "--spring.datasource.username=${TestDatabase.username}",
+                "--spring.datasource.password=${TestDatabase.password}",
+            )
+        try {
+            val pool = context.getBean(DataSource::class.java).unwrap(HikariDataSource::class.java)
+            val borrowed = mutableListOf<Connection>()
+            val seen = try {
+                // Each one is held, so the pool has to give every connection it has, the ones the
+                // migrations used included. They're read outside any transaction, as autocommit.
+                repeat(pool.maximumPoolSize) { borrowed += pool.connection }
+                borrowed.map { con ->
+                    assertThat(con.autoCommit).isTrue()
+                    con.createStatement().use { st ->
+                        st.executeQuery(
+                            "select current_user, coalesce(current_setting('honestrobin.rls_bypass', true), ''), " +
+                                "coalesce(current_setting('honestrobin.account_id', true), '')",
+                        ).use { rs ->
+                            rs.next()
+                            Session(rs.getString(1), rs.getString(2), rs.getString(3))
+                        }
+                    }
+                }
+            } finally {
+                borrowed.forEach { it.close() }
+            }
+            assertThat(seen).hasSize(pool.maximumPoolSize)
+            assertThat(seen.filter { it.bypass == "on" }).describedAs("pooled connections still bypassing row-level security").isEmpty()
+            assertThat(seen.filter { it.account.isNotEmpty() }).describedAs("pooled connections still set to an account").isEmpty()
+            assertThat(seen.map { it.user }.toSet()).describedAs("pooled connections left switched to another role").containsExactly(TestDatabase.username)
+        } finally {
+            context.close()
         }
     }
 }
