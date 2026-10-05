@@ -136,7 +136,7 @@ class RowLevelSecurityTest : IntegrationTest() {
         }
     }
 
-    private data class Session(val user: String, val bypass: String, val account: String)
+    private data class Session(val user: String, val bypass: String, val account: String, val auditOff: String)
 
     /**
      * Second review of #25: the migrations switch row-level security's bypass on for their whole
@@ -167,10 +167,11 @@ class RowLevelSecurityTest : IntegrationTest() {
                     con.createStatement().use { st ->
                         st.executeQuery(
                             "select current_user, coalesce(current_setting('honestrobin.rls_bypass', true), ''), " +
-                                "coalesce(current_setting('honestrobin.account_id', true), '')",
+                                "coalesce(current_setting('honestrobin.account_id', true), ''), " +
+                                "coalesce(current_setting('honestrobin.audit_disabled', true), '')",
                         ).use { rs ->
                             rs.next()
-                            Session(rs.getString(1), rs.getString(2), rs.getString(3))
+                            Session(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4))
                         }
                     }
                 }
@@ -180,6 +181,8 @@ class RowLevelSecurityTest : IntegrationTest() {
             assertThat(seen).hasSize(pool.maximumPoolSize)
             assertThat(seen.filter { it.bypass == "on" }).describedAs("pooled connections still bypassing row-level security").isEmpty()
             assertThat(seen.filter { it.account.isNotEmpty() }).describedAs("pooled connections still set to an account").isEmpty()
+            // Transactions don't set this one again, so a leftover would switch the audit log off in each of them.
+            assertThat(seen.filter { it.auditOff == "on" }).describedAs("pooled connections with the audit log switched off").isEmpty()
             assertThat(seen.map { it.user }.toSet()).describedAs("pooled connections left switched to another role").containsExactly(TestDatabase.username)
         } finally {
             context.close()
