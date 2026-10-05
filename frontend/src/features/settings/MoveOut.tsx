@@ -139,6 +139,7 @@ export function MoveOutPage() {
       <section className="section stack">
         <h2>{t("moveOut.dataTitle")}</h2>
         <p>{t("moveOut.dataLead")}</p>
+        <p className="muted">{t("moveOut.dataRedrawn")}</p>
         {(!started || !busy(exports.data)) && (
           <div>
             <Button onClick={() => moveOut.mutate()} busy={moveOut.isPending}>
@@ -285,6 +286,21 @@ function ConnectionRow({ c }: { c: Connection }) {
         />
       );
     }
+    case "invitation":
+      return (
+        <Row
+          title={t(`${k}.title`, values)}
+          detail={t(`${k}.detail`, values)}
+          how={t(`${k}.how`, values)}
+          link={
+            c.membership_id ? (
+              <Link to="/team/$personId" params={{ personId: c.membership_id }}>
+                {t("nav.team")}
+              </Link>
+            ) : undefined
+          }
+        />
+      );
     case "stripe":
       return (
         <Row

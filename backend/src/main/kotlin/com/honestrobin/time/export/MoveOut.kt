@@ -6,9 +6,11 @@ import com.honestrobin.time.db.Tables.API_TOKENS
 import com.honestrobin.time.db.Tables.IMPORT_JOBS
 import com.honestrobin.time.db.Tables.INTEGRATIONS
 import com.honestrobin.time.db.Tables.INVOICES
+import com.honestrobin.time.db.Tables.LOGIN_TOKENS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.platform.security.Member
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -22,14 +24,15 @@ import java.util.UUID
  */
 data class ConnectionView(
     /**
-     * api_token; device (signed in with a code, such as the browser extension); stripe; qbo; xero;
-     * storecove (Peppol); harvest_sync; harvest_import (an unfinished import that keeps its Harvest
-     * token); invoice_links; invoice_reminders.
+     * api_token; device (signed in with a code, such as the browser extension); invitation (a link
+     * that still lets someone join); stripe; qbo; xero; storecove (Peppol); harvest_sync;
+     * harvest_import (an unfinished import that keeps its Harvest token); invoice_links;
+     * invoice_reminders.
      */
     val kind: String,
     /** A token's or device's name, the Stripe account, the books in QuickBooks or Xero, the Harvest account. */
     val name: String? = null,
-    /** Whose token or device it is. */
+    /** Whose token or device it is, or who is invited. */
     val membershipId: UUID? = null,
     val person: String? = null,
     /** How many, for invoice links. */
@@ -37,7 +40,7 @@ data class ConnectionView(
     /** connect (through Honest Robin) or api_key (your own key), for Stripe and Peppol. */
     val mode: String? = null,
     val lastUsedAt: Instant? = null,
-    /** When it stops by itself: a token's expiry, the end of a Harvest sync. */
+    /** When it stops by itself: a token's expiry, an invitation's, the end of a Harvest sync. */
     val endsAt: Instant? = null,
     /** The page in Time where it's ended; null where it ends only with the account. */
     val endIn: String? = null,
@@ -63,7 +66,8 @@ class ConnectionsService(private val dsl: DSLContext) {
      * Read in the caller's transaction: a request's, or the export's snapshot, so the export's
      * README shows the same moment as its data.
      */
-    fun of(accountId: UUID): List<ConnectionView> = tokens(accountId) + services(accountId) + harvest(accountId) + invoiceLinks(accountId) + reminders(accountId)
+    fun of(accountId: UUID): List<ConnectionView> =
+        tokens(accountId) + invitations(accountId) + services(accountId) + harvest(accountId) + invoiceLinks(accountId) + reminders(accountId)
 
     /** Tokens that work now: not expired, and of people who can sign in. */
     private fun tokens(accountId: UUID): List<ConnectionView> {
@@ -82,6 +86,23 @@ class ConnectionsService(private val dsl: DSLContext) {
                     lastUsedAt = r[API_TOKENS.LAST_USED_AT], endsAt = r[API_TOKENS.EXPIRES_AT], endIn = "/settings/profile",
                 )
             }
+    }
+
+    /**
+     * Invitations whose link still works: until it expires, accepting it lets someone in (and on
+     * Honest Robin Cloud's Team plan, adds a seat). The same test as accepting (AuthService.inviteRow).
+     */
+    private fun invitations(accountId: UUID): List<ConnectionView> {
+        val until = DSL.max(LOGIN_TOKENS.EXPIRES_AT)
+        return dsl.select(MEMBERSHIPS.ID, MEMBERSHIPS.NAME, until)
+            .from(LOGIN_TOKENS).join(MEMBERSHIPS).on(MEMBERSHIPS.ID.eq(LOGIN_TOKENS.MEMBERSHIP_ID))
+            .where(MEMBERSHIPS.ACCOUNT_ID.eq(accountId))
+            .and(LOGIN_TOKENS.PURPOSE.eq("invite")).and(LOGIN_TOKENS.USED_AT.isNull).and(LOGIN_TOKENS.EXPIRES_AT.gt(Instant.now()))
+            .and(DSL.lower(LOGIN_TOKENS.EMAIL).eq(DSL.lower(MEMBERSHIPS.EMAIL)))
+            .and(MEMBERSHIPS.IS_ACTIVE.isTrue).and(MEMBERSHIPS.STATUS.ne("active"))
+            .groupBy(MEMBERSHIPS.ID, MEMBERSHIPS.NAME)
+            .orderBy(MEMBERSHIPS.NAME)
+            .fetch { r -> ConnectionView(kind = "invitation", name = r[MEMBERSHIPS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME], endsAt = r[until], endIn = "/team") }
     }
 
     /** Stripe, QuickBooks, Xero and Storecove, where connected. */
@@ -103,15 +124,15 @@ class ConnectionsService(private val dsl: DSLContext) {
                 }
             }
 
-    /** The links in invoice emails: anyone who has one opens that invoice (drafts have none that work). */
+    /** Every issued invoice has a link that opens it for anyone who has it, emailed or not (drafts have none that work). */
     private fun invoiceLinks(accountId: UUID): List<ConnectionView> {
         val n = dsl.fetchCount(INVOICES, INVOICES.ACCOUNT_ID.eq(accountId).and(INVOICES.PUBLIC_TOKEN.isNotNull).and(INVOICES.STATE.ne("draft")))
         return if (n == 0) emptyList() else listOf(ConnectionView(kind = "invoice_links", count = n))
     }
 
-    /** Reminders keep emailing the account's clients about unpaid invoices. */
+    /** Reminders keep emailing the account's clients about unpaid invoices; they go out only while the account is active. */
     private fun reminders(accountId: UUID): List<ConnectionView> {
-        val on = dsl.select(ACCOUNTS.INVOICE_REMINDERS_ENABLED).from(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).fetchOne()?.value1() == true
+        val on = dsl.fetchExists(ACCOUNTS, ACCOUNTS.ID.eq(accountId).and(ACCOUNTS.INVOICE_REMINDERS_ENABLED.isTrue).and(ACCOUNTS.STATUS.eq("active")))
         return if (on) listOf(ConnectionView(kind = "invoice_reminders", endIn = "/settings/invoices")) else emptyList()
     }
 
@@ -137,8 +158,7 @@ object LeavingGuide {
         |self-hosting guide: $SELF_HOSTING_GUIDE
         |Then sign in there and choose Settings > Account > Import an export, with this zip. The
         |account comes back as it is, with its history. You become its admin; invite everyone else
-        |again from Team. Their history comes along; passwords don't. The same works on any other
-        |Honest Robin instance, cloud or self-hosted.
+        |again from Team. Their history comes along; passwords don't.
         |
         |Another tool. The spreadsheets in csv/ open in any spreadsheet app, and most time tracking,
         |invoicing and accounting tools can import them:
@@ -157,7 +177,7 @@ object LeavingGuide {
         appendLine("STILL CONNECTED, ON ${LocalDate.ofInstant(at, ZoneOffset.UTC)} (UTC)")
         appendLine()
         if (connections.isEmpty()) {
-            appendLine("Nothing: no tokens, devices, outside services or invoice links.")
+            appendLine("Nothing: no tokens, devices, invitations, outside services or invoice links.")
         }
         connections.forEach { c ->
             appendLine("- ${what(c)}")
@@ -165,11 +185,14 @@ object LeavingGuide {
         }
         appendLine()
         appendLine("Not in this list: a Team subscription to Honest Robin Cloud. If you have one, Settings >")
-        appendLine("Billing shows it, and you can cancel it there. Deleting the account cancels it too.")
+        appendLine("Billing shows it, and you cancel it on Paddle's page from there (Payment method and")
+        appendLine("invoices). Deleting the account cancels it too, when the account is deleted 14 days later.")
+        appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
         appendLine()
         appendLine("While an account is read-only (lapsed, or waiting to be deleted), its Disconnect and Stop")
-        appendLine("buttons don't work. You can still end each connection at the other service, and deleting")
-        appendLine("the account ends our access to all of them.")
+        appendLine("buttons don't work. You can still end each connection at the other service, except Peppol")
+        appendLine("on Honest Robin's Storecove contract, which only deleting the account ends. Deleting the")
+        appendLine("account ends our access to all of them.")
     }
 
     fun cancellingAndDeleting(): String = """
@@ -177,10 +200,12 @@ object LeavingGuide {
         |
         |Making this export changed nothing in the account: it works as it did before. Cancelling and
         |deleting are separate steps, and you choose them:
-        |- Cancel a Team subscription to Honest Robin Cloud under Settings > Billing.
+        |- Cancel a Team subscription to Honest Robin Cloud on Paddle's page: Settings > Billing >
+        |  Payment method and invoices.
         |- Delete the account under Settings > Account > Delete this account. After 14 days the account
-        |  and everything in it are deleted for good, and our access to Stripe, QuickBooks, Xero and
-        |  Storecove ends. Until then it's read-only, you can still export, and any admin can cancel.
+        |  and everything in it are deleted for good, a subscription is cancelled, and our access to
+        |  Stripe, QuickBooks, Xero and Storecove ends. Until then it's read-only, you can still
+        |  export, and any admin can cancel.
         |
     """.trimMargin()
 
@@ -196,7 +221,8 @@ object LeavingGuide {
         "storecove" -> "Peppol: e-invoices go out through Storecove, " + (if (c.mode == "connect") "on Honest Robin's contract." else "with your own Storecove API key.")
         "harvest_sync" -> "Harvest sync: changes in Harvest account ${c.name} come over until ${day(c.endsAt)}."
         "harvest_import" -> "Harvest import: an import from Harvest account ${c.name} hasn't finished, and we keep its token so it can go on."
-        "invoice_links" -> "Invoice links: your clients can open ${c.count} ${if (c.count == 1) "invoice" else "invoices"} from the links they were sent."
+        "invitation" -> "Invitation for ${c.person}: its link lets them join the account until ${day(c.endsAt)}."
+        "invoice_links" -> "Invoice links: ${c.count} issued ${if (c.count == 1) "invoice has a link" else "invoices each have a link"} that opens it for anyone who has it, such as your client."
         "invoice_reminders" -> "Invoice reminders: we email your clients about unpaid invoices on the days you chose."
         else -> c.kind
     }
@@ -213,6 +239,7 @@ object LeavingGuide {
             (if (c.mode == "connect") "" else " Then delete the API key in Storecove.")
         "harvest_sync" -> "End it: Settings > Import from Harvest > Stop syncing and switch over. Then delete the personal access token in Harvest."
         "harvest_import" -> "End it: delete the personal access token in Harvest. A running import can also be cancelled under Settings > Import from Harvest."
+        "invitation" -> "End it: an admin deactivates ${c.person} under Team, and the link stops working. It also stops by itself on ${day(c.endsAt)}."
         "invoice_links" -> "They work while the account exists and stop for good when it's deleted. A single link can't be turned off yet."
         "invoice_reminders" -> "End them: Settings > Invoice settings, turn off reminders."
         else -> ""
