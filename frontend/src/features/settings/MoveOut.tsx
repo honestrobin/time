@@ -6,10 +6,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, PageHeader, useToast } from "../../design";
-import { ApiError, api, authHeaders, downloadFile, errorInfo, unwrap, type Schemas } from "../../lib/api";
+import { api, downloadFile, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { accountQuery } from "./AccountSettingsPage";
+import { subscriptionQuery, type Subscription } from "./billing";
 
 type Export = Schemas["AccountExportView"];
 type Connection = Schemas["ConnectionView"];
@@ -18,24 +19,6 @@ const SELF_HOSTING_GUIDE = "https://github.com/honestrobin/time/blob/main/docs/s
 
 export const exportsQuery = { queryKey: ["account", "exports"], queryFn: () => unwrap(api.GET("/api/v1/exports")) };
 export const connectionsQuery = { queryKey: ["account", "connections"], queryFn: () => unwrap(api.GET("/api/v1/account/connections")) };
-
-// The Honest Robin Cloud subscription comes from the billing page's endpoint, which only the cloud
-// edition has (so it isn't in the generated client); these fields mirror BillingController.kt.
-interface Subscription {
-  plan: string;
-  current_period_end?: string | null;
-  cancel_at?: string | null;
-}
-
-const subscriptionQuery = {
-  queryKey: ["billing", "subscription"],
-  queryFn: async (): Promise<Subscription> => {
-    const res = await fetch("/api/v1/billing/subscription", { credentials: "include", headers: authHeaders() });
-    const body = await res.json().catch(() => ({ code: `http_${res.status}`, message: res.statusText }));
-    if (!res.ok) throw new ApiError(res.status, body);
-    return body as Subscription;
-  },
-};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -135,6 +118,7 @@ export function MoveOutPage() {
   const { data: account } = useQuery(accountQuery);
   const exports = useQuery({ ...exportsQuery, enabled: perms.isAdmin });
   const connections = useQuery({ ...connectionsQuery, enabled: perms.isAdmin });
+  // The Honest Robin Cloud subscription, from the billing page's endpoint (the cloud edition only).
   const subscription = useQuery({ ...subscriptionQuery, enabled: perms.isAdmin && config?.edition === "cloud" });
   const moveOut = useMoveOut();
   if (!perms.isAdmin) {
