@@ -70,10 +70,18 @@ export function InvitePage() {
         <>
           <p className="lead">{invite.user_exists ? t("auth.inviteExistingUser", { email: invite.email }) : t("auth.inviteNewUser", { email: invite.email })}</p>
           <form className="stack" onSubmit={submit}>
-            {err && !Object.keys(err.fields).length && (
-              <p className="notice notice-error" role="alert">
-                {err.message}
+            {err?.code === "invitation_needs_team_plan" ? (
+              // The workspace's paid plan has ended and its free plan is full: nothing for them to fix here.
+              <p className="notice" role="alert">
+                {t("auth.inviteNeedsTeam", { account: invite.account_name })}
               </p>
+            ) : (
+              err &&
+              !Object.keys(err.fields).length && (
+                <p className="notice notice-error" role="alert">
+                  {err.message}
+                </p>
+              )
             )}
             {!invite.user_exists && (
               <>

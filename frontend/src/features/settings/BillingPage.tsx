@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Honest Robin Cloud subscription (spec §14). Only the cloud edition has this page.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, PageHeader, useToast } from "../../design";
 import { errorInfo } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
+import { accountQuery } from "./AccountSettingsPage";
 import { call, startTeamCheckout, subscriptionQuery } from "./billing";
 
 export function BillingPage() {
@@ -13,6 +15,7 @@ export function BillingPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const sub = useQuery(subscriptionQuery);
+  const { data: account } = useQuery(accountQuery);
   const [waiting, setWaiting] = useState(false);
 
   const checkout = useMutation({
@@ -40,6 +43,15 @@ export function BillingPage() {
       <PageHeader title={t("billing.title")} lead={t("billing.lead")} />
       {sub.error && <p className="notice notice-error">{errorInfo(sub.error).message}</p>}
       {s && !s.billing_available && <p className="notice">{t("billing.unavailable")}</p>}
+      {s && account?.status === "lapsed" && (
+        // Read-only since the Team plan ended: the two ways back, and deactivating is free.
+        <div className="notice notice-warn stack" role="status">
+          <p>{t("billing.lapsed", { count: s.free_plan_seats })}</p>
+          <p className="small">
+            {t("billing.lapsedHow", { count: s.seats_used })} <Link to="/team">{t("billing.lapsedTeam")}</Link>
+          </p>
+        </div>
+      )}
       {s && s.plan === "free" && (
         <section className="stack">
           <h2>{t("billing.freeTitle")}</h2>
