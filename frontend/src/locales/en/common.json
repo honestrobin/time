@@ -299,12 +299,14 @@
     "seatsValue": "{{used}} can sign in; billed for {{billed}}",
     "invitationsWaiting_one": "{{count}} invitation waiting: not billed until accepted",
     "invitationsWaiting_other": "{{count}} invitations waiting: not billed until accepted",
+    "invitationsLater_one": "Starting Team is your yes to the invitation waiting: once it's accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
+    "invitationsLater_other": "Starting Team is your yes to the {{count}} invitations waiting: as each is accepted, you pay for that person too, {{price}}, and that day Paddle charges for what's left of the billing period.",
     "price": "Price",
     "billed": "Billed",
     "renews": "Renews on",
     "ends": "Ends on",
     "priceLock": "Your price is locked at {{price}} for as long as this subscription runs. Honest Robin refuses any change that would raise it, also when list prices go up.",
-    "seatsHint": "You pay for the people who can sign in. Someone who accepts an invitation, or comes back, counts from that moment. Someone you deactivate stops counting within a few minutes.",
+    "seatsHint": "You pay for the people who can sign in. Someone who accepts an invitation, or comes back, counts from that moment. Someone you deactivate stops counting within 15 minutes.",
     "manage": "Payment method and invoices"
   },
   "developers": {
