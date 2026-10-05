@@ -14,7 +14,9 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 
 | Promise | Status | Guarded by |
 |---|---|---|
-| Your price stays the same for as long as your subscription runs: the database refuses to raise a subscription's locked price. The lock is on our record. Paddle, which takes the payment, charges the subscription's own price. If Paddle ever reports a higher one, your lock stays, it's recorded, the billing page shows both prices, and every admin is emailed. We hear of it through an error in the app's log, because the mail setup has no address of ours to email yet. The difference is refunded by hand, for now. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::the database refuses to raise a subscription's price (AT-6_2)`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::free for one person, a Team subscription for more, seats kept in step and the price never raised`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::a higher price from Paddle keeps the lock and tells the admin and us` |
+| Your price stays the same for as long as your subscription runs: the database refuses to raise a subscription's locked price. The lock is on our record. Paddle, which takes the payment, charges the subscription's own price. If Paddle ever reports a higher one, your lock stays. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::the database refuses to raise a subscription's price (AT-6_2)`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::free for one person, a Team subscription for more, seats kept in step and the price never raised`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::a higher price from Paddle keeps the lock and tells the admin and us` |
+| If Paddle reports a price above your lock, you hear it from us: it's recorded once for each billing period, every admin is emailed once with both prices, and the billing page shows both until the difference is refunded. The API keeps every report, refunded ones too. We hear of it through an error in the app's log, because the mail setup has no address of ours to email yet. The tests check the numbers the page reads, not the page. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::a higher price from Paddle keeps the lock and tells the admin and us` |
+| If Paddle charges more than your locked price, we refund the difference. For now a person does it by hand: they refund it in Paddle, fix the price there, and mark the report refunded. | By hand | |
 | Features you have don't move to a more expensive plan. There's one paid plan, Team, and it differs from the free plan only in how many people can sign in. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::only the number of seats depends on the plan` |
 | Each version of the API keeps working for at least 12 months after the next one comes out. Every endpoint is under `/api/v1`, and there's no v2 yet. | By hand | |
 | A feature you use is never removed without 90 days' notice. | By hand | |
@@ -117,8 +119,9 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 Places where something we've published says more than Time does today. Each one has to change:
 the words, or the code.
 
-- When Paddle reports more than your locked price, the billing page says "We've been told". We
-  hear of it only through an error in the app's log: the mail setup has no address of ours to
+- When Paddle reports more than your locked price, the billing page and the email say "We've been
+  told", and that we'll refund the difference if Paddle charges more. We hear of it only through
+  an error in the app's log, which nothing alerts us to: the mail setup has no address of ours to
   email yet.
 - "Cancel in the app, in two clicks" holds except in the 30 minutes before a renewal, when Paddle
   takes no changes: the app then says so, and a renewal charged after that needs a person.

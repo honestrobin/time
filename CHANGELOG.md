@@ -10,7 +10,8 @@ Time hasn't had its first release yet. Until it does, changes people will notice
 as they're made.
 
 - If Paddle ever reports a higher price than your locked one, your lock stays, the billing page
-  shows both prices, and every admin gets an email. We refund the difference.
+  shows both prices, and every admin gets an email. If Paddle charges more, we refund the
+  difference, by hand for now.
 - Cancel the Team plan in the app, in two clicks, on the billing page. It ends with the period
   you've paid for, and nothing changes before then. Until that day, you can keep it with one more
   click. While a payment is past due, that period isn't paid for, so the plan ends at once.
