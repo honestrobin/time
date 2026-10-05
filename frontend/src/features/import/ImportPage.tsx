@@ -258,9 +258,15 @@ function JobView({ job }: { job: Job }) {
         <div className="notice notice-error">
           <p>{job.error}</p>
           {job.can_resume && (
-            <Button variant="primary" busy={resume.isPending} onClick={() => resume.mutate()} style={{ marginTop: 8 }}>
-              {t("import.resume")}
-            </Button>
+            <div className="row" style={{ marginTop: 8 }}>
+              <Button variant="primary" busy={resume.isPending} onClick={() => resume.mutate()}>
+                {t("import.resume")}
+              </Button>
+              {/* A stopped import keeps its Harvest token until it's resumed or cancelled. */}
+              <Button variant="ghost" busy={cancel.isPending} onClick={() => cancel.mutate()}>
+                {t("import.cancel")}
+              </Button>
+            </div>
           )}
         </div>
       )}

@@ -16,7 +16,7 @@
     "toolsBody": "The zip's csv folder has spreadsheets of your time entries, expenses, invoices, clients, contacts, projects, tasks and people. Most time tracking, invoicing and accounting tools can import them.",
     "connectedTitle": "Still connected",
     "connectedLead": "Everything that still connects to this account, and how to end each one. People in your team who sign in aren't listed: deactivate them in Team.",
-    "readOnly": "This account is read-only, so its Disconnect and Stop buttons don't work now. You can still end each connection at the other service, except Peppol on Honest Robin's Storecove contract, which only deleting the account ends. Deleting the account ends our access to all of them.",
+    "readOnly": "This account is read-only, and you can still end each of these, here or on the page it links to. Ending a connection only removes access.",
     "nothingConnected": "Nothing is connected: no tokens, devices, invitations, outside services or invoice links.",
     "what": "What",
     "howToEnd": "How to end it",
@@ -36,13 +36,13 @@
         "unused": "{{person}}. It stops by itself after 90 days without use."
       },
       "token": {
-        "howMine": "Revoke it in your profile, under Personal access tokens.",
-        "howOther": "{{person}} revokes it in their profile, or you deactivate {{person}} in Team, which stops all their tokens."
+        "howMine": "Revoke it here, or in your profile under Personal access tokens.",
+        "howOther": "Revoke it here. {{person}} can also revoke it in their profile."
       },
       "invitation": {
         "title": "Invitation for {{name}}",
         "detail": "Its link lets them join this account until {{until}}.",
-        "how": "Deactivate {{name}} in Team, and the link stops working. It also stops by itself on {{until}}."
+        "how": "Withdraw it here, and the link stops working. It also stops by itself on {{until}}."
       },
       "stripe": {
         "title": "Stripe",
@@ -76,7 +76,7 @@
       "harvest_import": {
         "title": "Unfinished Harvest import",
         "detail": "We keep the token for Harvest account {{name}}, so the import can go on.",
-        "how": "Delete the personal access token in Harvest. A running import can also be cancelled under Import from Harvest."
+        "how": "Cancel it under Import from Harvest, which forgets the token. Then delete the personal access token in Harvest."
       },
       "invoice_links": {
         "title": "Invoice links",
@@ -99,6 +99,8 @@
         "how": "Write to us and we'll tell you how to end it."
       }
     },
-    "dataRedrawn": "Time doesn't keep a copy of each invoice as it was sent: the files are drawn from today's data. An invoice that changed since you sent it (edited, paid, or with a new company address) looks different from the one your client received."
+    "dataRedrawn": "Time doesn't keep a copy of each invoice as it was sent: the files are drawn from today's data. An invoice that changed since you sent it (edited, paid, or with a new company address) looks different from the one your client received.",
+    "withdraw": "Withdraw",
+    "withdrawn": "The invitation is withdrawn."
   }
 }
