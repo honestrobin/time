@@ -270,7 +270,7 @@ class AccountExporter(
         appendLine()
         append(LeavingGuide.stillConnected(connected, m.exportedAt))
         appendLine()
-        append(LeavingGuide.cancellingAndDeleting())
+        append(LeavingGuide.cancellingAndDeleting(connected))
         appendLine()
         appendLine("NOT INCLUDED")
         appendLine()

@@ -613,6 +613,33 @@ class BillingTest : IntegrationTest() {
     }
 
     @Test
+    fun `while the account waits to be deleted, an admin can still cancel the Team plan and keep it`() {
+        assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
+        // Move out lists the subscription with everything else still connected, and an admin can
+        // end each one in every state of the account, read-only included.
+        val admin = signup(accountName = "Rewarewa Ltd")
+        val account = admin.accountId!!
+        assertThat(deliver(subscriptionEvent(account, quantity = 1))).isEqualTo(200)
+        admin.post("/api/v1/account/deletion", mapOf("confirm_name" to "Rewarewa Ltd")).expect(204)
+        try {
+            assertThat(accountStatus(admin)).isEqualTo("pending_deletion")
+            fun listed() = admin.get("/api/v1/account/connections").expect(200).body.values().single { it["kind"].asText() == "subscription" }
+            assertThat(listed()["end_in"].asText()).isEqualTo("/settings/billing")
+
+            assertThat(admin.post("/api/v1/billing/cancellation").expect(200)["cancel_at"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+            assertThat(cancellations(account).single().body!!["effective_from"].asText()).isEqualTo("next_billing_period")
+            assertThat(listed()["ends_at"].asText()).isEqualTo(MockPaddle.PERIOD_END)
+
+            assertThat(admin.delete("/api/v1/billing/cancellation").expect(200)["cancel_at"].isNull).isTrue()
+            assertThat(listed()["ends_at"]?.isNull ?: true).isTrue()
+            assertThat(accountStatus(admin)).isEqualTo("pending_deletion")
+        } finally {
+            // An account left waiting would be deleted by the next test that moves the clock past the grace period.
+            admin.delete("/api/v1/account/deletion")
+        }
+    }
+
+    @Test
     fun `while a payment is past due, cancelling ends the plan now`() {
         assumeTrue(props.edition == Edition.CLOUD, "billing is part of the cloud edition only")
         // That period isn't paid for, and Paddle takes no scheduled change while a payment is open.

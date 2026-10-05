@@ -20,6 +20,7 @@ import org.jooq.Table
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import tools.jackson.databind.JsonNode
+import java.io.File
 import java.time.Duration
 import java.time.Instant
 import java.util.HexFormat
@@ -282,12 +283,15 @@ class MoveOutTest : IntegrationTest() {
             val subscription = listOf(
                 "Honest Robin Cloud subscription: the Team plan, paid monthly. Active. It renews on 2027-10-01.",
                 "End it: Settings > Billing > Cancel the Team plan, in two clicks. It ends with the period you've paid for. " +
-                    "Deleting the account cancels it too, when the account is deleted 14 days later.",
+                    "Deleting the account cancels it too, on the day the account is deleted for good, 14 days after the deletion is asked for.",
             )
             if (cloud) {
-                assertThat(readme).containsSubsequence("STILL CONNECTED", subscription[0], subscription[1], "CANCELLING AND DELETING")
+                assertThat(readme).containsSubsequence(
+                    "STILL CONNECTED", subscription[0], subscription[1],
+                    "CANCELLING AND DELETING", "- Cancel the Team plan of Honest Robin Cloud", "It ends with the period you've paid for.",
+                )
             } else {
-                assertThat(readme).doesNotContain("Honest Robin Cloud subscription:", "End it: Settings > Billing")
+                assertThat(readme).doesNotContain("Honest Robin Cloud subscription:", "End it: Settings > Billing", "Cancel the Team plan")
             }
 
             // Once it's cancelled, it's listed until its last day, which it says, and it renews no more.
@@ -301,6 +305,25 @@ class MoveOutTest : IntegrationTest() {
             } else {
                 assertThat(cancelled).isEmpty()
             }
+
+            // The README's words for the other states of a subscription. Cancelled, it ends by
+            // itself, and there's nothing left to cancel; past due, cancelling ends it at once.
+            fun readmeFor(c: ConnectionView) = LeavingGuide.stillConnected(listOf(c), Instant.now()) + LeavingGuide.cancellingAndDeleting(listOf(c))
+            val team = ConnectionView(kind = "subscription", plan = "team", status = "active", interval = "year", endIn = "/settings/billing")
+            assertThat(readmeFor(team.copy(endsAt = Instant.parse("2027-10-01T00:00:00Z"))))
+                .contains(
+                    "Honest Robin Cloud subscription: the Team plan, paid yearly. Cancelled: it ends on 2027-10-01.",
+                    "Nothing to do: it ends by itself on 2027-10-01. Until then, Settings > Billing > Keep the Team plan takes it back.",
+                )
+                .doesNotContain("Cancel the Team plan")
+            assertThat(readmeFor(team.copy(status = "past_due")))
+                .contains("Honest Robin Cloud subscription: the Team plan, paid yearly. A payment is past due.")
+                .containsSubsequence(
+                    "Cancel the Team plan, in two clicks. While a payment is past due, that ends it at once.",
+                    "- Cancel the Team plan of Honest Robin Cloud", "While a payment is past due, that ends it at once.",
+                )
+                .doesNotContain("It ends with the period you've paid for")
+            assertThat(LeavingGuide.cancellingAndDeleting(emptyList())).contains("Delete the account").doesNotContain("Cancel the Team plan")
         } finally {
             tx.system {
                 dsl.deleteFrom(IMPORT_JOBS).where(IMPORT_JOBS.ACCOUNT_ID.eq(accountId)).execute()
@@ -308,6 +331,30 @@ class MoveOutTest : IntegrationTest() {
                 dsl.deleteFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).execute()
             }
         }
+    }
+
+    /**
+     * Move out lists the subscription without deciding anything by it: billing answers
+     * [SubscriptionConnection], only Move out asks, and what it answers goes straight into the
+     * list. So no feature can turn on the plan this way ("only the number of seats depends on the
+     * plan", PromiseGuardsTest, which scans for the plan itself).
+     */
+    @Test
+    fun `only Move out asks for the subscription, and only to list it`() {
+        val root = File("src/main/kotlin")
+        val code = root.walkTopDown().filter { it.isFile && it.extension == "kt" }.associate { it.relativeTo(root).invariantSeparatorsPath to it.readText() }
+            .filterKeys { !it.startsWith("com/honestrobin/time/billing/") }
+        assertThat(code).isNotEmpty()
+        assertThat(code.filterValues { "SubscriptionConnection" in it }.keys).describedAs("code outside billing that asks for the subscription")
+            .containsExactly("com/honestrobin/time/export/MoveOut.kt")
+        // The list it goes into is read only by Move out, the export and their endpoints: nothing
+        // else is given the service that makes it.
+        val uses = Regex(""":\s*ConnectionsService\b|ConnectionsService::""")
+        assertThat(code.filterValues { uses.containsMatchIn(it) }.keys).describedAs("code that reads what's still connected")
+            .isNotEmpty().allMatch { it.startsWith("com/honestrobin/time/export/") }
+        val moveOut = code.getValue("com/honestrobin/time/export/MoveOut.kt")
+        assertThat(Regex("""subscription\.of\(""").findAll(moveOut).count()).isEqualTo(1)
+        assertThat(moveOut).contains("listOfNotNull(subscription.of(accountId)) + ")
     }
 
     @Test

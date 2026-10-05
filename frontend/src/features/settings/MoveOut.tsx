@@ -125,8 +125,8 @@ export function MoveOutPage() {
       </div>
     );
   }
-  // A Honest Robin Cloud subscription is in the list too (the cloud edition only).
-  const subscribed = connections.data?.some((c) => c.kind === "subscription") ?? false;
+  // A Honest Robin Cloud subscription is in the list too (the cloud edition only); one already cancelled ends by itself.
+  const subscribed = connections.data?.some((c) => c.kind === "subscription" && !c.ends_at) ?? false;
   const readOnly = !!account && account.status !== "active";
   const started = (exports.data?.length ?? 0) > 0;
   return (
@@ -247,7 +247,13 @@ function SubscriptionRow({ c }: { c: Connection }) {
         : c.renews_at
           ? t(`${k}.renews`, { date: date(c.renews_at) })
           : t(`${k}.active`);
-  const how = c.ends_at ? t(`${k}.howCancelled`, { date: date(c.ends_at) }) : c.status === "past_due" ? t(`${k}.howPastDue`) : t(`${k}.how`);
+  const how = c.ends_at
+    ? t(`${k}.howCancelled`, { date: date(c.ends_at) })
+    : c.status === "past_due"
+      ? t(`${k}.howPastDue`)
+      : c.status === "trialing"
+        ? t(`${k}.howTrialing`)
+        : t(`${k}.how`);
   return (
     <Row
       title={t(`${k}.title`)}
