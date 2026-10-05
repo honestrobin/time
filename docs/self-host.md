@@ -131,7 +131,7 @@ Backups keep deleted accounts until they rotate out: when an account is deleted 
 
 ## Moving between instances
 
-Any admin can download a full export of an account (Settings → Account → Export all data) and import it into another instance, self-hosted or Honest Robin Cloud, under Settings → Account → Import an export. The format is described in [export-format.md](export-format.md). Imports larger than 2 GB are refused unless you raise `HONESTROBIN_ACCOUNT_DATA_IMPORT_MAX_BYTES`. Finished exports can be downloaded for 7 days (`HONESTROBIN_ACCOUNT_DATA_EXPORT_RETENTION`).
+Any admin can download a full export of an account (Settings → Account → Move out) and import it into another instance, self-hosted or Honest Robin Cloud, under Settings → Account → Import an export. The format is described in [export-format.md](export-format.md). Imports larger than 2 GB are refused unless you raise `HONESTROBIN_ACCOUNT_DATA_IMPORT_MAX_BYTES`. Finished exports can be downloaded for 7 days (`HONESTROBIN_ACCOUNT_DATA_EXPORT_RETENTION`).
 
 ## Upgrades
 
