@@ -10,6 +10,14 @@ export interface PlanPrice {
   currency: string;
   per_seat_per_month_minor: number;
 }
+/** Paddle reported a price per seat above the lock: the lock stays, and the difference is refunded. */
+export interface PriceReport {
+  reported_unit_price_minor: number;
+  locked_unit_price_minor: number;
+  currency: string;
+  interval: "month" | "year";
+  reported_at: string;
+}
 export interface Subscription {
   plan: "free" | "team";
   status: string;
@@ -27,6 +35,8 @@ export interface Subscription {
   prices: PlanPrice[];
   /** How many people the free plan has room for: a lapsed account works again once no more than this can sign in. */
   free_plan_seats: number;
+  /** Prices Paddle reported above the lock and not yet refunded; usually none. */
+  price_reports: PriceReport[];
 }
 interface Checkout {
   environment: string;

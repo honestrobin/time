@@ -22,6 +22,7 @@ const team: Subscription = {
   billing_available: true,
   prices: [],
   free_plan_seats: 1,
+  price_reports: [],
 };
 
 /** Stands in for the server: answers every request with [answer], and records it. */

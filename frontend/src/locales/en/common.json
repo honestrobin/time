@@ -313,6 +313,7 @@
     "renews": "Renews on",
     "ends": "Ends on",
     "priceLock": "Your price is locked at {{price}} for as long as this subscription runs. Honest Robin refuses any change that would raise it, also when list prices go up.",
+    "priceAboveLock": "Paddle reported {{reported}}, your locked price is {{locked}}. We've been told, and we'll refund the difference.",
     "seatsHint": "You pay for the people who can sign in. Someone who accepts an invitation, or comes back, counts from that moment. Someone you deactivate stops counting within 15 minutes.",
     "manage": "Payment method and invoices",
     "cancel": {
