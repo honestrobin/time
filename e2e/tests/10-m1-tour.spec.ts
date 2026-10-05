@@ -21,7 +21,7 @@ function monday(): Date {
 /** A key that was never translated renders as itself, e.g. "projects.fields.name". */
 async function expectNoRawKeys(page: Page, where: string) {
   const text = await page.locator("body").innerText();
-  const raw = text.match(/\b(?:app|nav|auth|settings|time|team|approvals|expenses|categories|projects|clients|tasks|invoices|reports)\.[a-z][A-Za-z]*(?:\.[A-Za-z_]+)+\b/g);
+  const raw = text.match(/\b(?:app|nav|auth|settings|time|team|approvals|expenses|categories|projects|clients|tasks|invoices|reports|moveOut)\.[a-z][A-Za-z]*(?:\.[A-Za-z_]+)+\b/g);
   expect(raw, `untranslated keys on ${where}`).toBeNull();
 }
 
@@ -185,14 +185,23 @@ test("M1 pages render with data and without raw translation keys", async ({ page
   await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();
   expect((await call(page, "GET", "/api/v1/account")).time_rounding_mode).toBe("nearest");
   await snap(page, "m1-account-settings-rounding");
-  // Account data: a full export, built in the background, then downloaded.
-  await page.getByRole("button", { name: "Export all data" }).click();
+  // Moving out: one step starts a full export, built in the background, and shows where to go
+  // next and what's still connected. It changes nothing in the account.
+  await page.getByRole("button", { name: "Move out" }).click();
+  await expect(page).toHaveURL(/\/settings\/move-out$/);
+  await expect(page.getByRole("heading", { name: "Moving out changes nothing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Where you can go next" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Still connected" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Download" }).first()).toBeVisible({ timeout: 30_000 });
-  await page.locator("#delete").scrollIntoViewIfNeeded();
-  await snap(page, "m6-account-data");
+  await expectNoRawKeys(page, "move out");
+  await snap(page, "m6-move-out");
   const exportDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download" }).first().click();
   expect((await exportDownload).suggestedFilename()).toMatch(/^honest-robin-tour-co-\d{4}-\d{2}-\d{2}\.zip$/);
+  expect((await call(page, "GET", "/api/v1/account")).status).toBe("active");
+  await visit(page, "/settings/account", "m6-account-data", heading("Account settings"));
+  await expect(page.getByRole("button", { name: "Download" }).first()).toBeVisible();
+  await page.locator("#delete").scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Delete account…" }).click();
   await expect(page.getByRole("button", { name: "Delete in 14 days" })).toBeDisabled();
   await snap(page, "m6-account-delete-dialog");

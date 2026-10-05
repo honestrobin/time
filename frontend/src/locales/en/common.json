@@ -195,10 +195,6 @@
     "reminders": "Send weekly timesheet reminders",
     "remindersHint": "On the first morning of the week, people whose last week is incomplete get one email.",
     "data": {
-      "exportTitle": "Export all data",
-      "exportLead": "Download everything in this account as one zip: all data as JSON and spreadsheets, every invoice as a PDF, and all receipts. It works on every plan, also when the account is read-only. We email you when it's ready.",
-      "exportButton": "Export all data",
-      "preparing": "Preparing the export…",
       "by": "by {{name}}",
       "readyUntil": "{{size}}, until {{date}}",
       "download": "Download",

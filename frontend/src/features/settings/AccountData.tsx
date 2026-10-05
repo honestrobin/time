@@ -1,101 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Export, import and deletion of the whole account (spec §13).
+// Moving out, importing and deleting the whole account (spec §13).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Dialog, DialogActions, TextField, useToast } from "../../design";
-import { ApiError, api, authHeaders, downloadFile, errorInfo, setAccountId, unwrap, type Schemas } from "../../lib/api";
-import { formatDate, formatDateTime } from "../../lib/format";
+import { ApiError, api, authHeaders, errorInfo, setAccountId, unwrap } from "../../lib/api";
+import { formatDate } from "../../lib/format";
 import { useMe, usePermissions } from "../../lib/session";
 import { accountQuery } from "./AccountSettingsPage";
+import { MoveOutSection } from "./MoveOut";
 
-type Export = Schemas["AccountExportView"];
-
-const exportsQuery = { queryKey: ["account", "exports"], queryFn: () => unwrap(api.GET("/api/v1/exports")) };
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let v = bytes / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(v)} ${units[i]}`;
-}
-
-/** Export everything, bring an account over from another instance, or delete this one. */
+/** Move out, bring an account over from another instance, or delete this one. */
 export function AccountDataSection() {
   const perms = usePermissions();
   if (!perms.isAdmin) return null;
   return (
     <>
-      <ExportSection />
+      <MoveOutSection />
       <ImportSection />
       <DeleteSection />
     </>
-  );
-}
-
-function ExportSection() {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const qc = useQueryClient();
-  const list = useQuery({
-    ...exportsQuery,
-    // Poll while an export is being prepared.
-    refetchInterval: (q) => (q.state.data?.some((e) => e.status === "queued" || e.status === "running") ? 2000 : false),
-  });
-  const start = useMutation({
-    mutationFn: () => unwrap(api.POST("/api/v1/exports")),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: exportsQuery.queryKey }),
-    onError: (e) => toast(errorInfo(e).message, "error"),
-  });
-  const busy = list.data?.some((e) => e.status === "queued" || e.status === "running") ?? false;
-  const download = async (e: Export) => {
-    try {
-      await downloadFile(`/api/v1/exports/${e.id}/download`);
-    } catch (err) {
-      toast(errorInfo(err).message, "error");
-    }
-  };
-  return (
-    <section className="section stack" id="export">
-      <h2>{t("settings.data.exportTitle")}</h2>
-      <p className="muted">{t("settings.data.exportLead")}</p>
-      <Button onClick={() => start.mutate()} busy={start.isPending || busy} disabled={busy}>
-        {busy ? t("settings.data.preparing") : t("settings.data.exportButton")}
-      </Button>
-      {list.data && list.data.length > 0 && (
-        <table className="ledger">
-          <tbody>
-            {list.data.map((e) => (
-              <tr key={e.id}>
-                <td>
-                  {formatDateTime(e.created_at)}
-                  {e.requested_by && <div className="muted small">{t("settings.data.by", { name: e.requested_by })}</div>}
-                </td>
-                <td>
-                  {e.status === "ready" && e.expires_at
-                    ? t("settings.data.readyUntil", { size: formatSize(e.size ?? 0), date: formatDate(e.expires_at.slice(0, 10)) })
-                    : t(`settings.data.status.${e.status}`)}
-                  {e.status === "failed" && e.error && <div className="field-error">{e.error}</div>}
-                </td>
-                <td className="num">
-                  {e.status === "ready" && (
-                    <Button size="sm" onClick={() => void download(e)}>
-                      {t("settings.data.download")}
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
   );
 }
 
