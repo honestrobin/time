@@ -100,7 +100,7 @@ Columns that are left out:
 | `rate_limit_events` | Rate-limit counters of that instance. |
 | `device_authorizations` | Sign-ins of devices such as the browser extension; sign them in again. |
 | `accounting_sync_items` | The queue of pushes to QuickBooks or Xero; connect again after importing. What was already pushed stays in `external_links`. |
-| `subscriptions`, `billing_events` | An Honest Robin Cloud subscription belongs to that instance; subscribe again where you import. |
+| `subscriptions`, `billing_events` | An Honest Robin Cloud subscription belongs to that instance; subscribe again where you import. A price Paddle reported above your locked one (decision record 0023) isn't in the export: it's in `price_reports` of `GET /api/v1/billing/subscription`, refunded or not. |
 
 A test (`every table is either exported or left out on purpose`) fails when a new table is added
 to the schema without deciding which list it belongs to.

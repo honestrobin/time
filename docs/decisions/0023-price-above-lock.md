@@ -18,11 +18,14 @@ customer wasn't told, and would first see it on Paddle's receipt.
 
 1. **The lock stays,** as before: a higher price from Paddle never changes our record.
 2. **It's recorded** as a billing event of ours, once for each price in each billing period. The
-   event's id carries the subscription, the end of the billing period and the price
-   (`price_above_lock:<subscription>:<period end, epoch seconds>:<price, minor units>`), so it needs
-   no new column.
-3. **The billing page shows it:** "Paddle reported €90.00 per person a year, your locked price is
-   €84.00 per person a year. We've been told, and we'll refund the difference."
+   event's id carries what the page shows (`price_above_lock:<subscription>:<period end, epoch
+   seconds, or 0>:<currency>:<month or year>:<locked price>:<reported price>`, prices in minor
+   units), so it needs no new column, and it stays readable after the subscription is replaced or
+   the refund is marked. The API (`price_reports`) returns every report, refunded or not.
+3. **The billing page shows the open ones,** with the billing period: "For the billing period
+   ending 1 October 2027: Paddle reported €90.00 per person a year, your locked price is €84.00 per
+   person a year. We've been told, and if Paddle charges more than your locked price, we'll refund
+   the difference."
 4. **Every admin of the account gets an email** once, with both prices, that says nothing is
    needed from them.
 5. **We hear of it** through an error in the app's log that starts with `PRICE LOCK:` and names
@@ -34,8 +37,16 @@ customer wasn't told, and would first see it on Paddle's receipt.
 
 ## Consequences
 
-- The customer hears about it from us, before or with Paddle's receipt, and doesn't have to ask.
-- "We've been told" on the billing page rests on the log line until there's an operator address.
-  Adding one is a single setting and an extra recipient.
-- Marking a refund is a manual database change. If this ever happens more than rarely, it gets a
+- The customer hears about it from us and doesn't have to ask, as soon as Paddle's webhook reaches
+  us.
+- "We've been told", on the page and in the email, rests on the log line until there's an
+  operator address. Adding one is a single setting and an extra recipient.
+- Marking a refund is a manual database change, and `billing_events` has no audit trail, so it
+  leaves no trace beyond the changed type. If this ever happens more than rarely, it gets a
   screen of its own.
+- Known gaps: once a report is marked refunded, the same price again in the same billing period
+  tells nobody (only the log repeats); and if Paddle never says when a period ends, every period
+  shares one report.
+- Not this decision, and not checked: the lock is compared without regard to the billing interval,
+  as before. If Paddle can switch an existing subscription between monthly and yearly, that needs
+  a look of its own.
