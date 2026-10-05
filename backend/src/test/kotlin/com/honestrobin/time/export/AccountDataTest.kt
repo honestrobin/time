@@ -242,6 +242,22 @@ class AccountDataTest : IntegrationTest() {
         assertThat(unzip(export(s.admin)).keys).contains("data/time_entries.json")
     }
 
+    @Test
+    fun `an account waiting to be deleted can still export its data`() {
+        val s = seed()
+        s.admin.post("/api/v1/account/deletion", mapOf("confirm_name" to "Fjord & Pine Studio")).expect(204)
+        try {
+            assertThat(s.admin.get("/api/v1/account").expect(200)["status"].asText()).isEqualTo("pending_deletion")
+            s.admin.post("/api/v1/clients", mapOf("name" to "New client", "currency" to "EUR")).expectError(402, "account_read_only")
+            val parts = unzip(export(s.admin))
+            assertThat(parts.keys).contains("data/time_entries.json", "invoices/invoice-${s.invoiceNumber}.pdf")
+            assertThat(parts["data/time_entries.json"]!!.toString(Charsets.UTF_8)).contains("Map legend")
+        } finally {
+            // An account left waiting would be deleted by the next test that moves the clock past the grace period.
+            s.admin.delete("/api/v1/account/deletion")
+        }
+    }
+
     /** Changes a data file inside an export and fixes its checksum, as an attacker would. */
     private fun tamper(zip: ByteArray, table: String, change: (tools.jackson.databind.node.ArrayNode) -> Unit): ByteArray {
         val parts = unzip(zip).toMutableMap()
