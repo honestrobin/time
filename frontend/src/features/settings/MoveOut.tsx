@@ -8,9 +8,8 @@ import { useTranslation } from "react-i18next";
 import { Button, PageHeader, useConfirm, useToast } from "../../design";
 import { api, downloadFile, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDate, formatDateTime } from "../../lib/format";
-import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
+import { useMe, usePermissions } from "../../lib/session";
 import { accountQuery } from "./AccountSettingsPage";
-import { subscriptionQuery, type Subscription } from "./billing";
 
 type Export = Schemas["AccountExportView"];
 type Connection = Schemas["ConnectionView"];
@@ -114,12 +113,9 @@ function ExportList() {
 export function MoveOutPage() {
   const { t } = useTranslation();
   const perms = usePermissions();
-  const config = useAuthConfig();
   const { data: account } = useQuery(accountQuery);
   const exports = useQuery({ ...exportsQuery, enabled: perms.isAdmin });
   const connections = useQuery({ ...connectionsQuery, enabled: perms.isAdmin });
-  // The Honest Robin Cloud subscription, from the billing page's endpoint (the cloud edition only).
-  const subscription = useQuery({ ...subscriptionQuery, enabled: perms.isAdmin && config?.edition === "cloud" });
   const moveOut = useMoveOut();
   if (!perms.isAdmin) {
     return (
@@ -129,7 +125,8 @@ export function MoveOutPage() {
       </div>
     );
   }
-  const subscribed = subscription.data?.plan === "team";
+  // A Honest Robin Cloud subscription is in the list too (the cloud edition only).
+  const subscribed = connections.data?.some((c) => c.kind === "subscription") ?? false;
   const readOnly = !!account && account.status !== "active";
   const started = (exports.data?.length ?? 0) > 0;
   return (
@@ -173,7 +170,7 @@ export function MoveOutPage() {
         {/* A lapsed account can also deactivate people (decision record 0021); one waiting to be deleted can't. */}
         {readOnly && <p className="notice">{t(account?.status === "lapsed" ? "moveOut.readOnlyLapsed" : "moveOut.readOnly")}</p>}
         {connections.error && <p className="notice notice-error">{errorInfo(connections.error).message}</p>}
-        <ConnectionList connections={connections.data} subscription={subscribed ? subscription.data : undefined} readOnly={readOnly} />
+        <ConnectionList connections={connections.data} readOnly={readOnly} />
       </section>
 
       <section className="section stack">
@@ -196,10 +193,10 @@ export function MoveOutPage() {
   );
 }
 
-function ConnectionList({ connections, subscription, readOnly }: { connections?: Connection[]; subscription?: Subscription; readOnly: boolean }) {
+function ConnectionList({ connections, readOnly }: { connections?: Connection[]; readOnly: boolean }) {
   const { t } = useTranslation();
   if (!connections) return <p className="muted">{t("app.loading")}</p>;
-  if (connections.length === 0 && !subscription) return <p>{t("moveOut.nothingConnected")}</p>;
+  if (connections.length === 0) return <p>{t("moveOut.nothingConnected")}</p>;
   return (
     <div className="table-scroll">
       <table className="ledger">
@@ -210,7 +207,6 @@ function ConnectionList({ connections, subscription, readOnly }: { connections?:
           </tr>
         </thead>
         <tbody>
-          {subscription && <SubscriptionRow s={subscription} />}
           {connections.map((c, i) => (
             <ConnectionRow key={`${c.kind}-${i}`} c={c} readOnly={readOnly} />
           ))}
@@ -235,20 +231,28 @@ function Row({ title, detail, how, link }: { title: string; detail?: string; how
   );
 }
 
-function SubscriptionRow({ s }: { s: Subscription }) {
+/** The Team plan: its billing interval and status, and how it's cancelled (or that it ends by itself). */
+function SubscriptionRow({ c }: { c: Connection }) {
   const { t } = useTranslation();
-  const ends = s.cancel_at ?? null;
-  const renews = s.current_period_end ?? null;
-  const detail = ends
-    ? t("moveOut.kind.subscription.ends", { date: formatDate(ends.slice(0, 10)) })
-    : renews
-      ? t("moveOut.kind.subscription.renews", { date: formatDate(renews.slice(0, 10)) })
-      : undefined;
+  const k = "moveOut.kind.subscription";
+  const date = (at?: string | null) => (at ? formatDate(at.slice(0, 10)) : "");
+  const state = c.ends_at
+    ? t(`${k}.ends`, { date: date(c.ends_at) })
+    : c.status === "past_due"
+      ? t(`${k}.pastDue`)
+      : c.status === "trialing"
+        ? c.renews_at
+          ? t(`${k}.trialing`, { date: date(c.renews_at) })
+          : t(`${k}.trialingNoDate`)
+        : c.renews_at
+          ? t(`${k}.renews`, { date: date(c.renews_at) })
+          : t(`${k}.active`);
+  const how = c.ends_at ? t(`${k}.howCancelled`, { date: date(c.ends_at) }) : c.status === "past_due" ? t(`${k}.howPastDue`) : t(`${k}.how`);
   return (
     <Row
-      title={t("moveOut.kind.subscription.title")}
-      detail={detail}
-      how={t("moveOut.kind.subscription.how")}
+      title={t(`${k}.title`)}
+      detail={`${c.interval === "year" ? t(`${k}.yearly`) : t(`${k}.monthly`)} ${state}`}
+      how={how}
       link={<Link to="/settings/billing">{t("nav.billing")}</Link>}
     />
   );
@@ -266,6 +270,8 @@ function ConnectionRow({ c, readOnly }: { c: Connection; readOnly: boolean }) {
     until: c.ends_at ? formatDate(c.ends_at.slice(0, 10)) : "",
   };
   switch (c.kind) {
+    case "subscription":
+      return <SubscriptionRow c={c} />;
     case "api_token":
     case "device": {
       const mine = c.membership_id === me.current_membership_id;

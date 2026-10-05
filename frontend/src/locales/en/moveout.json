@@ -92,9 +92,17 @@
       },
       "subscription": {
         "title": "Honest Robin Cloud subscription",
-        "renews": "Team plan, renews on {{date}}.",
-        "ends": "Team plan, ends on {{date}}.",
-        "how": "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, when the account is deleted 14 days later."
+        "monthly": "Team plan, paid monthly.",
+        "yearly": "Team plan, paid yearly.",
+        "active": "Active.",
+        "renews": "Active. It renews on {{date}}.",
+        "trialing": "On trial. The first payment is on {{date}}.",
+        "trialingNoDate": "On trial.",
+        "pastDue": "A payment is past due.",
+        "ends": "Cancelled: it ends on {{date}}.",
+        "how": "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, when the account is deleted 14 days later.",
+        "howPastDue": "Cancel it on the Billing page, in two clicks: while a payment is past due, that ends it at once. Deleting the account cancels it too, when the account is deleted 14 days later.",
+        "howCancelled": "Nothing to do: it ends by itself on {{date}}. Until then, Keep the Team plan on the Billing page takes it back."
       },
       "other": {
         "how": "Write to us and we'll tell you how to end it."

@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { api, type Schemas } from "../../lib/api";
+import { formatDate } from "../../lib/format";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
 import { AccountDataSection } from "./AccountData";
 import { accountQuery } from "./AccountSettingsPage";
@@ -102,6 +103,40 @@ describe("Move out", () => {
     // Straight to that import on the Import page, where it's cancelled.
     expect(screen.getByRole("link", { name: "Import from Harvest" }).getAttribute("href")).toBe("/settings/import#import-import-7");
     expect(screen.getByRole("link", { name: "Delete the account, under Settings → Account" }).getAttribute("href")).toBe("/settings/account#delete");
+  });
+
+  it("lists a Honest Robin Cloud subscription with its plan, billing interval and status, and where to cancel it", async () => {
+    const team: Schemas["ConnectionView"] = {
+      kind: "subscription",
+      plan: "team",
+      status: "active",
+      interval: "year",
+      renews_at: "2027-10-01T00:00:00Z",
+      end_in: "/settings/billing",
+    };
+    renderPage(MoveOutPage, "active", [team]);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+    expect(screen.getByText("Honest Robin Cloud subscription")).toBeTruthy();
+    expect(screen.getByText(`Team plan, paid yearly. Active. It renews on ${formatDate("2027-10-01")}.`)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, when the account is deleted 14 days later.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Billing" }).getAttribute("href")).toBe("/settings/billing");
+    expect(screen.getByRole("link", { name: "Cancel the Team plan on the Billing page, in two clicks" }).getAttribute("href")).toBe("/settings/billing");
+    cleanup();
+
+    // Cancelled, it ends by itself; while a payment is past due, cancelling ends it at once.
+    renderPage(MoveOutPage, "active", [{ ...team, renews_at: undefined, ends_at: "2027-10-01T00:00:00Z" }]);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+    expect(screen.getByText(`Team plan, paid yearly. Cancelled: it ends on ${formatDate("2027-10-01")}.`)).toBeTruthy();
+    expect(screen.getByText(`Nothing to do: it ends by itself on ${formatDate("2027-10-01")}. Until then, Keep the Team plan on the Billing page takes it back.`)).toBeTruthy();
+    cleanup();
+    renderPage(MoveOutPage, "active", [{ ...team, interval: "month", status: "past_due", renews_at: undefined }]);
+    await screen.findByRole("heading", { name: "Moving out changes nothing" });
+    expect(screen.getByText("Team plan, paid monthly. A payment is past due.")).toBeTruthy();
+    expect(screen.getByText(/while a payment is past due, that ends it at once/)).toBeTruthy();
   });
 
   it("waiting to be deleted, the read-only note says deactivating people waits", async () => {

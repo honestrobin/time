@@ -88,11 +88,12 @@ class MoveOutTest : IntegrationTest() {
     }
 
     /** A Honest Robin Cloud subscription as Paddle's webhooks leave it. */
-    private fun subscribe(accountId: UUID, status: String, seats: Int) = tx.system {
+    private fun subscribe(accountId: UUID, status: String, seats: Int, periodEnd: Instant? = null) = tx.system {
         dsl.insertInto(SUBSCRIPTIONS).set(SUBSCRIPTIONS.ACCOUNT_ID, accountId).set(SUBSCRIPTIONS.EXTERNAL_ID, "sub_moveout_${UUID.randomUUID()}")
             .set(SUBSCRIPTIONS.EXTERNAL_PRICE_ID, "pri_moveout").set(SUBSCRIPTIONS.BILLING_INTERVAL, "month").set(SUBSCRIPTIONS.STATUS, status)
             .set(SUBSCRIPTIONS.SEATS, seats).set(SUBSCRIPTIONS.CURRENCY, "EUR").set(SUBSCRIPTIONS.LOCKED_UNIT_PRICE_MINOR, 900L)
             .apply { if (status == "canceled") set(SUBSCRIPTIONS.CANCELED_AT, Instant.now()) }
+            .apply { if (periodEnd != null) set(SUBSCRIPTIONS.CURRENT_PERIOD_END, periodEnd) }
             .execute()
     }
 
@@ -200,17 +201,34 @@ class MoveOutTest : IntegrationTest() {
                 dsl.insertInto(IMPORT_JOBS).set(IMPORT_JOBS.ACCOUNT_ID, accountId).set(IMPORT_JOBS.MODE, "api").set(IMPORT_JOBS.STATUS, "failed")
                     .set(IMPORT_JOBS.EXTERNAL_ACCOUNT_ID, "7654321").set(IMPORT_JOBS.TOKEN_ENCRYPTED, "not-a-real-token").execute()
             }
+            // A Team subscription to Honest Robin Cloud, made last so the invitations above didn't
+            // need a yes to its price. The row is put there in either edition; only the cloud
+            // edition has subscriptions, so only it lists one.
+            val cloud = props.edition == Edition.CLOUD
+            subscribe(accountId, "active", seats = 2, periodEnd = Instant.parse("2027-10-01T00:00:00Z"))
 
             // Only admins see it, as only they can export.
             member.get("/api/v1/account/connections").expectError(403, "forbidden")
             member.post("/api/v1/account/move_out").expectError(403, "forbidden")
 
             val list = admin.get("/api/v1/account/connections").expect(200).body.values().toList()
-            assertThat(list.map { it["kind"].asText() }).containsExactlyInAnyOrder(
-                "api_token", "api_token", "device", "invitation", "stripe", "qbo", "xero", "storecove", "harvest_sync", "harvest_import", "invoice_links", "invoice_reminders",
+            assertThat(list.map { it["kind"].asText() }).describedAs(props.edition.name).containsExactlyInAnyOrderElementsOf(
+                listOfNotNull("subscription".takeIf { cloud }) + listOf(
+                    "api_token", "api_token", "device", "invitation", "stripe", "qbo", "xero", "storecove", "harvest_sync", "harvest_import", "invoice_links", "invoice_reminders",
+                ),
             )
             fun one(kind: String, name: String? = null): JsonNode = list.single { it["kind"].asText() == kind && (name == null || it["name"].asText() == name) }
             fun JsonNode.text(field: String): String? = get(field)?.takeIf { !it.isNull }?.asText()
+            if (cloud) {
+                // Its plan, status and billing interval, and the Billing page, where it's cancelled.
+                val team = one("subscription")
+                assertThat(team.text("plan")).isEqualTo("team")
+                assertThat(team.text("status")).isEqualTo("active")
+                assertThat(team.text("interval")).isEqualTo("month")
+                assertThat(team.text("renews_at")).isEqualTo("2027-10-01T00:00:00Z")
+                assertThat(team.text("ends_at")).isNull()
+                assertThat(team.text("end_in")).isEqualTo("/settings/billing")
+            }
             assertThat(list.map { it.text("name") }).doesNotContain("Old script")
             assertThat(one("api_token", "Reports script").text("person")).isEqualTo("Ada Admin")
             assertThat(one("api_token", "Reports script").text("membership_id")).isEqualTo(admin.membershipId.toString())
@@ -260,12 +278,34 @@ class MoveOutTest : IntegrationTest() {
                 "withdraws it under Settings > Account > Move out, and the link stops working",
                 "stop for good when it's deleted",
                 "Invoice reminders: we email your clients about unpaid invoices",
-                "Not in this list: a Team subscription to Honest Robin Cloud.",
-            ).doesNotContain("Old script")
+            ).doesNotContain("Old script", "Not in this list")
+            val subscription = listOf(
+                "Honest Robin Cloud subscription: the Team plan, paid monthly. Active. It renews on 2027-10-01.",
+                "End it: Settings > Billing > Cancel the Team plan, in two clicks. It ends with the period you've paid for. " +
+                    "Deleting the account cancels it too, when the account is deleted 14 days later.",
+            )
+            if (cloud) {
+                assertThat(readme).containsSubsequence("STILL CONNECTED", subscription[0], subscription[1], "CANCELLING AND DELETING")
+            } else {
+                assertThat(readme).doesNotContain("Honest Robin Cloud subscription:", "End it: Settings > Billing")
+            }
+
+            // Once it's cancelled, it's listed until its last day, which it says, and it renews no more.
+            tx.system {
+                dsl.update(SUBSCRIPTIONS).set(SUBSCRIPTIONS.CANCEL_AT, Instant.parse("2027-10-01T00:00:00Z")).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).execute()
+            }
+            val cancelled = admin.get("/api/v1/account/connections").expect(200).body.values().filter { it["kind"].asText() == "subscription" }
+            if (cloud) {
+                assertThat(cancelled.single().text("ends_at")).isEqualTo("2027-10-01T00:00:00Z")
+                assertThat(cancelled.single().text("renews_at")).isNull()
+            } else {
+                assertThat(cancelled).isEmpty()
+            }
         } finally {
             tx.system {
                 dsl.deleteFrom(IMPORT_JOBS).where(IMPORT_JOBS.ACCOUNT_ID.eq(accountId)).execute()
                 dsl.deleteFrom(INTEGRATIONS).where(INTEGRATIONS.ACCOUNT_ID.eq(accountId)).execute()
+                dsl.deleteFrom(SUBSCRIPTIONS).where(SUBSCRIPTIONS.ACCOUNT_ID.eq(accountId)).execute()
             }
         }
     }
