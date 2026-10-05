@@ -9,13 +9,19 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
-- Editing an invoice runs in a single transaction again. From 4 October until this change, it
-  didn't, and that had three effects. With the Compose setup's default database user, someone
-  allowed to invoice in one account could read and change another account's invoice if they knew
-  its id, and an admin of their own account could change where it tells the client to pay. The
-  app shows an invoice's id only to people in its own account, so they'd have needed it from
-  somewhere else, for example from having worked in that account. An edit that was refused could keep part of what it had changed. And
-  the audit log recorded these edits without the person who made them or their address.
+- Editing an invoice runs in a single transaction again. From 4 October until this change it
+  didn't. With the Compose setup's default database user, someone allowed to invoice in one
+  account could read and change an invoice of another account on the same instance, if they knew
+  its id: anything on it the client sees, and, for an admin of their own account, its payment
+  instructions. Reading a sent invoice also gave them its public link, which still works and which
+  the app can't change yet. Removing a line from such an invoice freed the time and expenses on it,
+  so they could be invoiced again. The app shows an invoice's id only to people in its own account,
+  so they'd have needed it from somewhere else, for example from having worked there. In every
+  account, an edit that was refused could keep part of what it changed: an invoice could be left
+  with lines that don't add up to its total, or marked paid with a total below its payments. The
+  audit log recorded these edits without the person or their address, and reads not at all.
+  Update; if your instance has more than one account, pull request #30 has the queries that show
+  what changed.
 - Self-hosted: after every start, for up to 30 minutes, two of the app's database connections kept
   row-level security's bypass switched on, left over from the migrations. A transaction sets the
   bypass again for itself, so the leftover mattered only to a query outside one, on a database user
