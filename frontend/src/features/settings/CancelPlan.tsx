@@ -37,7 +37,11 @@ export function CancelPlan({ subscription: s }: { subscription: Subscription }) 
   });
   const keep = useMutation({
     mutationFn: () => call<Subscription>("DELETE", "/api/v1/billing/cancellation"),
-    onSuccess: show,
+    onSuccess: (next) => {
+      show(next);
+      // Move out lists the subscription too, with the day it ends.
+      void qc.invalidateQueries({ queryKey: ["account", "connections"] });
+    },
     onError: (e) => toast(errorInfo(e).message, "error"),
   });
   const free = s.free_plan_seats;

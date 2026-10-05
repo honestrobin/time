@@ -192,7 +192,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" https://your-instance.example/api
 
 Moving out does the same and also lists everything still connected to the account (tokens,
 devices, invitations, Stripe, QuickBooks, Xero, Peppol, a Harvest sync or unfinished import,
-invoice links, invoice reminders). Each comes with `end_in`, the page in Time where an admin ends
+invoice links, invoice reminders, and on Honest Robin Cloud a running subscription, with its
+`plan`, `status` and `interval`). Each comes with `end_in`, the page in Time where an admin ends
 it; invoice links have none, because they end only when the account is deleted. Moving out changes
 nothing else in the account:
 
