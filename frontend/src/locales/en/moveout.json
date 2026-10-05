@@ -23,7 +23,7 @@
     "howToEnd": "How to end it",
     "unchangedTitle": "Moving out changes nothing",
     "unchangedBody": "Your account keeps working as it is. Cancelling and deleting are separate steps, and you choose them.",
-    "cancelSubscription": "Cancel the subscription on Paddle's page, from Billing",
+    "cancelSubscription": "Cancel the Team plan on the Billing page, in two clicks",
     "deleteAccount": "Delete the account, under Settings → Account",
     "kind": {
       "api_token": {
@@ -94,7 +94,7 @@
         "title": "Honest Robin Cloud subscription",
         "renews": "Team plan, renews on {{date}}.",
         "ends": "Team plan, ends on {{date}}.",
-        "how": "Cancel it on Paddle's page, from Billing (Payment method and invoices). Deleting the account cancels it too, when the account is deleted 14 days later."
+        "how": "Cancel it on the Billing page, in two clicks: it ends with the period you've paid for. Deleting the account cancels it too, when the account is deleted 14 days later."
       },
       "other": {
         "how": "Write to us and we'll tell you how to end it."
