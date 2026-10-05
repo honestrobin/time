@@ -5,6 +5,7 @@ import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.MEMBERSHIPS
 import com.honestrobin.time.HonestRobinApplication
 import com.honestrobin.time.platform.db.DbContext
+import com.honestrobin.time.platform.db.QueryOutsideTransaction
 import com.honestrobin.time.platform.db.RowLevelSecurityCheck
 import com.honestrobin.time.platform.db.RowLevelSecurityNotEffective
 import com.honestrobin.time.platform.db.TenantAwareTransactionManager
@@ -19,6 +20,10 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.diagnostics.FailureAnalyzedException
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.transaction.CannotCreateTransactionException
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.sql.Connection
 import java.util.UUID
@@ -28,6 +33,76 @@ import javax.sql.DataSource
 class RowLevelSecurityTest : IntegrationTest() {
     @Autowired
     lateinit var dataSource: DataSource
+
+    @Autowired
+    lateinit var transactions: PlatformTransactionManager
+
+    /** Outside the app, as the tests' database user (a superuser): roles are made and dropped this way. */
+    private fun asDatabaseUser(sql: String) = dataSource.connection.use { con -> con.createStatement().use { it.execute(sql) } }
+
+    private fun assertRefused(query: () -> Any?) {
+        val failure = runCatching { query() }.exceptionOrNull()
+        assertThat(failure).describedAs("a query that ran outside a transaction").isNotNull()
+        assertThat(generateSequence(failure) { it.cause }.toList()).anySatisfy { assertThat(it).isInstanceOf(QueryOutsideTransaction::class.java) }
+    }
+
+    /**
+     * Outside a transaction there's no switch to the app's role and no account, so a query would
+     * run as the database user, a superuser here as in the Compose setup, and row-level security
+     * wouldn't apply. The app's queries are refused there, before they reach the database.
+     */
+    @Test
+    fun `a query outside a transaction is refused`() {
+        val a = signup()
+        val account = a.accountId!!
+
+        // No transaction, whatever the context says.
+        assertRefused { dsl.fetchCount(MEMBERSHIPS) }
+        assertRefused { DbContext.forAccount(account) { dsl.selectFrom(MEMBERSHIPS).fetch() } }
+        assertRefused { DbContext.system { dsl.fetchValue("select current_user") } }
+        // A scope that joins a transaction if there is one, and runs without one if not.
+        val supports = TransactionTemplate(transactions).apply { propagationBehavior = TransactionDefinition.PROPAGATION_SUPPORTS }
+        assertRefused { supports.execute { dsl.fetchCount(MEMBERSHIPS) } }
+        // After the commit, while Spring still holds the transaction's connection for its callbacks:
+        // refused on its own, and in tx.run too, which joins the transaction that has just ended.
+        // A transaction of its own (REQUIRES_NEW, as BillingService.onSeatTaken uses) runs as usual.
+        val independently = TransactionTemplate(transactions).apply { propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW }
+        var afterCommit: Throwable? = null
+        var joined: Throwable? = null
+        var ownTransaction: Any? = null
+        DbContext.forAccount(account) {
+            tx.run {
+                TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                    override fun afterCommit() {
+                        afterCommit = runCatching { dsl.fetchCount(MEMBERSHIPS) }.exceptionOrNull() ?: AssertionError("ran after the commit")
+                        joined = runCatching { tx.run { dsl.fetchCount(MEMBERSHIPS) } }.exceptionOrNull() ?: AssertionError("ran in the ended transaction")
+                        ownTransaction = independently.execute { dsl.fetchValue("select current_user") }
+                    }
+                })
+            }
+        }
+        assertThat(generateSequence(afterCommit) { it.cause }.toList()).anySatisfy { assertThat(it).isInstanceOf(QueryOutsideTransaction::class.java) }
+        assertThat(generateSequence(joined) { it.cause }.toList()).anySatisfy { assertThat(it).isInstanceOf(QueryOutsideTransaction::class.java) }
+        assertThat(ownTransaction).isEqualTo("honestrobin_app")
+        // After a rollback, the same.
+        var afterRollback: Throwable? = null
+        runCatching {
+            tx.run<Unit> {
+                TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                    override fun afterCompletion(status: Int) {
+                        afterRollback = runCatching { dsl.fetchCount(MEMBERSHIPS) }.exceptionOrNull() ?: AssertionError("ran after the rollback")
+                    }
+                })
+                throw IllegalStateException("roll back")
+            }
+        }
+        assertThat(generateSequence(afterRollback) { it.cause }.toList()).anySatisfy { assertThat(it).isInstanceOf(QueryOutsideTransaction::class.java) }
+
+        // In a transaction, the same queries run as the app's role, and see only the account's rows.
+        assertThat(DbContext.forAccount(account) { tx.run { dsl.fetchValue("select current_user") } }).isEqualTo("honestrobin_app")
+        assertThat(DbContext.forAccount(account) { tx.run { dsl.selectFrom(MEMBERSHIPS).fetch() } }.map { it.accountId }.toSet()).containsExactly(account)
+        assertThat(tx.run { dsl.fetchCount(MEMBERSHIPS) }).isZero()
+    }
 
     @Test
     fun `unfiltered queries only see the current tenant`() {
@@ -90,24 +165,24 @@ class RowLevelSecurityTest : IntegrationTest() {
 
         // The role created after the restore, which skipped its rights on the tables.
         val late = "honestrobin_late_${UUID.randomUUID().toString().take(8)}"
-        dsl.execute("create role $late nologin")
+        asDatabaseUser("create role $late nologin")
         try {
             assertThatThrownBy { check(late).verify() }.isInstanceOf(FailureAnalyzedException::class.java)
                 .hasMessageContaining("has no rights on the app's tables")
         } finally {
-            dsl.execute("drop role $late")
+            asDatabaseUser("drop role $late")
         }
 
         // A database user that may not switch to the role.
         val outsider = "honestrobin_outsider_${UUID.randomUUID().toString().take(8)}"
-        dsl.execute("create role $outsider login password 'outsider-test-password'")
+        asDatabaseUser("create role $outsider login password 'outsider-test-password'")
         try {
             val asOutsider = DriverManagerDataSource(TestDatabase.sharedUrl, outsider, "outsider-test-password")
             assertThatThrownBy {
                 RowLevelSecurityCheck(asOutsider, TenantAwareTransactionManager(asOutsider, "honestrobin_app"), "honestrobin_app").verify()
             }.isInstanceOf(FailureAnalyzedException::class.java).hasMessageContaining("may not switch to the role")
         } finally {
-            dsl.execute("drop role $outsider")
+            asDatabaseUser("drop role $outsider")
         }
 
         // As it ships, it starts.

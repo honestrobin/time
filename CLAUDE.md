@@ -53,6 +53,11 @@ The e2e tests need the backend (`bootRun`, see `docs/development.md`) and Vite (
 - Kotlin default arguments on Spring-proxied (`@Transactional`) methods are evaluated on the
   proxy: use overloads.
 - Every new table must be listed in `ExportFormat` (`TABLES` or `EXCLUDED`), or a test fails.
+- jOOQ refuses a query outside a transaction (`QueryOutsideTransaction`, decision record 0027),
+  in tests too: wrap it in `tx.run` or `tx.system`. In an after-commit callback those join the
+  transaction that has just ended and are refused too; start a new one (`PROPAGATION_REQUIRES_NEW`,
+  as `BillingService` does). What only the database user may do, such as `create role`, goes over
+  plain JDBC.
 - A migration that grants something to `honestrobin_app` adds it to `docs/self-host.md` (Database
   role) too: that's how a role created after a restore gets its rights.
 - Keys between account tables include `account_id` (V15); a single-column reference to another

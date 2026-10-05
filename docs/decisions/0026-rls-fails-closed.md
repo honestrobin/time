@@ -1,6 +1,6 @@
 # 0026. The app refuses to start when row-level security can't keep accounts apart
 
-- Status: accepted (by Claude on 5 October 2026, from the architecture review of that day; the maintainer reviews the architecture and may revisit it)
+- Status: accepted (by Claude on 5 October 2026, from the architecture review of that day; the maintainer reviews the architecture and may revisit it); that nothing refuses a query outside a transaction is superseded by 0027
 - Date: 2026-10-05
 - Spec reference: §3.4
 - Supersedes: the last point of 0002's decision ("If the role cannot be created ..., the app logs

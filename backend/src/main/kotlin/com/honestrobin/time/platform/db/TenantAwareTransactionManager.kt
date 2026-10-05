@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.platform.db
 
-import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.jdbc.datasource.ConnectionHolder
+import org.springframework.jdbc.datasource.DataSourceTransactionManager
+import org.springframework.jdbc.datasource.JdbcTransactionObjectSupport
 import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.DefaultTransactionStatus
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.sql.Connection
+import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
  * Switches to the app's role and sets the tenant, actor and RLS-bypass GUCs as transaction-local
- * settings on every transaction. Queries outside a transaction get none of this: they run as the
- * database user, which in the Compose setup is a superuser and sees every account. So account data
- * is to be read only in a transaction (decision record 0002); nothing enforces that yet.
+ * settings on every transaction. Queries outside a transaction would get none of this: they'd run
+ * as the database user, which in the Compose setup is a superuser and sees every account. So jOOQ
+ * runs a query only on the connection of a transaction this manager began and hasn't yet ended
+ * ([TransactionalConnectionProvider], decision record 0027).
  */
 class TenantAwareTransactionManager(
     dataSource: DataSource,
@@ -31,9 +35,43 @@ class TenantAwareTransactionManager(
             }
         }
         apply(con, DbContext.current())
+        open += con
+    }
+
+    // The transaction's settings end with its commit or rollback. Spring keeps the connection bound
+    // until the after-commit callbacks have run, and a query there would run as the database user.
+    override fun doCommit(status: DefaultTransactionStatus) {
+        try {
+            super.doCommit(status)
+        } finally {
+            ended(status.transaction)
+        }
+    }
+
+    override fun doRollback(status: DefaultTransactionStatus) {
+        try {
+            super.doRollback(status)
+        } finally {
+            ended(status.transaction)
+        }
+    }
+
+    override fun doCleanupAfterCompletion(transaction: Any) {
+        ended(transaction)
+        super.doCleanupAfterCompletion(transaction)
+    }
+
+    private fun ended(transaction: Any?) {
+        (transaction as? JdbcTransactionObjectSupport)?.takeIf { it.hasConnectionHolder() }?.let { open -= it.connectionHolder.connection }
     }
 
     companion object {
+        /** Connections whose transaction switched to the role and set the account, and hasn't ended. */
+        private val open: MutableSet<Connection> = ConcurrentHashMap.newKeySet()
+
+        /** Whether [con] is in a transaction this manager began, with its role and account, and hasn't ended. */
+        fun isOpen(con: Connection): Boolean = con in open
+
         private const val SQL = "select set_config('honestrobin.account_id', ?, true), set_config('honestrobin.actor_id', ?, true), " +
             "set_config('honestrobin.actor_type', ?, true), set_config('honestrobin.ip', ?, true), set_config('honestrobin.rls_bypass', ?, true)"
 
