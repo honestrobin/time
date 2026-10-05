@@ -128,6 +128,23 @@
     "linkBody": "This server can't send email yet, so send this link to {{name}} yourself, for example in a chat. Anyone with the link can join as {{name}}, so send it only to them. It works until {{date}}.",
     "linkLabel": "Invitation link",
     "copyLink": "Copy link",
-    "linkCopied": "Link copied"
+    "linkCopied": "Link copied",
+    "seats": {
+      "price": {
+        "month": "{{price}} a month",
+        "year": "{{price}} a year"
+      },
+      "costWhenAccepted": "When {{name}} accepts, your plan goes up by one person: {{price}}, charged from that day. Nothing is charged before then.",
+      "costNow": "Once {{name}} is back, your plan goes up by one person: {{price}}, charged from today.",
+      "confirmTitle": "Add {{name}} to your plan?",
+      "freeFull_one": "The free plan is for one person. For more people to sign in, start a Team subscription.",
+      "freeFull_other": "The free plan is for {{count}} people. For more people to sign in, start a Team subscription.",
+      "perPerson": "You pay for each person who can sign in. An invitation is free until it's accepted.",
+      "howToPay": "How you pay",
+      "option": "{{interval}}: {{price}} per person per month",
+      "subscribe": "Start a Team subscription",
+      "waiting": "Thanks! You can go ahead as soon as Paddle confirms your subscription.",
+      "ready": "Your Team subscription is active. You can go ahead now."
+    }
   }
 }

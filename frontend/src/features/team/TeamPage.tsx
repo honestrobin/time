@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Button,
@@ -19,9 +19,11 @@ import {
   useToast,
 } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
+import { seatQuestion } from "../../lib/seats";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
+import { SeatCost, SubscribeNotice } from "./Seats";
 import { asRole, byName, peopleQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
 
@@ -186,24 +188,37 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   // Without email the invitation can't be sent, so the admin gets its link to pass on instead.
   const handOver = form.sendInvite && !emailWorks;
 
+  // Someone this dialog already added while their invitation link is still to come, so trying
+  // again doesn't add them twice.
+  const added = useRef<Person | null>(null);
+
   const create = useMutation({
-    mutationFn: async () => {
-      const person = await unwrap(
-        api.POST("/api/v1/people", {
-          body: {
-            name: form.name,
-            email: form.email,
-            role: form.role,
-            weekly_capacity_seconds: form.capacity ?? 0,
-            has_access_to_all_future_projects: form.futureProjects,
-            send_invite: form.sendInvite && emailWorks,
-            ...(perms.canSeeRates
-              ? { default_billable_rate: form.billableRate ?? undefined, cost_rate: form.costRate ?? undefined }
-              : {}),
-          },
-        }),
-      );
-      return { person, link: handOver ? await fetchInviteLink(person.id, person.name) : null };
+    mutationFn: async (confirmNewSeat: boolean) => {
+      const person =
+        added.current ??
+        (await unwrap(
+          api.POST("/api/v1/people", {
+            params: { query: { confirm_new_seat: confirmNewSeat } },
+            body: {
+              name: form.name,
+              email: form.email,
+              role: form.role,
+              weekly_capacity_seconds: form.capacity ?? 0,
+              has_access_to_all_future_projects: form.futureProjects,
+              send_invite: form.sendInvite && emailWorks,
+              ...(perms.canSeeRates
+                ? { default_billable_rate: form.billableRate ?? undefined, cost_rate: form.costRate ?? undefined }
+                : {}),
+            },
+          }),
+        ));
+      if (!handOver) return { person, link: null };
+      added.current = person;
+      return { person, link: await fetchInviteLink(person.id, person.name, confirmNewSeat) };
+    },
+    // Someone added without their link yet shows in the list as not invited.
+    onError: () => {
+      if (added.current) void qc.invalidateQueries({ queryKey: ["people"] });
     },
     onSuccess: ({ person, link }) => {
       void qc.invalidateQueries({ queryKey: ["people"] });
@@ -216,14 +231,19 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   useEffect(() => {
     if (open) {
       setForm(emptyInvite);
+      added.current = null;
       create.reset();
     }
   }, [open]);
 
-  const err = create.error ? errorInfo(create.error) : null;
+  // Giving someone sign-in access may need a Team subscription or one more paid person: the
+  // server says which, with the price, before anything is sent.
+  const question = seatQuestion(create.error);
+  const err = create.error && !question ? errorInfo(create.error) : null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    create.mutate();
+    // With the price of one more person on screen, sending again is the admin's yes to it.
+    create.mutate(question?.kind === "confirm");
   };
 
   return (
@@ -233,6 +253,12 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         {err && !Object.keys(err.fields).length && (
           <p className="notice notice-error" role="alert">
             {err.message}
+          </p>
+        )}
+        {question?.kind === "subscribe" && <SubscribeNotice question={question} />}
+        {question?.kind === "confirm" && (
+          <p className="notice notice-warn" role="status">
+            <SeatCost question={question} name={form.name} />
           </p>
         )}
         <div className="form-grid">

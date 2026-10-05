@@ -17,9 +17,11 @@ import {
 } from "../../design";
 import { ApiError, api, errorInfo, unwrap } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
+import { seatQuestion } from "../../lib/seats";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { fetchInviteLink, InviteLinkDialog, type InviteLink } from "./InviteLink";
+import { ConfirmSeatDialog, SubscribeNotice } from "./Seats";
 import { asRole, byName, personQuery, RoleField, StatusBadge, teamsQuery, useHours, type Person, type Role, type Team } from "./shared";
 import "./team.css";
 
@@ -140,7 +142,8 @@ function InvitationStrip({ person }: { person: Person }) {
   const emailWorks = useAuthConfig()?.email_configured !== false;
   const [link, setLink] = useState<InviteLink | null>(null);
   const invite = useMutation({
-    mutationFn: () => unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id } } })),
+    mutationFn: (confirmNewSeat: boolean) =>
+      unwrap(api.POST("/api/v1/people/{id}/invite", { params: { path: { id: person.id }, query: { confirm_new_seat: confirmNewSeat } } })),
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people", "all"] });
@@ -149,7 +152,7 @@ function InvitationStrip({ person }: { person: Person }) {
   });
   // Without email the invitation can't be sent: the admin gets a new link to pass on instead.
   const getLink = useMutation({
-    mutationFn: () => fetchInviteLink(person.id, person.name),
+    mutationFn: (confirmNewSeat: boolean) => fetchInviteLink(person.id, person.name, confirmNewSeat),
     onSuccess: (l) => {
       setLink(l);
       void qc.invalidateQueries({ queryKey: personQuery(person.id).queryKey });
@@ -157,20 +160,33 @@ function InvitationStrip({ person }: { person: Person }) {
     },
   });
   const action = emailWorks ? invite : getLink;
+  // A new invitation may need a Team subscription or one more paid person: asked first, with the price.
+  const question = seatQuestion(action.error);
   if (person.status === "active" || !person.is_active) return null;
   return (
-    <div className="notice invite-strip">
-      <span className="spacer">
-        {person.status === "invited" && person.invited_at
-          ? t("team.invitedOn", { date: formatDate(person.invited_at) })
-          : t("team.notInvitedYet")}
-        {action.error && <span className="field-error" style={{ display: "block" }}>{errorInfo(action.error).message}</span>}
-      </span>
-      <Button size="sm" busy={action.isPending} onClick={() => action.mutate()}>
-        {!emailWorks ? t("team.getLink") : person.status === "invited" ? t("team.resendInvitation") : t("team.sendInvitation")}
-      </Button>
-      <InviteLinkDialog link={link} onClose={() => setLink(null)} />
-    </div>
+    <>
+      <div className="notice invite-strip">
+        <span className="spacer">
+          {person.status === "invited" && person.invited_at
+            ? t("team.invitedOn", { date: formatDate(person.invited_at) })
+            : t("team.notInvitedYet")}
+          {action.error && !question && <span className="field-error" style={{ display: "block" }}>{errorInfo(action.error).message}</span>}
+        </span>
+        <Button size="sm" busy={action.isPending} onClick={() => action.mutate(false)}>
+          {!emailWorks ? t("team.getLink") : person.status === "invited" ? t("team.resendInvitation") : t("team.sendInvitation")}
+        </Button>
+        <InviteLinkDialog link={link} onClose={() => setLink(null)} />
+      </div>
+      {question?.kind === "subscribe" && <SubscribeNotice question={question} />}
+      <ConfirmSeatDialog
+        question={question}
+        name={person.name}
+        confirmLabel={emailWorks ? t("team.sendInvitation") : t("team.getLink")}
+        busy={action.isPending}
+        onCancel={() => action.reset()}
+        onConfirm={() => action.mutate(true)}
+      />
+    </>
   );
 }
 
@@ -409,8 +425,13 @@ function AccessSection({ person }: { person: Person }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const toggle = useMutation({
-    mutationFn: (isActive: boolean) =>
-      unwrap(api.PATCH("/api/v1/people/{id}", { params: { path: { id: person.id } }, body: { is_active: isActive } })),
+    mutationFn: ({ isActive, confirmNewSeat = false }: { isActive: boolean; confirmNewSeat?: boolean }) =>
+      unwrap(
+        api.PATCH("/api/v1/people/{id}", {
+          params: { path: { id: person.id }, query: { confirm_new_seat: confirmNewSeat } },
+          body: { is_active: isActive },
+        }),
+      ),
     onSuccess: (p) => {
       qc.setQueryData(personQuery(person.id).queryKey, p);
       void qc.invalidateQueries({ queryKey: ["people"] });
@@ -420,7 +441,9 @@ function AccessSection({ person }: { person: Person }) {
     onError: () => setConfirming(false),
   });
   const self = person.id === me.current_membership_id;
-  const err = toggle.error ? errorInfo(toggle.error) : null;
+  // Coming back with sign-in access may need a Team subscription or one more paid person.
+  const question = seatQuestion(toggle.error);
+  const err = toggle.error && !question ? errorInfo(toggle.error) : null;
 
   return (
     <section className="form-section" style={{ marginTop: 32 }}>
@@ -439,7 +462,7 @@ function AccessSection({ person }: { person: Person }) {
       ) : (
         <>
           <p className="muted">{t("team.reactivateLead", { name: person.name })}</p>
-          <Button busy={toggle.isPending} onClick={() => toggle.mutate(true)}>
+          <Button busy={toggle.isPending} onClick={() => toggle.mutate({ isActive: true })}>
             {t("team.reactivate")}
           </Button>
         </>
@@ -449,6 +472,19 @@ function AccessSection({ person }: { person: Person }) {
           {err.fields.is_active ?? err.message}
         </p>
       )}
+      {question?.kind === "subscribe" && (
+        <div style={{ marginTop: 8 }}>
+          <SubscribeNotice question={question} />
+        </div>
+      )}
+      <ConfirmSeatDialog
+        question={question}
+        name={person.name}
+        confirmLabel={t("team.reactivate")}
+        busy={toggle.isPending}
+        onCancel={() => toggle.reset()}
+        onConfirm={() => toggle.mutate({ isActive: true, confirmNewSeat: true })}
+      />
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
@@ -456,7 +492,7 @@ function AccessSection({ person }: { person: Person }) {
         body={t("team.deactivateBody", { name: person.name })}
         confirmLabel={t("team.deactivate")}
         busy={toggle.isPending}
-        onConfirm={() => toggle.mutate(false)}
+        onConfirm={() => toggle.mutate({ isActive: false })}
       />
     </section>
   );
