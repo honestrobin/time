@@ -326,7 +326,6 @@ class InvoiceService(
         return view(load(r.id))
     }
 
-    @Transactional
     /**
      * An invoice's own payment instructions tell its client where to pay, so changing them is held
      * to the same rule as the account's: an admin, in the web app, who signed in recently.
@@ -336,6 +335,7 @@ class InvoiceService(
         recentAuth.require()
     }
 
+    @Transactional
     fun update(m: Member, id: UUID, patch: Patch<InvoiceInput>): InvoiceView {
         m.requireWritable()
         requireAccess(m)
