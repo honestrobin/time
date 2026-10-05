@@ -46,6 +46,15 @@ export function BillingPage() {
       <PageHeader title={t("billing.title")} lead={t("billing.lead")} />
       {sub.error && <p className="notice notice-error">{errorInfo(sub.error).message}</p>}
       {s && !s.billing_available && <p className="notice">{t("billing.unavailable")}</p>}
+      {s?.price_reports.map((r) => (
+        // Paddle reported more than the locked price: the lock stays, and the difference is refunded.
+        <p key={`${r.reported_unit_price_minor}-${r.reported_at}`} className="notice notice-warn" role="status">
+          {t("billing.priceAboveLock", {
+            reported: t(`billing.unitPrice.${r.interval}`, { price: formatMoney(r.reported_unit_price_minor, r.currency) }),
+            locked: t(`billing.unitPrice.${r.interval}`, { price: formatMoney(r.locked_unit_price_minor, r.currency) }),
+          })}
+        </p>
+      ))}
       {s && account?.status === "lapsed" && (
         // Read-only since the Team plan ended: the two ways back, and deactivating is free.
         <div className="notice notice-warn stack" role="status">

@@ -20,10 +20,12 @@ import com.honestrobin.time.db.Tables.SUBSCRIPTIONS
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.SubscriptionsRecord
 import com.honestrobin.time.export.AccountPurging
+import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.Money
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
 import com.honestrobin.time.platform.edition.CloudEditionOnly
+import com.honestrobin.time.platform.mail.Mailer
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
 import com.honestrobin.time.platform.web.ApiException
@@ -61,6 +63,19 @@ import java.util.UUID
 
 data class PlanPrice(val interval: String, val currency: String, val perSeatPerMonthMinor: Long)
 
+/**
+ * Paddle reported a price per seat above the subscription's locked one (decision record 0023). The
+ * lock stays, and the difference is refunded by hand.
+ */
+data class PriceReport(
+    val reportedUnitPriceMinor: Long,
+    val lockedUnitPriceMinor: Long,
+    val currency: String,
+    /** The billing period both prices are for: month or year. */
+    val interval: String,
+    val reportedAt: Instant,
+)
+
 data class SubscriptionView(
     /** free (one person) or team. */
     val plan: String,
@@ -81,6 +96,8 @@ data class SubscriptionView(
     val prices: List<PlanPrice>,
     /** How many people the free plan has room for: a lapsed account works again once no more than this can sign in. */
     val freePlanSeats: Int,
+    /** Prices Paddle reported above the lock and not yet refunded; usually none. */
+    val priceReports: List<PriceReport>,
 )
 
 data class CheckoutRequest(val interval: String = "year")
@@ -122,8 +139,22 @@ class BillingService(
     private val funnel: Funnel,
     private val json: ObjectMapper,
     private val clock: Clock,
+    private val mailer: Mailer,
+    private val props: HonestRobinProperties,
     transactions: PlatformTransactionManager,
 ) {
+    companion object {
+        /**
+         * Our own billing event: Paddle reported a price per seat above the lock. Its id is
+         * `price_above_lock:<subscription>:<end of the billing period, epoch seconds>:<price, minor units>`,
+         * so each price is recorded once per billing period, without a column of its own.
+         */
+        const val PRICE_ABOVE_LOCK = "price_above_lock"
+
+        /** The same event once the difference has been refunded: a person sets it, by hand, for now. */
+        const val PRICE_ABOVE_LOCK_REFUNDED = "price_above_lock_refunded"
+    }
+
     private val log = LoggerFactory.getLogger(javaClass)
     private val paddle = PaddleClient(settings, json)
 
@@ -152,8 +183,20 @@ class BillingService(
             currentPeriodEnd = s?.currentPeriodEnd, cancelAt = s?.cancelAt, billingAvailable = settings.configured,
             prices = listOf(PlanPrice("month", prices.currency, prices.teamMonthlyMinor), PlanPrice("year", prices.currency, prices.teamAnnualMonthlyMinor)),
             freePlanSeats = freePlan.seats,
+            priceReports = s?.let { priceReports(it) }.orEmpty(),
         )
     }
+
+    /** What Paddle reported above this subscription's lock, oldest first, until it's refunded. */
+    private fun priceReports(s: SubscriptionsRecord): List<PriceReport> =
+        dsl.select(BILLING_EVENTS.EVENT_ID, BILLING_EVENTS.RECEIVED_AT).from(BILLING_EVENTS)
+            .where(BILLING_EVENTS.ACCOUNT_ID.eq(s.accountId)).and(BILLING_EVENTS.EVENT_TYPE.eq(PRICE_ABOVE_LOCK))
+            .and(BILLING_EVENTS.EVENT_ID.startsWith("$PRICE_ABOVE_LOCK:${s.externalId}:"))
+            .orderBy(BILLING_EVENTS.RECEIVED_AT).fetch()
+            .mapNotNull { row ->
+                row.value1().substringAfterLast(':').toLongOrNull()
+                    ?.let { PriceReport(it, s.lockedUnitPriceMinor, s.currency, s.billingInterval, row.value2()) }
+            }
 
     @Transactional(readOnly = true)
     fun checkout(m: Member, input: CheckoutRequest): CheckoutView {
@@ -369,8 +412,8 @@ class BillingService(
         }
         val isNew = existing == null
         if (!isNew && unitPrice > r.lockedUnitPriceMinor) {
-            // Paddle may only charge what was locked; this needs a person, not a silent change.
-            log.error("Paddle reports {} per seat for subscription {}, above the locked {}; keeping the lock", unitPrice, r.externalId, r.lockedUnitPriceMinor)
+            // Paddle may only charge what was locked: the lock stays, and the customer and we hear of it.
+            reportPriceAboveLock(accountId, r, unitPrice, data)
         } else {
             r.lockedUnitPriceMinor = minOf(r.lockedUnitPriceMinor, unitPrice)
         }
@@ -386,6 +429,44 @@ class BillingService(
         if (isNew) funnel.event(accountId, Funnel.SUBSCRIPTION_STARTED, mapOf("interval" to r.billingInterval, "seats" to r.seats))
         if (isPaying(r)) reactivate(accountId) else lapseIfOverFree(accountId)
     }
+
+    /**
+     * Paddle reported a price per seat above the lock (decision record 0023). The lock stays on our
+     * record. Each such price is recorded once per billing period, as a billing event the billing
+     * page shows until it's refunded, and every admin of the account is emailed. The mail setup has
+     * no operator address, so we hear of it through this error in the app's log. The difference is
+     * refunded by hand, for now.
+     */
+    private fun reportPriceAboveLock(accountId: UUID, s: SubscriptionsRecord, reported: Long, data: JsonNode) {
+        val periodEnd = data["current_billing_period"]?.get("ends_at")?.asText()?.let(Instant::parse) ?: s.currentPeriodEnd
+        val id = "$PRICE_ABOVE_LOCK:${s.externalId}:${periodEnd?.epochSecond ?: 0}:$reported"
+        log.error(
+            "PRICE LOCK: Paddle reports {} {} per seat for subscription {} (account {}), above the locked {}. The lock stays; " +
+                "refund the difference by hand, then set billing event {} to {}",
+            reported, s.currency, s.externalId, accountId, s.lockedUnitPriceMinor, id, PRICE_ABOVE_LOCK_REFUNDED,
+        )
+        val fresh = dsl.insertInto(BILLING_EVENTS).set(BILLING_EVENTS.EVENT_ID, id).set(BILLING_EVENTS.EVENT_TYPE, PRICE_ABOVE_LOCK)
+            .set(BILLING_EVENTS.ACCOUNT_ID, accountId).onConflictDoNothing().execute()
+        if (fresh == 0) return
+        val account = dsl.selectFrom(ACCOUNTS).where(ACCOUNTS.ID.eq(accountId)).fetchOne() ?: return
+        val per = if (s.billingInterval == "year") "year" else "month"
+        val model = mapOf(
+            "account" to account.name,
+            "reported" to money(reported, s.currency),
+            "locked" to money(s.lockedUnitPriceMinor, s.currency),
+            "per" to per,
+            "link" to "${props.baseUrl}/settings/billing",
+        )
+        // Sent once the change is saved, like all mail; a webhook that rolls back emails nobody.
+        dsl.select(MEMBERSHIPS.EMAIL, MEMBERSHIPS.NAME).from(MEMBERSHIPS)
+            .where(MEMBERSHIPS.ACCOUNT_ID.eq(accountId)).and(MEMBERSHIPS.ROLE.eq("admin"))
+            .and(MEMBERSHIPS.IS_ACTIVE.isTrue).and(MEMBERSHIPS.STATUS.eq("active"))
+            .fetch().forEach {
+                mailer.send("price-above-lock", it.value1(), java.util.Locale.forLanguageTag(account.locale), model + ("name" to it.value2()), arrayOf(account.name))
+            }
+    }
+
+    private fun money(minor: Long, currency: String) = "$currency ${Money.fromMinor(minor, currency).toPlainString()}"
 
     /**
      * Deleting an account cancels its subscription at Paddle, so nobody keeps paying for an account

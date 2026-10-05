@@ -14,7 +14,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 
 | Promise | Status | Guarded by |
 |---|---|---|
-| Your price stays the same for as long as your subscription runs: the database refuses to raise a subscription's locked price. The lock is on our record. Paddle, which takes the payment, charges the subscription's own price. If Paddle ever reported a higher one, we'd log it and keep your lock, but nothing yet tells you. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::the database refuses to raise a subscription's price (AT-6_2)`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::free for one person, a Team subscription for more, seats kept in step and the price never raised` |
+| Your price stays the same for as long as your subscription runs: the database refuses to raise a subscription's locked price. The lock is on our record. Paddle, which takes the payment, charges the subscription's own price. If Paddle ever reports a higher one, your lock stays, it's recorded, the billing page shows both prices, and every admin is emailed. We hear of it through an error in the app's log, because the mail setup has no address of ours to email yet. The difference is refunded by hand, for now. | Tested | `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::the database refuses to raise a subscription's price (AT-6_2)`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::free for one person, a Team subscription for more, seats kept in step and the price never raised`, `backend/src/test/kotlin/com/honestrobin/time/billing/BillingTest.kt::a higher price from Paddle keeps the lock and tells the admin and us` |
 | Features you have don't move to a more expensive plan. There's one paid plan, Team, and it differs from the free plan only in how many people can sign in. | Tested | `backend/src/test/kotlin/com/honestrobin/time/platform/PromiseGuardsTest.kt::only the number of seats depends on the plan` |
 | Each version of the API keeps working for at least 12 months after the next one comes out. Every endpoint is under `/api/v1`, and there's no v2 yet. | By hand | |
 | A feature you use is never removed without 90 days' notice. | By hand | |
@@ -85,7 +85,7 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 
 | Promise | Status | Guarded by |
 |---|---|---|
-| No mail meant to bring you back. Timesheet reminders, invoice reminders and budget alerts stay off until someone turns them on. Some mail can't be turned off: a rejected timesheet, security notices, a finished export, and account deletion. | Built, no test | |
+| No mail meant to bring you back. Timesheet reminders, invoice reminders and budget alerts stay off until someone turns them on. Some mail can't be turned off: a rejected timesheet, security notices, a finished export, account deletion, and a price from Paddle above your locked one. | Built, no test | |
 | A person is one step away from every page: Help, at the foot of the menu or behind `?`, first shows the address where a person reads every message and answers it. | Tested | `frontend/src/features/shell/AppShell.test.tsx::a person is one step away from every page, in both editions`, `frontend/src/features/shell/AppShell.test.tsx::the ? key opens help too`, `e2e/tests/10-m1-tour.spec.ts::M1 pages render with data and without raw translation keys` |
 | No AI without a reason: Time has no AI features. | Doesn't apply | |
 
@@ -117,6 +117,9 @@ Last checked: 2026-10-05, against the Robin's Code at robinscode ad557db.
 Places where something we've published says more than Time does today. Each one has to change:
 the words, or the code.
 
+- When Paddle reports more than your locked price, the billing page says "We've been told". We
+  hear of it only through an error in the app's log: the mail setup has no address of ours to
+  email yet.
 - "Cancel in the app, in two clicks" holds except in the 30 minutes before a renewal, when Paddle
   takes no changes: the app then says so, and a renewal charged after that needs a person.
 - The Robin's Code promises the documents you must keep, such as your invoices, as files you can

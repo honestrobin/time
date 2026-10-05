@@ -1,0 +1,9 @@
+[(#{mail.greeting(${name})})]
+
+[(#{mail.price-above-lock.intro(${account}, ${reported}, ${locked}, ${per})})]
+
+[(#{mail.price-above-lock.refund})]
+
+[(${link})]
+
+[(#{mail.price-above-lock.footer(${account})})]
