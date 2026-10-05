@@ -2459,6 +2459,7 @@ export interface components {
             ends_at?: string;
             /** Format: uuid */
             id?: string;
+            interval?: string;
             kind: string;
             /** Format: date-time */
             last_used_at?: string;
@@ -2467,6 +2468,10 @@ export interface components {
             mode?: string;
             name?: string;
             person?: string;
+            plan?: string;
+            /** Format: date-time */
+            renews_at?: string;
+            status?: string;
         };
         ContactInput: {
             email?: string;
