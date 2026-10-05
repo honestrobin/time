@@ -20,6 +20,23 @@ export interface paths {
         patch: operations["account_update"];
         trace?: never;
     };
+    "/api/v1/account/api_tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke anyone's token or signed-in device in the account (admins). Works while the account is read-only. */
+        delete: operations["account_data_revoke_api_token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/connections": {
         parameters: {
             query?: never;
@@ -1535,7 +1552,8 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["people_invite"];
-        delete?: never;
+        /** Withdraw an invitation (admins): its links stop working. Works while the account is read-only. */
+        delete: operations["people_withdraw_invite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2439,6 +2457,8 @@ export interface components {
             end_in?: string;
             /** Format: date-time */
             ends_at?: string;
+            /** Format: uuid */
+            id?: string;
             kind: string;
             /** Format: date-time */
             last_used_at?: string;
@@ -3838,6 +3858,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccountView"];
                 };
+            };
+        };
+    };
+    account_data_revoke_api_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6515,6 +6555,28 @@ export interface operations {
                 confirm_currency?: string;
                 confirm_interval?: string;
             };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonView"];
+                };
+            };
+        };
+    };
+    people_withdraw_invite: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 id: string;

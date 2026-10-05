@@ -73,6 +73,18 @@ class ApiTokenService(private val dsl: DSLContext, private val tx: Tx) {
         if (n == 0) throw NotFoundException("API token")
     }
 
+    /**
+     * An admin ends anyone's token or signed-in device in the account, such as one of someone who
+     * has left. Ending access only removes access, so it works while the account is read-only
+     * ("You can always leave").
+     */
+    @Transactional
+    fun revokeInAccount(admin: Member, id: UUID) {
+        admin.requireAdmin()
+        val n = dsl.deleteFrom(API_TOKENS).where(API_TOKENS.ID.eq(id)).and(API_TOKENS.ACCOUNT_ID.eq(admin.accountId)).execute()
+        if (n == 0) throw NotFoundException("API token")
+    }
+
     /** Token lookup is cross-tenant by nature: the token itself identifies the account. */
     fun authenticate(token: String): HonestRobinPrincipal? = tx.system {
         val now = Instant.now()

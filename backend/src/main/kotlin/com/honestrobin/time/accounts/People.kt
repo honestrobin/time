@@ -32,6 +32,7 @@ import com.honestrobin.time.platform.web.Views
 import com.honestrobin.time.platform.web.clampLimit
 import com.fasterxml.jackson.annotation.JsonView
 import tools.jackson.databind.JsonNode
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -42,6 +43,7 @@ import org.springframework.dao.DuplicateKeyException
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -209,6 +211,23 @@ class PeopleService(
         recentAuth.require()
         val (_, token) = issueInvite(m, id, confirm)
         return InviteLinkView("${props.baseUrl}/auth/invite#$token", Instant.now(clock).plus(TokenPurpose.INVITE.ttl))
+    }
+
+    /**
+     * Withdraws an invitation: its links stop working, and the person can be invited again later.
+     * Ending access only removes access, so it works while the account is read-only ("You can
+     * always leave").
+     */
+    @Transactional
+    fun withdrawInvite(m: Member, id: UUID): PersonView {
+        m.requireAdmin()
+        val r = load(id)
+        if (r.status != "invited") throw ConflictException("not_invited", "This person has no open invitation")
+        dsl.update(LOGIN_TOKENS).set(LOGIN_TOKENS.USED_AT, Instant.now(clock))
+            .where(LOGIN_TOKENS.MEMBERSHIP_ID.eq(r.id)).and(LOGIN_TOKENS.USED_AT.isNull).execute()
+        r.status = "pending_invite"
+        r.store()
+        return views(listOf(r)).single()
     }
 
     private fun issueInvite(m: Member, id: UUID, confirm: SeatPrice?): Pair<MembershipsRecord, String> {
@@ -400,6 +419,10 @@ class PeopleController(private val people: PeopleService, private val patches: P
         @RequestParam(name = "confirm_currency", required = false) confirmCurrency: String?,
         @RequestParam(name = "confirm_interval", required = false) confirmInterval: String?,
     ) = people.inviteLink(Current.member(), id, seatPrice(confirmUnitPriceMinor, confirmCurrency, confirmInterval))
+
+    @DeleteMapping("/{id}/invite")
+    @Operation(summary = "Withdraw an invitation (admins): its links stop working. Works while the account is read-only.")
+    fun withdrawInvite(@PathVariable id: UUID) = people.withdrawInvite(Current.member(), id)
 
     /** A yes to a price needs all three parts; anything less is no yes. */
     private fun seatPrice(minor: Long?, currency: String?, interval: String?): SeatPrice? =
