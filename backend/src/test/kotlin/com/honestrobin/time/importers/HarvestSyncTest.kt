@@ -95,9 +95,10 @@ class HarvestSyncTest : IntegrationTest() {
         admin.post("/api/v1/people/$id/invite").expect(200)
         admin.patch("/api/v1/people/$id", mapOf("is_active" to false)).expect(200)
 
-        // In Harvest they're still active, and something else about them changed.
+        // In Harvest they're still active, and something else about them changed since the sync
+        // window opened (by the app's clock, which other tests move).
         harvestUser["weekly_capacity"] = 108_000
-        harvestUser["updated_at"] = Instant.now().plusSeconds(1).toString()
+        harvestUser["updated_at"] = Instant.parse(job["last_synced_at"].asText()).plusSeconds(1).toString()
         admin.post("/api/v1/imports/${job.id()}/sync").expect(200)
 
         val after = admin.get("/api/v1/people/$id").expect(200)
