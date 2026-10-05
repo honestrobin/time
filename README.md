@@ -71,6 +71,9 @@ Robin product is measured against. It's a draft until it's in the terms of servi
 [`PROMISES.md`](PROMISES.md) goes through every one of them and says what keeps it today: a test,
 code without a test, how we work, or nothing yet.
 
+Every company that touches your data on Honest Robin Cloud is [listed](docs/companies.md), with
+its country and what it sees.
+
 ## Run it yourself
 
 You need Docker. The only other dependency, PostgreSQL 18, comes with it.
