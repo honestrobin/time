@@ -9,8 +9,10 @@ import java.sql.Connection
 import javax.sql.DataSource
 
 /**
- * Sets the tenant, actor and RLS-bypass GUCs as transaction-local settings on every
- * transaction. Queries run outside a transaction see no tenant rows at all.
+ * Switches to the app's role and sets the tenant, actor and RLS-bypass GUCs as transaction-local
+ * settings on every transaction. Queries outside a transaction get none of this: they run as the
+ * database user, which in the Compose setup is a superuser and sees every account. So account data
+ * is only ever read in a transaction (decision record 0002).
  */
 class TenantAwareTransactionManager(
     dataSource: DataSource,

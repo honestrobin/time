@@ -53,6 +53,8 @@ The e2e tests need the backend (`bootRun`, see `docs/development.md`) and Vite (
 - Kotlin default arguments on Spring-proxied (`@Transactional`) methods are evaluated on the
   proxy: use overloads.
 - Every new table must be listed in `ExportFormat` (`TABLES` or `EXCLUDED`), or a test fails.
+- A migration that grants something to `honestrobin_app` adds it to `docs/self-host.md` (Database
+  role) too: that's how a role created after a restore gets its rights.
 - Keys between account tables include `account_id` (V15); a single-column reference to another
   account's row is refused by the database.
 - `external_links.system` has a check constraint; add new systems in a migration.

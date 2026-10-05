@@ -40,7 +40,7 @@ class RowLevelSecurityCheck(
                 throw RowLevelSecurityNotEffective(
                     "Refusing to start: the database role '$appRole' doesn't exist, so row-level security can't keep accounts apart. " +
                         "This happens after a restore into a database where the role wasn't created first.",
-                    "Create the role (CREATE ROLE $appRole NOLOGIN;), then restore the backup again into an empty database. " +
+                    "Create the role (CREATE ROLE $appRole NOLOGIN;) and give it its rights, then start the app again. " +
                         "See docs/self-host.md, Backups and restore.",
                 )
             }
@@ -63,18 +63,25 @@ class RowLevelSecurityCheck(
                 }
             }
         }!!
+        if (bypasses && appRole.isBlank()) {
+            throw RowLevelSecurityNotEffective(
+                "Refusing to start: honestrobin.db.app-role is blank, so transactions run as the database user '$role', " +
+                    "which bypasses row-level security, so it can't keep accounts apart.",
+                "Remove the honestrobin.db.app-role setting, so that the app switches to its own role, honestrobin_app. " +
+                    "See docs/self-host.md, Database role.",
+            )
+        }
         if (bypasses) {
             throw RowLevelSecurityNotEffective(
                 "Refusing to start: transactions run as the database role '$role', which bypasses row-level security, so it can't keep accounts apart.",
-                "Make sure '$role' is neither a superuser nor allowed to bypass row-level security (ALTER ROLE $role NOSUPERUSER NOBYPASSRLS;), " +
-                    "or run the app with its own role, honestrobin_app. See docs/self-host.md, Database role.",
+                "Run ALTER ROLE $role NOSUPERUSER NOBYPASSRLS; as a database superuser. See docs/self-host.md, Database role.",
             )
         }
         if (!granted) {
             throw RowLevelSecurityNotEffective(
                 "Refusing to start: the database role '$role' has no rights on the app's tables. " +
-                    "This happens when the role was created after the database was restored.",
-                "Now that the role exists, restore the backup again into an empty database. See docs/self-host.md, Backups and restore.",
+                    "This happens when the role was created after the tables, for example after a restore without it.",
+                "Give it its rights, then start the app again. See docs/self-host.md, Database role.",
             )
         }
         log.info("Row-level security is active for the application role")

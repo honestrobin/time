@@ -11,7 +11,7 @@ HONESTROBIN_DB_URL=jdbc:postgresql://localhost:5433/honestrobin HONESTROBIN_SIGN
 The first sign-up on an empty database needs the setup code (here `dev`; without the variable the
 app makes one and writes it to its log).
 
-Tests use Testcontainers (`./gradlew :backend:test`). Set `HONESTROBIN_EDITION=cloud` to run the suite in the cloud edition. To use an existing Postgres instead of a container, set `HONESTROBIN_TEST_JDBC_URL` (plus `HONESTROBIN_TEST_JDBC_USER`/`_PASSWORD`).
+Tests use Testcontainers (`./gradlew :backend:test`). Set `HONESTROBIN_EDITION=cloud` to run the suite in the cloud edition. To use an existing Postgres instead of a container, set `HONESTROBIN_TEST_JDBC_URL` (plus `HONESTROBIN_TEST_JDBC_USER`/`_PASSWORD`), for a superuser, as the container's is: the tests create databases and roles.
 
 After changing a migration: `./gradlew :backend:jooqCodegen`.
 After changing an API: `./gradlew :backend:test --tests '*OpenApiExportTest' && pnpm --filter @honestrobin/api-client build`.
