@@ -190,8 +190,8 @@ object LeavingGuide {
         }
         appendLine()
         appendLine("Not in this list: a Team subscription to Honest Robin Cloud. If you have one, Settings >")
-        appendLine("Billing shows it, and you cancel it on Paddle's page from there (Payment method and")
-        appendLine("invoices). Deleting the account cancels it too, when the account is deleted 14 days later.")
+        appendLine("Billing shows it, and you cancel it there in two clicks: it ends with the period you've")
+        appendLine("paid for. Deleting the account cancels it too, when the account is deleted 14 days later.")
         appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
         appendLine()
         appendLine("While the account is read-only (lapsed, or waiting to be deleted), an admin can still end")
@@ -205,8 +205,8 @@ object LeavingGuide {
         |
         |Making this export changed nothing in the account: it works as it did before. Cancelling and
         |deleting are separate steps, and you choose them:
-        |- Cancel a Team subscription to Honest Robin Cloud on Paddle's page: Settings > Billing >
-        |  Payment method and invoices.
+        |- Cancel a Team subscription to Honest Robin Cloud under Settings > Billing > Cancel the Team
+        |  plan. It ends with the period you've paid for.
         |- Delete the account under Settings > Account > Delete this account. After 14 days the account
         |  and everything in it are deleted for good, a subscription is cancelled, and our access to
         |  Stripe, QuickBooks, Xero and Storecove ends. Until then it's read-only, you can still
