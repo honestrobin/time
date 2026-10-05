@@ -73,6 +73,8 @@ data class ImportJobView(
     val externalAccountId: String?,
     val issueCount: Int,
     val canResume: Boolean,
+    /** Still connected to Harvest: syncing, or unfinished and keeping its token. Stop or cancel ends it. */
+    val connected: Boolean,
     val startedAt: Instant?,
     val finishedAt: Instant?,
     val createdAt: Instant,
@@ -150,8 +152,8 @@ class ImportJobService(
     }
 
     /**
-     * Stops an import and forgets its Harvest token. Ending access only removes access, so it works
-     * while the account is read-only ("You can always leave").
+     * Stops an import and forgets its Harvest token. Ending a connection works while the account is
+     * read-only (decision record 0024).
      */
     fun cancel(m: Member, id: UUID): ImportJobView {
         m.requireAdmin()
@@ -159,15 +161,14 @@ class ImportJobService(
             val job = load(id)
             if (job.status in setOf("completed", "cancelled", "syncing")) throw ConflictException("finished", "This import has already finished")
             dsl.update(IMPORT_JOBS).set(IMPORT_JOBS.STATUS, "cancelled").set(IMPORT_JOBS.TOKEN_ENCRYPTED, null as String?)
-                .set(IMPORT_JOBS.REFRESH_TOKEN_ENCRYPTED, null as String?)
                 .set(IMPORT_JOBS.FINISHED_AT, Instant.now(clock)).where(IMPORT_JOBS.ID.eq(id)).execute()
         }
         return get(m, id)
     }
 
     /**
-     * The cutover: stop syncing changes from Harvest now; the token is forgotten. Ending access
-     * only removes access, so it works while the account is read-only ("You can always leave").
+     * The cutover: stop syncing changes from Harvest now; the token is forgotten. Ending a
+     * connection works while the account is read-only (decision record 0024).
      */
     fun stopSync(m: Member, id: UUID): ImportJobView {
         m.requireAdmin()
@@ -189,9 +190,14 @@ class ImportJobService(
         return get(m, id)
     }
 
+    /** The 20 newest imports, and every older one still connected to Harvest, so each can be ended. */
     fun list(m: Member): List<ImportJobView> {
         m.requireAdmin()
-        return tx.run { dsl.selectFrom(IMPORT_JOBS).orderBy(IMPORT_JOBS.CREATED_AT.desc()).limit(20).fetch().map(::view) }
+        return tx.run {
+            val newest = dsl.selectFrom(IMPORT_JOBS).orderBy(IMPORT_JOBS.CREATED_AT.desc()).limit(20).fetch()
+            val connected = dsl.selectFrom(IMPORT_JOBS).where(CONNECTED).and(IMPORT_JOBS.ID.notIn(newest.map { it.id })).fetch()
+            (newest + connected).sortedByDescending { it.createdAt }.map(::view)
+        }
     }
 
     fun get(m: Member, id: UUID): ImportJobView {
@@ -216,6 +222,7 @@ class ImportJobService(
         error = r.error, externalAccountId = r.externalAccountId,
         issueCount = dsl.fetchCount(IMPORT_ISSUES, IMPORT_ISSUES.JOB_ID.eq(r.id).and(IMPORT_ISSUES.SEVERITY.eq("error"))),
         canResume = r.status == "failed" && r.tokenEncrypted != null,
+        connected = r.status == "syncing" || (r.tokenEncrypted != null && r.status !in setOf("completed", "cancelled")),
         startedAt = r.startedAt, finishedAt = r.finishedAt, createdAt = r.createdAt,
         syncUntil = r.syncUntil, lastSyncedAt = r.lastSyncedAt,
     )
@@ -229,6 +236,9 @@ class ImportJobService(
         client.scheduleIfNotExists(task.getObject().instance(id.toString(), id.toString()), Instant.now(clock))
     }
 }
+
+/** Imports still connected to Harvest: syncing, or unfinished and keeping a token (as ConnectionsService lists them). */
+private val CONNECTED = IMPORT_JOBS.STATUS.eq("syncing").or(IMPORT_JOBS.TOKEN_ENCRYPTED.isNotNull.and(IMPORT_JOBS.STATUS.notIn("completed", "cancelled")))
 
 @Configuration
 class ImportJobsConfig {

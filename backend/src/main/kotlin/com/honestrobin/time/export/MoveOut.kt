@@ -30,7 +30,7 @@ data class ConnectionView(
      * invoice_reminders.
      */
     val kind: String,
-    /** A token's or device's id, to revoke it (DELETE /api/v1/account/api_tokens/{id}). */
+    /** A token's or device's id, to revoke it (DELETE /api/v1/account/api_tokens/{id}); an import's, to end it. */
     val id: UUID? = null,
     /** A token's or device's name, the Stripe account, the books in QuickBooks or Xero, the Harvest account. */
     val name: String? = null,
@@ -44,7 +44,7 @@ data class ConnectionView(
     val lastUsedAt: Instant? = null,
     /** When it stops by itself: a token's expiry, an invitation's, the end of a Harvest sync. */
     val endsAt: Instant? = null,
-    /** The page in Time where it's ended; null where it ends only with the account. */
+    /** The page in Time where an admin ends it; null where it ends only with the account. */
     val endIn: String? = null,
 )
 
@@ -85,7 +85,7 @@ class ConnectionsService(private val dsl: DSLContext) {
                     // A device's token expires after days without use (ApiTokenService.createForDevice).
                     kind = if (r[API_TOKENS.IDLE_EXPIRY_DAYS] != null) "device" else "api_token",
                     id = r[API_TOKENS.ID], name = r[API_TOKENS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME],
-                    lastUsedAt = r[API_TOKENS.LAST_USED_AT], endsAt = r[API_TOKENS.EXPIRES_AT], endIn = "/settings/profile",
+                    lastUsedAt = r[API_TOKENS.LAST_USED_AT], endsAt = r[API_TOKENS.EXPIRES_AT], endIn = MOVE_OUT,
                 )
             }
     }
@@ -104,7 +104,7 @@ class ConnectionsService(private val dsl: DSLContext) {
             .and(MEMBERSHIPS.IS_ACTIVE.isTrue).and(MEMBERSHIPS.STATUS.ne("active"))
             .groupBy(MEMBERSHIPS.ID, MEMBERSHIPS.NAME)
             .orderBy(MEMBERSHIPS.NAME)
-            .fetch { r -> ConnectionView(kind = "invitation", name = r[MEMBERSHIPS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME], endsAt = r[until], endIn = "/team") }
+            .fetch { r -> ConnectionView(kind = "invitation", name = r[MEMBERSHIPS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME], endsAt = r[until], endIn = MOVE_OUT) }
     }
 
     /** Stripe, QuickBooks, Xero and Storecove, where connected. */
@@ -120,9 +120,9 @@ class ConnectionsService(private val dsl: DSLContext) {
             .orderBy(IMPORT_JOBS.CREATED_AT).fetch()
             .map {
                 if (it.status == "syncing") {
-                    ConnectionView(kind = "harvest_sync", name = it.externalAccountId, endsAt = it.syncUntil, endIn = "/settings/import")
+                    ConnectionView(kind = "harvest_sync", id = it.id, name = it.externalAccountId, endsAt = it.syncUntil, endIn = "/settings/import#import-${it.id}")
                 } else {
-                    ConnectionView(kind = "harvest_import", name = it.externalAccountId, endIn = "/settings/import")
+                    ConnectionView(kind = "harvest_import", id = it.id, name = it.externalAccountId, endIn = "/settings/import#import-${it.id}")
                 }
             }
 
@@ -139,6 +139,9 @@ class ConnectionsService(private val dsl: DSLContext) {
     }
 
     companion object {
+        /** Where an admin revokes anyone's token or device and withdraws invitations. */
+        private const val MOVE_OUT = "/settings/move-out"
+
         private val SERVICES = listOf("stripe", "qbo", "xero", "storecove")
 
         /** Where each outside service is disconnected. */
@@ -191,9 +194,10 @@ object LeavingGuide {
         appendLine("invoices). Deleting the account cancels it too, when the account is deleted 14 days later.")
         appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
         appendLine()
-        appendLine("Each of these can be ended while the account is read-only (lapsed, or waiting to be")
-        appendLine("deleted) too: ending a connection only removes access. Deleting the account ends our access")
-        appendLine("to all of them.")
+        appendLine("While the account is read-only (lapsed, or waiting to be deleted), an admin can still end")
+        appendLine("each of these, except invoice links, which end only when the account is deleted.")
+        appendLine("Deactivating people waits until the account is active again. Deleting the account ends")
+        appendLine("our access to all of them.")
     }
 
     fun cancellingAndDeleting(): String = """
