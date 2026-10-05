@@ -132,6 +132,16 @@ test("M1 pages render with data and without raw translation keys", async ({ page
   const heading = (name: string | RegExp) => () => expect(page.getByRole("heading", { name }).first()).toBeVisible();
 
   await visit(page, `/day/${day(0)}`, "m1-time-day", () => expect(page.getByText("Homepage wireframes")).toBeVisible());
+  // A person is one step away from every page: Help opens over the page, with the address to write to.
+  await page.getByRole("button", { name: /^Help/ }).click();
+  const help = page.getByRole("dialog", { name: "Help" });
+  await expect(help.getByRole("link", { name: "hello@honestrobin.com" })).toHaveAttribute("href", "mailto:hello@honestrobin.com");
+  await expectNoRawKeys(page, "help");
+  await snap(page, "help");
+  // From there, the owner is one more step from taking all the data with them.
+  await help.getByRole("link", { name: "Export all data" }).click();
+  await expect(page.getByRole("heading", { name: "Export all data" })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await visit(page, `/week/${day(0)}`, "m1-time-week", () => expect(page.getByText("Website relaunch").first()).toBeVisible());
   await visit(page, "/projects", "m1-projects", heading("Projects"));
   await visit(page, "/projects/new", "m1-project-new", heading("New project"));

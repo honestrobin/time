@@ -26,7 +26,6 @@
     "auditLog": "Audit log",
     "signOut": "Sign out",
     "switchAccount": "Switch account",
-    "shortcuts": "Keyboard shortcuts",
     "mainNavigation": "Main navigation",
     "expenses": "Expenses",
     "reports": "Reports",
@@ -271,7 +270,7 @@
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
-    "help": "Show this list"
+    "help": "Open help"
   },
   "billing": {
     "title": "Billing",

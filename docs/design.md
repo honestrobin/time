@@ -12,8 +12,8 @@ not toys.
 - The common thing takes one step. Tracking time means saying what you're working on and pressing
   Start.
 - Everything else is one step away. A missing client, project or task is entered as you go and
-  changed later; keyboard shortcuts are behind `?`; rarely used settings live in Settings, not in
-  the main menu.
+  changed later; Help and the keyboard shortcuts are behind `?`; rarely used settings live in
+  Settings, not in the main menu.
 - Power never gets in the way of the common thing, and simplicity never hides what a professional
   needs: the week view, reports, the API and a full export are all there.
 - No opinions on how people work. The tool fits their way of working and stays out of the way; it
@@ -57,6 +57,8 @@ When what's good for us and what's good for the person using Time pull apart, we
 - They're always right about what they need. When someone says something's missing or in their
   way, start from there and work back.
 - Nobody stays because leaving is hard. Export, cancelling and self-hosting stay one step away.
+- A person is one step away too. Help is on every page, and the first thing it shows is where to
+  write: a person reads every message and answers it.
 - The promises that follow from this are in the [Robin's Code](https://honestrobin.com/code),
   the promises every Honest Robin product is measured against.
 

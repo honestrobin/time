@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Dialog, Kbd, Menu } from "../../design";
+import { Kbd, Menu } from "../../design";
 import { api, setAccountId, unwrap } from "../../lib/api";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
@@ -13,6 +13,7 @@ import { TwoFactorGate } from "../settings/TwoFactorGate";
 import { LiveUpdates } from "../time/LiveUpdates";
 import { TimerStrip } from "../time/TimerStrip";
 import "../time/time.css";
+import { HelpDialog } from "./Help";
 import { Wordmark } from "./Wordmark";
 import { navSections, shortcutList } from "./nav";
 
@@ -23,7 +24,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const pathname = useLocation({ select: (l) => l.pathname });
   const qc = useQueryClient();
-  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   // On a phone the menu folds away behind a button, so a page starts with its content.
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -39,7 +40,7 @@ export function AppShell() {
 
   const authConfig = useAuthConfig();
   const sections = navSections(perms, authConfig?.edition);
-  const hotkeys: Record<string, () => void> = { "?": () => setShowShortcuts(true) };
+  const hotkeys: Record<string, () => void> = { "?": () => setShowHelp(true) };
   sections.flatMap((s) => s.items).forEach((item) => {
     if (item.key) hotkeys[item.key] = () => void navigate({ to: item.to });
   });
@@ -83,6 +84,11 @@ export function AppShell() {
             </NavSection>
           ))}
         </nav>
+        {/* A person is one step away from every page: Help is in the sidebar, and on a phone in the bar. */}
+        <button type="button" className="nav-link sidebar-help" aria-haspopup="dialog" onClick={() => setShowHelp(true)}>
+          <span>{t("help.title")}</span>
+          <Kbd>?</Kbd>
+        </button>
         <div className="sidebar-foot">
           <Menu
             align="start"
@@ -101,7 +107,6 @@ export function AppShell() {
                   ]
                 : []),
               { label: t("nav.profile"), onSelect: () => void navigate({ to: "/settings/profile" }) },
-              { label: t("nav.shortcuts"), onSelect: () => setShowShortcuts(true) },
               "separator" as const,
               { label: t("nav.signOut"), onSelect: () => logout.mutate() },
             ]}
@@ -122,20 +127,7 @@ export function AppShell() {
         </main>
       </div>
       <ReauthDialog />
-      <Dialog open={showShortcuts} onOpenChange={setShowShortcuts} title={t("shortcuts.title")}>
-        <table className="ledger">
-          <tbody>
-            {shortcutList(sections).map((s) => (
-              <tr key={s.key}>
-                <td style={{ width: 80 }}>
-                  <Kbd>{s.key}</Kbd>
-                </td>
-                <td>{t(s.label)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Dialog>
+      <HelpDialog open={showHelp} onOpenChange={setShowHelp} shortcuts={shortcutList(sections)} canExport={perms.isAdmin} />
     </div>
   );
 }
