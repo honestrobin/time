@@ -6,6 +6,7 @@ import com.github.kagkarlsson.scheduler.task.helper.OneTimeTask
 import com.github.kagkarlsson.scheduler.task.helper.RecurringTask
 import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
+import com.honestrobin.time.auth.ApiTokenService
 import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.ACCOUNT_EXPORTS
 import com.honestrobin.time.db.Tables.AUDIT_LOG
@@ -385,6 +386,7 @@ class AccountDataJobsConfig {
 class AccountDataController(
     private val exports: AccountExportService,
     private val connections: ConnectionsService,
+    private val tokens: ApiTokenService,
     private val deletions: AccountDeletionService,
     private val importer: AccountImporter,
     private val settings: AccountDataSettings,
@@ -422,6 +424,11 @@ class AccountDataController(
     @GetMapping("/account/connections")
     @Operation(summary = "Everything still connected to the account, and where each is ended (admins)")
     fun listConnections(): List<ConnectionView> = connections.list(Current.member())
+
+    @DeleteMapping("/account/api_tokens/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Revoke anyone's token or signed-in device in the account (admins). Works while the account is read-only.")
+    fun revokeApiToken(@PathVariable id: UUID) = tokens.revokeInAccount(Current.member(), id)
 
     @GetMapping("/exports/{id}/download")
     @Operation(summary = "Download a finished export as a zip")

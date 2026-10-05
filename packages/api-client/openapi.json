@@ -112,6 +112,27 @@
         "tags" : [ "account" ]
       }
     },
+    "/api/v1/account/api_tokens/{id}" : {
+      "delete" : {
+        "operationId" : "account_data_revoke_api_token",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Revoke anyone's token or signed-in device in the account (admins). Works while the account is read-only.",
+        "tags" : [ "account" ]
+      }
+    },
     "/api/v1/account/connections" : {
       "get" : {
         "operationId" : "account_data_list_connections",
@@ -3354,6 +3375,32 @@
       }
     },
     "/api/v1/people/{id}/invite" : {
+      "delete" : {
+        "operationId" : "people_withdraw_invite",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PersonView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Withdraw an invitation (admins): its links stop working. Works while the account is read-only.",
+        "tags" : [ "people" ]
+      },
       "post" : {
         "operationId" : "people_invite",
         "parameters" : [ {
@@ -6310,6 +6357,10 @@
           "ends_at" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
           "kind" : {
             "type" : "string"

@@ -217,9 +217,11 @@ class AccountingService(
         }
     }
 
-    /** Forgets the connection, and ends Honest Robin's access at the provider. */
+    /**
+     * Forgets the connection, and ends Honest Robin's access at the provider. Ending access only
+     * removes access, so it works while the account is read-only ("You can always leave").
+     */
     fun disconnect(m: Member, kind: String): Disconnected {
-        m.requireWritable()
         m.requireAdmin()
         val p = provider(kind)
         val r = tx.run { integration(kind) }

@@ -149,22 +149,27 @@ class ImportJobService(
         return get(m, id)
     }
 
+    /**
+     * Stops an import and forgets its Harvest token. Ending access only removes access, so it works
+     * while the account is read-only ("You can always leave").
+     */
     fun cancel(m: Member, id: UUID): ImportJobView {
-
-        m.requireWritable()
         m.requireAdmin()
         tx.run {
             val job = load(id)
             if (job.status in setOf("completed", "cancelled", "syncing")) throw ConflictException("finished", "This import has already finished")
             dsl.update(IMPORT_JOBS).set(IMPORT_JOBS.STATUS, "cancelled").set(IMPORT_JOBS.TOKEN_ENCRYPTED, null as String?)
+                .set(IMPORT_JOBS.REFRESH_TOKEN_ENCRYPTED, null as String?)
                 .set(IMPORT_JOBS.FINISHED_AT, Instant.now(clock)).where(IMPORT_JOBS.ID.eq(id)).execute()
         }
         return get(m, id)
     }
 
-    /** The cutover: stop syncing changes from Harvest now; the token is forgotten. */
+    /**
+     * The cutover: stop syncing changes from Harvest now; the token is forgotten. Ending access
+     * only removes access, so it works while the account is read-only ("You can always leave").
+     */
     fun stopSync(m: Member, id: UUID): ImportJobView {
-        m.requireWritable()
         m.requireAdmin()
         tx.run {
             if (load(id).status != "syncing") throw ConflictException("not_syncing", "This import isn't syncing")

@@ -30,6 +30,8 @@ data class ConnectionView(
      * invoice_reminders.
      */
     val kind: String,
+    /** A token's or device's id, to revoke it (DELETE /api/v1/account/api_tokens/{id}). */
+    val id: UUID? = null,
     /** A token's or device's name, the Stripe account, the books in QuickBooks or Xero, the Harvest account. */
     val name: String? = null,
     /** Whose token or device it is, or who is invited. */
@@ -72,7 +74,7 @@ class ConnectionsService(private val dsl: DSLContext) {
     /** Tokens that work now: not expired, and of people who can sign in. */
     private fun tokens(accountId: UUID): List<ConnectionView> {
         val now = Instant.now()
-        return dsl.select(API_TOKENS.NAME, API_TOKENS.IDLE_EXPIRY_DAYS, API_TOKENS.LAST_USED_AT, API_TOKENS.EXPIRES_AT, MEMBERSHIPS.ID, MEMBERSHIPS.NAME)
+        return dsl.select(API_TOKENS.ID, API_TOKENS.NAME, API_TOKENS.IDLE_EXPIRY_DAYS, API_TOKENS.LAST_USED_AT, API_TOKENS.EXPIRES_AT, MEMBERSHIPS.ID, MEMBERSHIPS.NAME)
             .from(API_TOKENS).join(MEMBERSHIPS).on(MEMBERSHIPS.ID.eq(API_TOKENS.MEMBERSHIP_ID))
             .where(API_TOKENS.ACCOUNT_ID.eq(accountId))
             .and(API_TOKENS.EXPIRES_AT.isNull.or(API_TOKENS.EXPIRES_AT.gt(now)))
@@ -82,7 +84,7 @@ class ConnectionsService(private val dsl: DSLContext) {
                 ConnectionView(
                     // A device's token expires after days without use (ApiTokenService.createForDevice).
                     kind = if (r[API_TOKENS.IDLE_EXPIRY_DAYS] != null) "device" else "api_token",
-                    name = r[API_TOKENS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME],
+                    id = r[API_TOKENS.ID], name = r[API_TOKENS.NAME], membershipId = r[MEMBERSHIPS.ID], person = r[MEMBERSHIPS.NAME],
                     lastUsedAt = r[API_TOKENS.LAST_USED_AT], endsAt = r[API_TOKENS.EXPIRES_AT], endIn = "/settings/profile",
                 )
             }
@@ -189,10 +191,9 @@ object LeavingGuide {
         appendLine("invoices). Deleting the account cancels it too, when the account is deleted 14 days later.")
         appendLine("People in your team who sign in aren't listed either: deactivate them under Team.")
         appendLine()
-        appendLine("While an account is read-only (lapsed, or waiting to be deleted), its Disconnect and Stop")
-        appendLine("buttons don't work. You can still end each connection at the other service, except Peppol")
-        appendLine("on Honest Robin's Storecove contract, which only deleting the account ends. Deleting the")
-        appendLine("account ends our access to all of them.")
+        appendLine("Each of these can be ended while the account is read-only (lapsed, or waiting to be")
+        appendLine("deleted) too: ending a connection only removes access. Deleting the account ends our access")
+        appendLine("to all of them.")
     }
 
     fun cancellingAndDeleting(): String = """
@@ -228,8 +229,8 @@ object LeavingGuide {
     }
 
     private fun how(c: ConnectionView): String = when (c.kind) {
-        "api_token", "device" -> "End it: ${c.person} revokes it under Profile > Personal access tokens, or an admin deactivates " +
-            "${c.person} under Team, which stops all of their tokens." + (if (c.kind == "device") " It also stops after 90 days without use." else "")
+        "api_token", "device" -> "End it: an admin revokes it under Settings > Account > Move out, or ${c.person} revokes it " +
+            "under Profile > Personal access tokens." + (if (c.kind == "device") " It also stops after 90 days without use." else "")
         "stripe" -> "End it: Settings > Online payments > Disconnect Stripe" +
             (if (c.mode == "connect") ", which ends our access at Stripe. Or remove Honest Robin from the connected platforms in Stripe."
             else ". Then roll the key and delete the webhook endpoint in Stripe: the key works there until you do.")
@@ -238,8 +239,8 @@ object LeavingGuide {
         "storecove" -> "End it: Settings > Invoice settings > Disconnect, which removes your Peppol ID from Storecove." +
             (if (c.mode == "connect") "" else " Then delete the API key in Storecove.")
         "harvest_sync" -> "End it: Settings > Import from Harvest > Stop syncing and switch over. Then delete the personal access token in Harvest."
-        "harvest_import" -> "End it: delete the personal access token in Harvest. A running import can also be cancelled under Settings > Import from Harvest."
-        "invitation" -> "End it: an admin deactivates ${c.person} under Team, and the link stops working. It also stops by itself on ${day(c.endsAt)}."
+        "harvest_import" -> "End it: Settings > Import from Harvest > Cancel import, which forgets the token. Then delete the personal access token in Harvest."
+        "invitation" -> "End it: an admin withdraws it under Settings > Account > Move out, and the link stops working. It also stops by itself on ${day(c.endsAt)}."
         "invoice_links" -> "They work while the account exists and stop for good when it's deleted. A single link can't be turned off yet."
         "invoice_reminders" -> "End them: Settings > Invoice settings, turn off reminders."
         else -> ""

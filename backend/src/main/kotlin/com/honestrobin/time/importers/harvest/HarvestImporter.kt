@@ -199,6 +199,7 @@ class HarvestImporter(
     /** The cutover: syncing stops and the token is forgotten. */
     fun endSync(jobId: UUID, error: String?) = tx.system {
         dsl.update(IMPORT_JOBS).set(IMPORT_JOBS.STATUS, "completed").set(IMPORT_JOBS.TOKEN_ENCRYPTED, null as String?)
+            .set(IMPORT_JOBS.REFRESH_TOKEN_ENCRYPTED, null as String?)
             .set(IMPORT_JOBS.SYNC_UNTIL, DSL.least(DSL.coalesce(IMPORT_JOBS.SYNC_UNTIL, DSL.currentInstant()), DSL.currentInstant()))
             .set(IMPORT_JOBS.ERROR, error)
             .where(IMPORT_JOBS.ID.eq(jobId)).and(IMPORT_JOBS.STATUS.eq("syncing")).execute()
