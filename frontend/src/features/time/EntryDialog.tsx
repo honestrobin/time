@@ -9,7 +9,7 @@ import { usePermissions } from "../../lib/session";
 import { accountQuery, byName, clientKeys, clientsQuery, projectKeys, taskKeys, tasksQuery } from "../projects/queries";
 import { useAssignments, useInvalidateTime, type TimeEntry } from "./hooks";
 import { ProjectTaskPicker } from "./ProjectTaskPicker";
-import { ensureWork, NEW, type CatalogOps } from "./quickCreate";
+import { NEW } from "./quickCreate";
 
 interface Props {
   open: boolean;
@@ -92,47 +92,28 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
   const rateCurrency =
     (client && client !== NEW ? clientList.data?.data.find((c) => c.id === client)?.currency : undefined) ?? account.data?.default_currency ?? "";
 
-  const catalog: CatalogOps = {
-    clients,
-    tasks,
-    createClient: (name) => unwrap(api.POST("/api/v1/clients", { body: { name, currency: account.data?.default_currency } })),
-    createTask: (name, isDefault) => unwrap(api.POST("/api/v1/tasks", { body: { name, is_default: isDefault } })),
-    createProject: (clientId, name, taskIds, rate) =>
-      unwrap(api.POST("/api/v1/projects", { body: { client_id: clientId, name, task_ids: taskIds, hourly_rate: rate ?? undefined } })),
-    addTaskToProject: (id, taskId) => unwrap(api.POST("/api/v1/projects/{id}/tasks", { params: { path: { id } }, body: { task_id: taskId } })),
-  };
+  const creating = creatingProject || creatingTask;
+  const showRate = perms.canSeeRates && !!rateCurrency;
 
-  /** The project and task to save to, creating whatever was entered as new. */
-  const prepare = async (): Promise<{ projectId: string | undefined; taskId: string | undefined }> => {
-    if (!creatingProject && !creatingTask) return { projectId, taskId };
-    const work = await ensureWork(
-      {
-        projectId: creatingProject ? null : (projectId ?? null),
-        projectName,
-        clientId: client && client !== NEW ? client : null,
-        clientName: clientNameValue,
-        taskId: creatingProject && projectTask && projectTask !== NEW ? projectTask : null,
-        taskName: creatingProject && projectTask !== NEW ? "" : taskNameValue,
-        projectTasks: project?.tasks,
-        hourlyRate: creatingProject ? hourlyRate : null,
-      },
-      catalog,
-    );
-    // What exists now stays chosen, so trying again after a later failure creates nothing twice.
-    await refetchAssignments();
-    setNewProject(false);
-    setNewTask(false);
-    setProjectId(work.projectId);
-    setTaskId(work.taskId);
-    void qc.invalidateQueries({ queryKey: projectKeys.all });
-    void qc.invalidateQueries({ queryKey: clientKeys.all });
-    void qc.invalidateQueries({ queryKey: taskKeys.all });
-    return work;
+  // Whatever is new is created on the server together with the entry, all of it or none of it:
+  // when something is refused, nothing exists yet, and everything typed stays in the form.
+  const quickBody = () => {
+    const entryFields = { spent_date: date, notes, duration_seconds: duration ?? undefined };
+    if (!creatingProject) return { ...entryFields, project_id: projectId, task_name: taskNameValue };
+    return {
+      ...entryFields,
+      project_name: projectName,
+      client_id: client && client !== NEW ? client : undefined,
+      client_name: client === NEW ? clientNameValue : undefined,
+      hourly_rate: showRate ? (hourlyRate ?? undefined) : undefined,
+      task_id: projectTask && projectTask !== NEW ? projectTask : undefined,
+      task_name: projectTask === NEW ? taskNameValue : undefined,
+    };
   };
 
   const save = useMutation({
     mutationFn: async () => {
-      const { projectId, taskId } = await prepare();
+      if (creating) return unwrap(api.POST("/api/v1/time_entries/quick", { body: quickBody() }));
       if (entry) {
         const body: Record<string, unknown> = { project_id: projectId, task_id: taskId, notes, billable };
         if (!entry.is_running && duration !== null) body.duration_seconds = duration;
@@ -151,6 +132,12 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
       );
     },
     onSuccess: async (saved) => {
+      if (creating) {
+        await refetchAssignments();
+        void qc.invalidateQueries({ queryKey: projectKeys.all });
+        void qc.invalidateQueries({ queryKey: clientKeys.all });
+        void qc.invalidateQueries({ queryKey: taskKeys.all });
+      }
       await invalidate();
       toast(entry ? t("time.entrySaved") : saved.is_running ? t("time.timerStarted") : t("time.entryAdded"));
       onOpenChange(false);
@@ -173,6 +160,19 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
   });
 
   const err = save.error ? errorInfo(save.error) : null;
+  const fieldError = err?.fields ?? {};
+  // Each refusal shows at the field it's about; whatever has no field here goes in the notice.
+  const atFields = new Set(["notes", "duration_seconds"]);
+  if (!creating) ["project_id", "task_id"].forEach((f) => atFields.add(f));
+  if (creatingProject) {
+    ["project_name", "client_id", "task_id"].forEach((f) => atFields.add(f));
+    if (client === NEW) atFields.add("client_name");
+    if (projectTask === NEW) atFields.add("task_name");
+    if (showRate) atFields.add("hourly_rate");
+  }
+  if (creatingTask) ["task_name", "task_id"].forEach((f) => atFields.add(f));
+  const elsewhere = Object.entries(fieldError).filter(([f]) => !atFields.has(f)).map(([, m]) => m);
+  const notice = err && (Object.keys(fieldError).length === 0 ? [err.message] : elsewhere);
   const startsTimer = !entry && duration === null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -182,7 +182,6 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
     save.mutate();
   };
   const ready = creatingProject || (creatingTask ? !!projectId : !!projectId && !!taskId);
-  const creating = creatingProject || creatingTask;
 
   return (
     <Dialog
@@ -198,9 +197,9 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
       ) : (
         <form className="stack" onSubmit={submit}>
           {assignments.length === 0 && <p className="muted">{t("time.quickLead")}</p>}
-          {err && (creating || !Object.keys(err.fields).length) && (
+          {notice && notice.length > 0 && (
             <p className="notice notice-error" role="alert">
-              {[err.message, ...Object.values(err.fields)].filter((m, i, all) => m && all.indexOf(m) === i).join(" ")}
+              {notice.filter((m, i, all) => m && all.indexOf(m) === i).join(" ")}
             </p>
           )}
           <ProjectTaskPicker
@@ -225,7 +224,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
           />
           {creatingProject && (
             <>
-              <TextField label={t("time.projectName")} value={projectName} onChange={setProjectName} required autoFocus />
+              <TextField label={t("time.projectName")} value={projectName} onChange={setProjectName} required autoFocus error={fieldError.project_name} />
               <div className="form-grid">
                 <SelectField
                   label={t("time.client")}
@@ -236,7 +235,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
                   }}
                   placeholder={t("time.chooseClient")}
                   options={[...clients.map((c) => ({ value: c.id, label: c.name })), { value: NEW, label: t("time.newClient") }]}
-                  error={formError.client}
+                  error={formError.client ?? fieldError.client_id}
                 />
                 <SelectField
                   label={t("time.task")}
@@ -247,7 +246,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
                   }}
                   placeholder={t("time.chooseTask")}
                   options={[...tasks.map((x) => ({ value: x.id, label: x.name })), { value: NEW, label: t("time.newTask") }]}
-                  error={formError.task}
+                  error={formError.task ?? fieldError.task_id}
                 />
               </div>
               {client === NEW && (
@@ -257,21 +256,34 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
                   onChange={setClientName}
                   hint={clients.length === 0 && clientName === undefined ? t("time.clientNameOwnHint") : undefined}
                   required
+                  error={fieldError.client_name}
                 />
               )}
-              {projectTask === NEW && <TextField label={t("time.taskName")} value={taskNameValue} onChange={setTaskName} required />}
-              {perms.canSeeRates && rateCurrency && (
+              {projectTask === NEW && (
+                <TextField label={t("time.taskName")} value={taskNameValue} onChange={setTaskName} required error={fieldError.task_name} />
+              )}
+              {showRate && (
                 <MoneyField
                   label={t("time.hourlyRate")}
                   hint={t("time.hourlyRateHint")}
                   value={hourlyRate}
                   onChange={setHourlyRate}
                   currency={rateCurrency}
+                  error={fieldError.hourly_rate}
                 />
               )}
             </>
           )}
-          {creatingTask && <TextField label={t("time.taskName")} value={taskNameValue} onChange={setTaskName} required autoFocus={newTask} />}
+          {creatingTask && (
+            <TextField
+              label={t("time.taskName")}
+              value={taskNameValue}
+              onChange={setTaskName}
+              required
+              autoFocus={newTask}
+              error={fieldError.task_name ?? fieldError.task_id}
+            />
+          )}
           <TextAreaField label={t("time.notes")} value={notes} onChange={setNotes} rows={3} error={err?.fields.notes} />
           <div className="form-grid">
             <DurationField

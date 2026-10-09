@@ -5151,6 +5151,34 @@
         "tags" : [ "time_entries" ]
       }
     },
+    "/api/v1/time_entries/quick" : {
+      "post" : {
+        "operationId" : "quick_entry_create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/QuickEntryInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeEntryView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "time_entries" ]
+      }
+    },
     "/api/v1/time_entries/{id}" : {
       "delete" : {
         "operationId" : "time_entry_delete",
@@ -8890,6 +8918,46 @@
           }
         },
         "required" : [ "can_pay_online", "document", "pdf_url", "state" ]
+      },
+      "QuickEntryInput" : {
+        "properties" : {
+          "client_id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "client_name" : {
+            "type" : "string"
+          },
+          "duration_seconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "hourly_rate" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "notes" : {
+            "type" : "string"
+          },
+          "project_id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "project_name" : {
+            "type" : "string"
+          },
+          "spent_date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "task_id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "task_name" : {
+            "type" : "string"
+          }
+        }
       },
       "ReauthRequest" : {
         "properties" : {
