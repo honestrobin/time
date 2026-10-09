@@ -5,10 +5,11 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Router
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
+import { FEATURES } from "../../lib/features";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
 import { AppShell } from "./AppShell";
 import { HELP_EMAIL } from "./Help";
-import { navSections } from "./nav";
+import { navSections, OUT_OF_MENU } from "./nav";
 
 // The parts of the shell that poll or stream from the server. Help doesn't depend on them.
 vi.mock("../time/LiveUpdates", () => ({ LiveUpdates: () => null }));
@@ -26,8 +27,11 @@ const ADMIN: Parameters<typeof navSections>[0] = {
   canManageProjects: true,
   canManageInvoices: true,
 };
-/** Every page in the navigation, from the fullest menu there is: an admin's, in the cloud edition. */
-const PAGES = navSections(ADMIN, "cloud").flatMap((section) => section.items.map((item) => item.to));
+/**
+ * Every page in the navigation, from the fullest menu there is: an admin's, in the cloud edition,
+ * with every feature switched on, and the pages reached from Settings and Profile.
+ */
+const PAGES = [...navSections(ADMIN, "cloud", FEATURES).flatMap((section) => section.items.map((item) => item.to)), ...OUT_OF_MENU];
 
 /** The real shell around a stand-in page, signed in, without a server. */
 function renderShellAt(path: string, { role = "member", edition = "selfhost" } = {}) {
@@ -40,7 +44,7 @@ function renderShellAt(path: string, { role = "member", edition = "selfhost" } =
     current_account_id: "account-1",
     two_factor_setup_required: false,
   } as unknown as Me);
-  queryClient.setQueryData(authConfigQuery.queryKey, { edition } as unknown as AuthConfig);
+  queryClient.setQueryData(authConfigQuery.queryKey, { edition, features: [...FEATURES] } as unknown as AuthConfig);
   const rootRoute = createRootRoute({ component: AppShell });
   const pages = PAGES.map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => <h1>{p}</h1> }));
   const router = createRouter({ routeTree: rootRoute.addChildren(pages), history: createMemoryHistory({ initialEntries: [path] }) });

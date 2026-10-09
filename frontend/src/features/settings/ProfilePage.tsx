@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, Dialog, DialogActions, TextField, useToast } from "../../design";
@@ -153,7 +154,7 @@ function ApiTokens() {
         </Button>
       </div>
       <p className="muted" style={{ marginBottom: 12 }}>
-        {t("settings.apiTokensLead")}
+        {t("settings.apiTokensLead")} <Link to="/developers">{t("settings.apiReferenceLink")}</Link>
       </p>
       <table className="ledger">
         <thead>

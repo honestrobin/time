@@ -22,6 +22,7 @@ import { TeamPage } from "../features/team/TeamPage";
 import { TimePage } from "../features/time/TimePage";
 import { ApiError, queryClient } from "../lib/api";
 import { sendPageView } from "../lib/analytics";
+import { requireFeature } from "../lib/features";
 import { authConfigQuery, meQuery } from "../lib/session";
 import { ImportPage } from "../features/import/ImportPage";
 import { InvoiceNewPage } from "../features/invoices/InvoiceNewPage";
@@ -106,25 +107,34 @@ const resetRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/r
 const inviteRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/invite", component: InvitePage });
 const verifyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/verify", component: VerifyEmailPage });
 
-const expensesRoute = createRoute({ getParentRoute: () => appRoute, path: "/expenses", component: ExpensesPage });
+// Pages of features that are switched off go to Time (lib/features). Settings pages where a
+// connection ends (online payments, accounting, invoice settings, the import) stay reachable,
+// out of the menu: Move out links to them, so anything still connected can always be ended.
+const expensesRoute = createRoute({ getParentRoute: () => appRoute, path: "/expenses", component: ExpensesPage, beforeLoad: requireFeature("expenses") });
 const projectsRoute = createRoute({ getParentRoute: () => appRoute, path: "/projects", component: ProjectsPage });
 const projectNewRoute = createRoute({ getParentRoute: () => appRoute, path: "/projects/new", component: ProjectNewPage });
 const projectRoute = createRoute({ getParentRoute: () => appRoute, path: "/projects/$projectId", component: ProjectDetailPage });
 const clientsRoute = createRoute({ getParentRoute: () => appRoute, path: "/clients", component: ClientsPage });
-const tasksRoute = createRoute({ getParentRoute: () => appRoute, path: "/tasks", component: TasksPage });
-const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "/team", component: TeamPage });
-const personRoute = createRoute({ getParentRoute: () => appRoute, path: "/team/$personId", component: PersonPage });
-const approvalsRoute = createRoute({ getParentRoute: () => appRoute, path: "/approvals", component: ApprovalsPage });
-const categoriesRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/expense-categories", component: ExpenseCategoriesPage });
+const tasksRoute = createRoute({ getParentRoute: () => appRoute, path: "/tasks", component: TasksPage, beforeLoad: requireFeature("tasks") });
+const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "/team", component: TeamPage, beforeLoad: requireFeature("team") });
+const personRoute = createRoute({ getParentRoute: () => appRoute, path: "/team/$personId", component: PersonPage, beforeLoad: requireFeature("team") });
+const approvalsRoute = createRoute({ getParentRoute: () => appRoute, path: "/approvals", component: ApprovalsPage, beforeLoad: requireFeature("approvals") });
+const categoriesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings/expense-categories",
+  component: ExpenseCategoriesPage,
+  beforeLoad: requireFeature("expenses"),
+});
 const accountSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/account", component: AccountSettingsPage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/profile", component: ProfilePage });
 const auditRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/audit", component: AuditLogPage });
 const importRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/import", component: ImportPage });
-const invoicesRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoices", component: InvoicesPage });
+const invoicesRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoices", component: InvoicesPage, beforeLoad: requireFeature("invoices") });
 const invoiceNewRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/invoices/new",
   component: InvoiceNewPage,
+  beforeLoad: requireFeature("invoices"),
   // Prefilled from the uninvoiced report.
   validateSearch: (s: Record<string, unknown>): { client?: string; from?: string; to?: string } => {
     const date = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
@@ -136,7 +146,7 @@ const invoiceNewRoute = createRoute({
 const developersRoute = createRoute({ getParentRoute: () => appRoute, path: "/developers", component: DevelopersPage });
 const deviceRoute = createRoute({ getParentRoute: () => appRoute, path: "/device", component: DevicePage });
 const reportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/reports", component: ReportsPage, validateSearch: validateReportSearch });
-const invoiceRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoices/$invoiceId", component: InvoicePage });
+const invoiceRoute = createRoute({ getParentRoute: () => appRoute, path: "/invoices/$invoiceId", component: InvoicePage, beforeLoad: requireFeature("invoices") });
 const invoiceSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/invoices", component: InvoiceSettingsPage });
 const accountingRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/accounting", component: AccountingPage });
 const billingRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/billing", component: BillingPage });

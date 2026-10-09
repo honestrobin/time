@@ -73,7 +73,10 @@
       "client": "Show this client's projects",
       "project": "Show this project's tasks",
       "task": "Show who worked on this task",
-      "person": "Show this person's entries"
+      "person": "Show this person's entries",
+      "projectPeople": "Show who worked on this project",
+      "projectEntries": "Show this project's entries",
+      "taskEntries": "Show this task's entries"
     },
     "rounded": "Each entry is rounded up to {{minutes}} minutes, as on invoices.",
     "roundedNearest": "Each entry is rounded to the nearest {{minutes}} minutes, as on invoices.",

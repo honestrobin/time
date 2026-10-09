@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Dialog, DialogActions, DurationInput, useConfirm, useToast } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
+import { useFeature } from "../../lib/features";
 import { formatDate, formatDuration, formatWeekday } from "../../lib/format";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe } from "../../lib/session";
@@ -22,6 +23,8 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
   const style = account.durationStyle;
   const membershipId = personId ?? me.current_membership_id ?? undefined;
   const isSelf = membershipId === me.current_membership_id;
+  // Submitting a week for approval is part of the approvals feature (lib/features).
+  const approvals = useFeature("approvals");
   const key = ["week", date, membershipId];
   const q = useQuery({
     queryKey: key,
@@ -212,7 +215,7 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
             {t("time.copyRows")}
           </Button>
           <span className="spacer" />
-          {isSelf && week.approvals_enabled && sub?.state !== "submitted" && sub?.state !== "approved" && (
+          {isSelf && approvals && week.approvals_enabled && sub?.state !== "submitted" && sub?.state !== "approved" && (
             <Button variant="primary" onClick={() => submit.mutate()} busy={submit.isPending} disabled={week.entries.length === 0}>
               {t("time.submitWeek")}
             </Button>

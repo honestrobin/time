@@ -8,6 +8,9 @@ docker run -d --name honestrobin-pg -e POSTGRES_USER=honestrobin -e POSTGRES_PAS
 HONESTROBIN_DB_URL=jdbc:postgresql://localhost:5433/honestrobin HONESTROBIN_SIGNUP_MODE=open HONESTROBIN_SETUP_CODE=dev ./gradlew :backend:bootRun
 ```
 
+Only the core shows unless features are switched on: add `HONESTROBIN_FEATURES=all` (or a list such
+as `invoices,team`) to work on the others.
+
 The first sign-up on an empty database needs the setup code (here `dev`; without the variable the
 app makes one and writes it to its log).
 
@@ -26,7 +29,7 @@ pnpm --filter @honestrobin/web dev   # http://localhost:5173, proxies /api to :8
 ## End-to-end
 
 ```sh
-HONESTROBIN_SETUP_CODE=e2e docker compose -f deploy/docker-compose.yml up -d --build
+HONESTROBIN_SETUP_CODE=e2e HONESTROBIN_FEATURES=all docker compose -f deploy/docker-compose.yml up -d --build
 HONESTROBIN_SETUP_CODE=e2e pnpm --filter @honestrobin/e2e test
 ```
 

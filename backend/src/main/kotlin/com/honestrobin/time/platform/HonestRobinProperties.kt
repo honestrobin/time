@@ -20,6 +20,11 @@ data class HonestRobinProperties(
     val metricsToken: String = "",
     /** The code the first sign-up needs. Blank: one is made at startup and written to the log. */
     val setupCode: String = "",
+    /**
+     * The parts of Time that are switched on, by name (`invoices`, `team`, ...), or `all`. Everything
+     * else is built but stays out of the web app until it's brought back (platform.features).
+     */
+    val features: List<String> = emptyList(),
 ) {
     enum class SignupMode {
         /** Anyone may create an account (Honest Robin Cloud). */

@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { errorInfo } from "../../lib/api";
+import { useFeature } from "../../lib/features";
 import { formatDate, formatDuration, formatMoney, formatPercent, type DurationStyle } from "../../lib/format";
 import { usePermissions } from "../../lib/session";
 import { BudgetMeter, budgetFigures, Meter } from "./BudgetMeter";
@@ -12,6 +13,9 @@ export function ProjectOverview({ project, onEditSettings }: { project: Project;
   const { t } = useTranslation();
   const perms = usePermissions();
   const { durationStyle } = useAccountDefaults();
+  // Without the budgets feature the first panel shows only what was tracked (lib/features).
+  const budgets = useFeature("budgets");
+  const team = useFeature("team");
   const budgetQ = useQuery(budgetQuery(project.id));
   const usage = budgetQ.data;
   const currency = project.client.currency;
@@ -36,8 +40,8 @@ export function ProjectOverview({ project, onEditSettings }: { project: Project;
     <div className="overview-grid">
       <section>
         <div className="section-head">
-          <h2>{t("projects.overview.budget")}</h2>
-          {usage?.is_monthly && usage.period_start && (
+          <h2>{budgets ? t("projects.overview.budget") : t("projects.overview.trackedTitle")}</h2>
+          {budgets && usage?.is_monthly && usage.period_start && (
             <span className="muted">{t("projects.overview.thisMonth", { date: formatDate(usage.period_start) })}</span>
           )}
         </div>
@@ -46,7 +50,7 @@ export function ProjectOverview({ project, onEditSettings }: { project: Project;
         ) : !usage ? (
           <p className="muted">{t("app.loading")}</p>
         ) : (
-          <BudgetSummary project={project} usage={usage} durationStyle={durationStyle} onEditSettings={onEditSettings} />
+          <BudgetSummary project={project} usage={usage} durationStyle={durationStyle} onEditSettings={onEditSettings} budgets={budgets} />
         )}
       </section>
 
@@ -75,12 +79,16 @@ export function ProjectOverview({ project, onEditSettings }: { project: Project;
               <dd>{perms.canSeeRates && project.fee_amount != null ? money(project.fee_amount) : t("app.yes")}</dd>
             </>
           )}
-          <dt>{t("projects.fields.budgetBy")}</dt>
-          <dd>
-            {t(`projects.budgetBy.${project.budget_by}`)}
-            {project.budget_by !== "none" && project.budget_is_monthly && `, ${t("projects.overview.resetsMonthly")}`}
-          </dd>
-          {project.budget_by !== "none" && (
+          {budgets && (
+            <>
+              <dt>{t("projects.fields.budgetBy")}</dt>
+              <dd>
+                {t(`projects.budgetBy.${project.budget_by}`)}
+                {project.budget_by !== "none" && project.budget_is_monthly && `, ${t("projects.overview.resetsMonthly")}`}
+              </dd>
+            </>
+          )}
+          {budgets && project.budget_by !== "none" && (
             <>
               <dt>{t("projects.overview.budgetAlerts")}</dt>
               <dd>
@@ -102,8 +110,8 @@ export function ProjectOverview({ project, onEditSettings }: { project: Project;
           )}
           <dt>{t("projects.overview.assigned")}</dt>
           <dd>
-            {t("projects.overview.taskCount", { count: project.tasks.filter((x) => x.is_active).length })},{" "}
-            {t("projects.overview.peopleCount", { count: project.members.filter((m) => m.is_active).length })}
+            {t("projects.overview.taskCount", { count: project.tasks.filter((x) => x.is_active).length })}
+            {team && <>, {t("projects.overview.peopleCount", { count: project.members.filter((m) => m.is_active).length })}</>}
           </dd>
           {project.notes && (
             <>
@@ -122,16 +130,18 @@ function BudgetSummary({
   usage,
   durationStyle,
   onEditSettings,
+  budgets,
 }: {
   project: Project;
   usage: Budget;
   durationStyle: DurationStyle;
   onEditSettings: () => void;
+  budgets: boolean;
 }) {
   const { t } = useTranslation();
   const tracked = formatDuration(usage.spent_seconds, durationStyle);
 
-  if (usage.budget_by === "none") {
+  if (usage.budget_by === "none" || !budgets) {
     return (
       <div className="stack" style={{ gap: 12 }}>
         <dl className="budget-figures">
@@ -140,12 +150,14 @@ function BudgetSummary({
             <dd>{tracked}</dd>
           </div>
         </dl>
-        <p className="muted">
-          {t("projects.overview.noBudget")}{" "}
-          <button type="button" className="link-button" style={{ color: "var(--action)" }} onClick={onEditSettings}>
-            {t("projects.overview.setBudget")}
-          </button>
-        </p>
+        {budgets && (
+          <p className="muted">
+            {t("projects.overview.noBudget")}{" "}
+            <button type="button" className="link-button" style={{ color: "var(--action)" }} onClick={onEditSettings}>
+              {t("projects.overview.setBudget")}
+            </button>
+          </p>
+        )}
       </div>
     );
   }

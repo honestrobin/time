@@ -39,7 +39,7 @@ export function AppShell() {
   });
 
   const authConfig = useAuthConfig();
-  const sections = navSections(perms, authConfig?.edition);
+  const sections = navSections(perms, authConfig?.edition, authConfig?.features);
   const hotkeys: Record<string, () => void> = { "?": () => setShowHelp(true) };
   sections.flatMap((s) => s.items).forEach((item) => {
     if (item.key) hotkeys[item.key] = () => void navigate({ to: item.to });

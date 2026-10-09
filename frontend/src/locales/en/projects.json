@@ -169,6 +169,7 @@
       "peopleCount_one": "{{count}} person",
       "peopleCount_other": "{{count}} people",
       "tracked": "Tracked",
+      "trackedTitle": "Time tracked",
       "noBudget": "This project has no budget.",
       "setBudget": "Set a budget",
       "moneyHidden": "This budget is in money, and you don't have permission to see rates and amounts.",

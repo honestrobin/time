@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, PageHeader, useToast } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
+import { useFeature } from "../../lib/features";
 import { useMe, usePermissions } from "../../lib/session";
 import { emptyProjectForm, formToCreateBody, ProjectFields, validateProjectForm, type ProjectFormState } from "./ProjectForm";
 import { QuickClientDialog } from "./QuickClientDialog";
@@ -17,6 +18,7 @@ export function ProjectNewPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const perms = usePermissions();
+  const taskList = useFeature("tasks");
   const me = useMe();
   const defaults = useAccountDefaults();
 
@@ -115,7 +117,7 @@ export function ProjectNewPage() {
             <p className="muted">{t("app.loading")}</p>
           ) : tasks.length === 0 ? (
             <p className="notice">
-              {t("projects.form.noTasks")} <Link to="/tasks">{t("projects.form.openTasks")}</Link>
+              {t("projects.form.noTasks")} {taskList && <Link to="/tasks">{t("projects.form.openTasks")}</Link>}
             </p>
           ) : (
             <>

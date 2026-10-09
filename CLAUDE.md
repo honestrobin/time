@@ -1,11 +1,21 @@
 # Honest Robin: Time
 
 Guidance for AI coding assistants (and a quick orientation for anyone) working in this
-repository. Time tracking, invoicing and reports for small teams, with the workflows Harvest users
-know. `ROADMAP.md` says what's built and what's left; the specification is `docs/spec.md`, and
+repository. Time tracking for freelancers first, then small teams. `ROADMAP.md` says what's built and what's left; the specification is `docs/spec.md`, and
 decisions are recorded in `docs/decisions/`. The rules every Honest Robin agent follows are in
 [honestrobin/robinscode](https://github.com/honestrobin/robinscode); this file adds what's
 particular to Time, and where the two disagree, stop and ask.
+
+## What Time is now
+
+A small core that's a joy to use, before anything else (decided 9 October 2026): track time (a
+timer, day and week), clients and projects, one report (hours and amount by client and project,
+with CSV), export and Move out, settings and help. Everything else is built and switched off by
+default: invoices, payments, accounting, expenses, tasks, team, approvals, budgets and the import
+(`platform.features`, `HONESTROBIN_FEATURES`, `frontend/src/lib/features.ts`). A switch only hides:
+the API, the export and Move out stay complete, and both editions have the same switches. Nothing
+new goes into the core, and nothing comes back on, until the maintainer says the core is a joy;
+then one feature at a time, when a customer asks for it.
 
 ## Project rules
 

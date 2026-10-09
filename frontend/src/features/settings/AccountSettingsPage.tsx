@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, SelectField, TextField, useToast } from "../../design";
 import { api, errorInfo, unwrap, type Schemas } from "../../lib/api";
+import { useFeatures, featureOn } from "../../lib/features";
 import { CURRENCIES, TIME_ZONES, dateStyleOptions } from "../../lib/reference";
 import { usePermissions } from "../../lib/session";
 import { AccountDataSection } from "./AccountData";
@@ -48,6 +50,7 @@ export function AccountSettingsPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const perms = usePermissions();
+  const features = useFeatures();
   const { data } = useQuery(accountQuery);
   const [form, setForm] = useState<Form | null>(null);
   useEffect(() => {
@@ -159,13 +162,15 @@ export function AccountSettingsPage() {
               ]}
               disabled={!perms.isAdmin}
             />
-            <Checkbox
-              checked={form.approvals_enabled}
-              onChange={set("approvals_enabled")}
-              label={t("settings.approvals")}
-              hint={t("settings.approvalsHint")}
-              disabled={!perms.isAdmin}
-            />
+            {featureOn(features, "approvals") && (
+              <Checkbox
+                checked={form.approvals_enabled}
+                onChange={set("approvals_enabled")}
+                label={t("settings.approvals")}
+                hint={t("settings.approvalsHint")}
+                disabled={!perms.isAdmin}
+              />
+            )}
             <Checkbox
               checked={form.timesheet_reminders_enabled}
               onChange={set("timesheet_reminders_enabled")}
@@ -184,28 +189,36 @@ export function AccountSettingsPage() {
             hint={t("settings.requireTwoFactorHint")}
             disabled={!perms.isAdmin}
           />
+          {perms.isAdmin && (
+            <p className="muted" style={{ marginTop: 12 }}>
+              <Link to="/settings/audit">{t("settings.auditLogLink")}</Link>
+            </p>
+          )}
         </section>
-        <section className="section">
-          <h2>{t("settings.fiscal")}</h2>
-          <p className="muted" style={{ marginBottom: 12 }}>
-            {t("settings.fiscalLead")}
-          </p>
-          <div className="form-grid">
-            {text("legal_name", "settings.legalName", { fieldClassName: "span-2" })}
-            {text("address_line1", "settings.addressLine1", { fieldClassName: "span-2" })}
-            {text("address_line2", "settings.addressLine2", { fieldClassName: "span-2" })}
-            {text("postal_code", "settings.postalCode")}
-            {text("city", "settings.city")}
-            {text("region", "settings.region")}
-            {text("country_code", "settings.country", { maxLength: 2 })}
-            {text("vat_id", "settings.vatId")}
-            {text("company_reg_no", "settings.companyRegNo")}
-            {text("peppol_scheme", "settings.peppolScheme", { placeholder: "0088" })}
-            {text("peppol_id", "settings.peppolId")}
-            {text("iban", "settings.iban")}
-            {text("bic", "settings.bic")}
-          </div>
-        </section>
+        {/* The company details print on invoices, so they come with that feature (lib/features). */}
+        {featureOn(features, "invoices") && (
+          <section className="section">
+            <h2>{t("settings.fiscal")}</h2>
+            <p className="muted" style={{ marginBottom: 12 }}>
+              {t("settings.fiscalLead")}
+            </p>
+            <div className="form-grid">
+              {text("legal_name", "settings.legalName", { fieldClassName: "span-2" })}
+              {text("address_line1", "settings.addressLine1", { fieldClassName: "span-2" })}
+              {text("address_line2", "settings.addressLine2", { fieldClassName: "span-2" })}
+              {text("postal_code", "settings.postalCode")}
+              {text("city", "settings.city")}
+              {text("region", "settings.region")}
+              {text("country_code", "settings.country", { maxLength: 2 })}
+              {text("vat_id", "settings.vatId")}
+              {text("company_reg_no", "settings.companyRegNo")}
+              {text("peppol_scheme", "settings.peppolScheme", { placeholder: "0088" })}
+              {text("peppol_id", "settings.peppolId")}
+              {text("iban", "settings.iban")}
+              {text("bic", "settings.bic")}
+            </div>
+          </section>
+        )}
         {perms.isAdmin && (
           <div className="row" style={{ marginTop: 16 }}>
             <Button type="submit" variant="primary" busy={save.isPending}>

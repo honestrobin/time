@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { EmptyState, LoadingRow } from "../../design";
 import { api, errorInfo, unwrap, type Schemas } from "../../lib/api";
+import { featureOn, useFeature, useFeatures } from "../../lib/features";
 import { formatDuration, formatMoney, formatPercent, type DurationStyle } from "../../lib/format";
 import { filterQuery, TIME_GROUPS, type ReportSearch, type TimeGroup } from "./search";
 import type { Range } from "./period";
@@ -34,22 +35,33 @@ export function Amounts({ amounts, field }: { amounts: { currency: string; [k: s
   );
 }
 
-/** Where clicking a row leads: client → its projects → their tasks → people → their entries. */
-function drill(group: TimeGroup, row: Row): Partial<ReportSearch> {
-  switch (group) {
-    case "client":
-      return { group: "project", client: [row.id] };
-    case "project":
-      return { group: "task", project: [row.id] };
-    case "task":
-      return { group: "person", task: [row.id] };
-    case "person":
-      return { tab: "detailed", person: [row.id], group: undefined };
-  }
+/**
+ * Where clicking a row leads: client → its projects → their tasks → people → their entries. A
+ * grouping whose feature is switched off is skipped (tasks without the task list, people
+ * without the team).
+ */
+function drill(group: TimeGroup, row: Row, groups: readonly TimeGroup[]): Partial<ReportSearch> {
+  const filter = { client: { client: [row.id] }, project: { project: [row.id] }, task: { task: [row.id] }, person: { person: [row.id] } }[group];
+  const next = groups[groups.indexOf(group) + 1];
+  return next ? { group: next, ...filter } : { tab: "detailed", ...filter, group: undefined };
+}
+
+function drillLabel(group: TimeGroup, groups: readonly TimeGroup[]): string {
+  const next = groups[groups.indexOf(group) + 1];
+  if (group === "project" && next !== "task") return next === "person" ? "reports.drill.projectPeople" : "reports.drill.projectEntries";
+  if (group === "task" && next !== "person") return "reports.drill.taskEntries";
+  return `reports.drill.${group}`;
+}
+
+/** The groupings on offer: tasks only with the task list, people only with the team. */
+function useTimeGroups(): TimeGroup[] {
+  const features = useFeatures();
+  return TIME_GROUPS.filter((g) => (g !== "task" || featureOn(features, "tasks")) && (g !== "person" || featureOn(features, "team")));
 }
 
 export function Summary({ data, durationStyle, canSeeRates }: { data: TimeReportData; durationStyle: DurationStyle; canSeeRates: boolean }) {
   const { t } = useTranslation();
+  const invoices = useFeature("invoices");
   const share = data.seconds > 0 ? data.billable_seconds / data.seconds : 0;
   return (
     <dl className="report-summary">
@@ -71,12 +83,14 @@ export function Summary({ data, durationStyle, canSeeRates }: { data: TimeReport
               <Amounts amounts={data.amounts} field="billable_amount" />
             </dd>
           </div>
-          <div>
-            <dt>{t("reports.summary.uninvoiced")}</dt>
-            <dd className="report-money">
-              <Amounts amounts={data.amounts} field="uninvoiced_amount" />
-            </dd>
-          </div>
+          {invoices && (
+            <div>
+              <dt>{t("reports.summary.uninvoiced")}</dt>
+              <dd className="report-money">
+                <Amounts amounts={data.amounts} field="uninvoiced_amount" />
+              </dd>
+            </div>
+          )}
         </>
       )}
     </dl>
@@ -94,11 +108,14 @@ interface Props {
 /** Hours and amounts by client, project, task or person, with billable and non-billable bars. */
 export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch }: Props) {
   const { t } = useTranslation();
-  const group: TimeGroup = (TIME_GROUPS as readonly string[]).includes(search.group ?? "") ? (search.group as TimeGroup) : "project";
+  const groups = useTimeGroups();
+  const invoices = useFeature("invoices");
+  const uninvoiced = canSeeRates && invoices;
+  const group: TimeGroup = (groups as readonly string[]).includes(search.group ?? "") ? (search.group as TimeGroup) : "project";
   const report = useTimeReport(search, range, group);
   const data = report.data;
   const longest = Math.max(1, ...(data?.rows ?? []).map((r) => r.seconds));
-  const cols = canSeeRates ? 6 : 4;
+  const cols = 4 + (canSeeRates ? 1 : 0) + (uninvoiced ? 1 : 0);
 
   return (
     <section aria-label={t("reports.tabs.time")}>
@@ -106,7 +123,7 @@ export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch
       <div className="report-controls">
         <span className="muted small">{t("reports.groupBy")}</span>
         <div className="seg seg-sm" role="group" aria-label={t("reports.groupBy")}>
-          {TIME_GROUPS.map((g) => (
+          {groups.map((g) => (
             <button key={g} type="button" aria-pressed={group === g} onClick={() => onSearch({ group: g })}>
               {t(`reports.groups.${g}`)}
             </button>
@@ -131,7 +148,7 @@ export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch
                 <th className="col-bar" aria-hidden />
                 <th className="num">{t("reports.col.billableHours")}</th>
                 {canSeeRates && <th className="num">{t("reports.col.billableAmount")}</th>}
-                {canSeeRates && <th className="num">{t("reports.col.uninvoiced")}</th>}
+                {uninvoiced && <th className="num">{t("reports.col.uninvoiced")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -141,7 +158,7 @@ export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch
                 return (
                   <tr key={r.id}>
                     <td>
-                      <button type="button" className="link-button" onClick={() => onSearch(drill(group, r))} title={t(`reports.drill.${group}`)}>
+                      <button type="button" className="link-button" onClick={() => onSearch(drill(group, r, groups))} title={t(drillLabel(group, groups))}>
                         {r.name}
                       </button>
                       {r.client_name && <div className="muted small">{r.client_name}</div>}
@@ -161,7 +178,7 @@ export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch
                         <Amounts amounts={r.amounts} field="billable_amount" />
                       </td>
                     )}
-                    {canSeeRates && (
+                    {uninvoiced && (
                       <td className="num">
                         <Amounts amounts={r.amounts} field="uninvoiced_amount" />
                       </td>
@@ -182,7 +199,7 @@ export function TimeReport({ search, range, durationStyle, canSeeRates, onSearch
                       <Amounts amounts={data.amounts} field="billable_amount" />
                     </td>
                   )}
-                  {canSeeRates && (
+                  {uninvoiced && (
                     <td className="num total">
                       <Amounts amounts={data.amounts} field="uninvoiced_amount" />
                     </td>

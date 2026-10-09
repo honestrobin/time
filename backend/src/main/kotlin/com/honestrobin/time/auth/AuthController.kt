@@ -5,6 +5,7 @@ import com.honestrobin.time.analytics.ClientAnalytics
 import com.honestrobin.time.analytics.ClientAnalyticsConfig
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.edition.EditionInfo
+import com.honestrobin.time.platform.features.Features
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.web.ForbiddenException
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -28,6 +29,8 @@ data class AuthConfig(
     /** Whether this instance sends email. Without it, sign-in links and invitations are in the server's log. */
     val emailConfigured: Boolean,
     val oauthProviders: List<String>,
+    /** The parts of Time switched on for this instance, by name. The web app shows only these, beside the core. */
+    val features: List<String>,
     val marketingUrl: String?,
     /** Where the web app sends page views; null when it sends none (always, on self-hosted instances). */
     val analytics: ClientAnalyticsConfig?,
@@ -71,6 +74,7 @@ class AuthController(
     private val edition: EditionInfo,
     private val analytics: ClientAnalytics,
     private val mailer: com.honestrobin.time.platform.mail.Mailer,
+    private val features: Features,
 ) {
     @GetMapping("/config")
     fun config() = AuthConfig(
@@ -81,6 +85,7 @@ class AuthController(
         magicLinks = true,
         emailConfigured = mailer.canDeliver,
         oauthProviders = emptyList(),
+        features = features.on,
         marketingUrl = edition.marketingUrl,
         analytics = analytics.config(),
     )
