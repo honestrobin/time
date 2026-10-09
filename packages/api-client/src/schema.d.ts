@@ -1997,6 +1997,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/time_entries/quick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["quick_entry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/time_entries/{id}": {
         parameters: {
             query?: never;
@@ -3408,6 +3424,24 @@ export interface components {
             document: components["schemas"]["InvoiceDocument"];
             pdf_url: string;
             state: string;
+        };
+        QuickEntryInput: {
+            /** Format: uuid */
+            client_id?: string;
+            client_name?: string;
+            /** Format: int32 */
+            duration_seconds?: number;
+            /** Format: int64 */
+            hourly_rate?: number;
+            notes?: string;
+            /** Format: uuid */
+            project_id?: string;
+            project_name?: string;
+            /** Format: date */
+            spent_date?: string;
+            /** Format: uuid */
+            task_id?: string;
+            task_name?: string;
         };
         ReauthRequest: {
             code?: string;
@@ -7542,6 +7576,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkUpdateResult"];
+                };
+            };
+        };
+    };
+    quick_entry_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickEntryInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeEntryView"];
                 };
             };
         };

@@ -17,6 +17,10 @@ as they're made.
   out still links to wherever a connection is ended. Self-hosted: to keep everything as it was,
   set `HONESTROBIN_FEATURES=all`, or name the parts you use (`docs/self-host.md`). The audit log
   and the API reference moved out of the menu, to Settings → Account and Profile.
+- Adding a new project, client or task while tracking time now saves all of it with the entry, or
+  none of it. Before, when the entry was refused (for example, more than 24 hours), the project,
+  client and task were created anyway, and the dialog dropped what you had typed. Now nothing is
+  created until everything is right, what you typed stays, and the problem shows at its field.
 - Editing an invoice runs in a single transaction again. From 4 October until this change it
   didn't. With the Compose setup's default database user, someone allowed to invoice in one
   account could read and change an invoice of another account on the same instance, if they knew
