@@ -4,7 +4,8 @@
 
 Everything it creates is marked: clients, tasks, expense categories and roles end in " (test)",
 and every project, time entry, expense, invoice and estimate belongs to one of those clients.
---delete removes exactly that, in an order Harvest accepts.
+--delete removes exactly that, in an order Harvest accepts. --finish completes the invoices and
+estimates of a run that Harvest stopped with a long wait.
 
 Reads HARVEST_ACCESS_TOKEN and HARVEST_ACCOUNT_ID from the environment. Python 3, standard
 library only. See README.md next to this file.
@@ -33,6 +34,9 @@ API = "https://api.harvestapp.com/v2"
 USER_AGENT = "Honest Robin Time test-data script (https://github.com/honestrobin/time)"
 MARK = " (test)"
 ZERO_DECIMAL = {"JPY"}
+# Harvest's documented throttle lifts within minutes. A longer Retry-After is a cap of another
+# kind (one gave 24 hours for marking invoices sent), and sitting through it helps nobody.
+LONG_WAIT = 15 * 60
 
 # ------------------------------------------------------------------------------------------ data
 
@@ -327,10 +331,22 @@ class HarvestError(Exception):
         super().__init__(f"{method} {url} -> {status}: {str(message)[:500]}")
 
 
+class HarvestPaused(Exception):
+    """Harvest answered 429 with a Retry-After longer than LONG_WAIT. `left` lists what was still
+    to do when it came, once the invoices and estimates had started (None before that)."""
+
+    def __init__(self, seconds, method, path):
+        self.seconds, self.method, self.path = seconds, method, path
+        self.until = dt.datetime.now() + dt.timedelta(seconds=seconds)
+        self.left = None
+        super().__init__(f"{method} {path} -> 429, Retry-After {seconds:.0f} s")
+
+
 class Harvest:
     """Bearer token, Harvest-Account-Id and a User-Agent on every request; stays under Harvest's
     rate limits (100 requests per 15 seconds, reports 100 per 15 minutes) and waits out a 429
-    for as long as Retry-After says. In a dry run it never touches the network."""
+    for as long as Retry-After says, up to LONG_WAIT; a longer wait stops the run
+    (HarvestPaused). In a dry run it never touches the network."""
 
     LIMITS = {"general": (95, 15.0), "reports": (95, 900.0)}
 
@@ -387,6 +403,8 @@ class Harvest:
                         wait = float(e.headers.get("Retry-After") or 15)
                     except ValueError:
                         wait = 15
+                    if wait > LONG_WAIT:
+                        raise HarvestPaused(wait, method, urllib.parse.urlsplit(url).path) from None
                     print(f"  Harvest asked us to slow down; waiting {wait:.0f} s", flush=True)
                     time.sleep(wait + 1)
                     continue
@@ -427,19 +445,23 @@ class Harvest:
         return made
 
     def update(self, what, path, body, label):
-        self.counts[what + " (updated)"] += 1
         if self.dry:
+            self.counts[what + " (updated)"] += 1
             print(f"  would update {what}: {label}")
             return dict(body)
-        return self.request("PATCH", path, body)
+        made = self.request("PATCH", path, body)
+        self.counts[what + " (updated)"] += 1
+        return made
 
     def event(self, what, path, event_type, label):
         """Marks an invoice or estimate sent, accepted, declined or closed. Sends no email."""
-        self.counts[f"{what} marked {event_type}"] += 1
         if self.dry:
+            self.counts[f"{what} marked {event_type}"] += 1
             print(f"  would mark {what} {event_type}: {label}")
             return None
-        return self.request("POST", path, {"event_type": event_type})
+        made = self.request("POST", path, {"event_type": event_type})
+        self.counts[f"{what} marked {event_type}"] += 1
+        return made
 
     def delete(self, what, path, label):
         self.counts[what + " deleted"] += 1
@@ -699,79 +721,155 @@ def fill(api, plan, owner, timestamps, running_timer):
                                    ("receipt", f"receipt-{n + 1}.pdf", "application/pdf", pdf))
         api.create("expense", "/expenses", body, label, multipart=multipart)
 
-    print("Invoices and payments")
+    run_steps(api, document_steps(api, plan, ids, oid, nothing_yet(), running_timer))
+    return ids
+
+
+# ------------------------------------------------------------------------------------------ invoices and estimates
+#
+# Built as a list of steps, worked out before any is sent, so a run that Harvest stops can say
+# exactly what's left, and --finish can do only that.
+
+
+def nothing_yet():
+    """What a fresh account holds of the invoices and estimates: nothing."""
+    return {"invoices": {}, "payments": {}, "estimates": {}, "projects_active": {}, "running_timer": False}
+
+
+def payment_plan(inv, amount, currency):
+    """The payments a planned invoice gets: (amount, days after the issue date, notes)."""
+    return {"paid": [(amount, 14, "Bank transfer")],
+            "partial": [(money(amount / 2, currency), 10, "First half, by bank transfer")],
+            "paid_twice": [(money(amount * Decimal("0.6"), currency), 7, "Deposit"),
+                           (amount - money(amount * Decimal("0.6"), currency), 21, "Balance")]}.get(inv["state"], [])
+
+
+def document_steps(api, plan, ids, owner_id, have, running_timer):
+    """Every step that brings the planned invoices and estimates to their planned state, then
+    finishes the projects, as (section, label, action) in order. `have` is what Harvest already
+    holds, so a stopped run is finished without making anything twice."""
+    steps = []
+    part = "Invoices and payments"
     for inv in plan.invoices:
-        currency = CLIENT[inv["client"]]["currency"]
-        body = clean({"client_id": ids["client"][inv["client"]], "number": inv["number"], "purchase_order": inv.get("po"),
-                      "tax": inv.get("tax"), "tax2": inv.get("tax2"), "discount": inv.get("discount"),
-                      "subject": inv["subject"], "notes": inv.get("notes"), "currency": currency,
-                      "issue_date": inv["issue_date"].isoformat(), "payment_term": inv["term"]})
-        if "lines" in inv:
-            body["line_items"] = [{"kind": k, "description": d, "quantity": q, "unit_price": D(u), "taxed": True,
-                                   "taxed2": bool(inv.get("tax2")), "project_id": ids["project"][proj]} for k, d, q, u, proj in inv["lines"]]
-            what = "free-form"
-        else:
-            imp = {"project_ids": [ids["project"][k] for k in inv["projects"]],
-                   "time": {"summary_type": inv["time"], "from": inv["from"].isoformat(), "to": inv["to"].isoformat()}}
-            if inv.get("expenses"):
-                imp["expenses"] = {"summary_type": inv["expenses"], "from": inv["from"].isoformat(), "to": inv["to"].isoformat()}
-            body["line_items_import"] = imp
-            what = f"time {inv['from']} to {inv['to']}" + (" and expenses" if inv.get("expenses") else "")
-        extras = ", ".join(f"{k} {inv[k]}%" for k in ("tax", "tax2", "discount") if inv.get(k))
-        label = f"{inv['number']} {CLIENT[inv['client']]['name']}, {currency}, {what}, {extras}, will be {inv['state']}"
-        obj = api.create("invoice", "/invoices", body, label)
-        iid = obj["id"]
-        if api.dry:
-            amount = plan.invoice_amount(inv)
-        else:
-            # VERIFY: whether imported lines come taxed; make sure they are, as the invoice says.
-            untaxed = [line for line in obj.get("line_items", [])
-                       if (inv.get("tax") and not line.get("taxed")) or (inv.get("tax2") and not line.get("taxed2"))]
-            if untaxed:
-                obj = api.update("invoice", f"/invoices/{iid}", {"line_items": [
-                    {"id": line["id"], "taxed": bool(inv.get("tax")), "taxed2": bool(inv.get("tax2"))} for line in untaxed]},
-                    f"{inv['number']}: tax on imported lines")
-            amount = D(obj["amount"])
-        inv["amount"] = amount
+        num = inv["number"]
+        old = have["invoices"].get(num)
+        doc = {"id": old["id"], "amount": D(old["amount"])} if old else {}
+        if not old:
+            steps.append((part, f"{num}: create it", lambda inv=inv, doc=doc: create_invoice(api, plan, ids, inv, doc)))
         if inv["state"] == "draft":
             continue
-        api.event("invoice", f"/invoices/{iid}/messages", "send", inv["number"])
-        paid = lambda days: min(inv["issue_date"] + dt.timedelta(days=days), plan.today).isoformat()
-        payments = {"paid": [(amount, 14, "Bank transfer")],
-                    "partial": [(money(amount / 2, currency), 10, "First half, by bank transfer")],
-                    "paid_twice": [(money(amount * Decimal("0.6"), currency), 7, "Deposit"),
-                                   (amount - money(amount * Decimal("0.6"), currency), 21, "Balance")]}.get(inv["state"], [])
-        for value, days, note in payments:
-            # send_thank_you defaults to true, which would email the client's contacts.
-            api.create("payment", f"/invoices/{iid}/payments",
-                       {"amount": value, "paid_date": paid(days), "notes": note, "send_thank_you": False},
-                       f"{inv['number']}: {fmt(value, currency)} {currency} on {paid(days)}")
-        if inv["state"] == "closed":
-            api.event("invoice", f"/invoices/{iid}/messages", "close", f"{inv['number']} (written off)")
-
-    print("Estimates")
+        if not old or old["state"] == "draft":
+            steps.append((part, f"{num}: mark it sent",
+                          lambda doc=doc, num=num: api.event("invoice", f"/invoices/{doc['id']}/messages", "send", num)))
+        recorded = have["payments"].get(num, set())
+        for i, (_, _, note) in enumerate(payment_plan(inv, Decimal(0), CLIENT[inv["client"]]["currency"])):
+            if note not in recorded:
+                steps.append((part, f"{num}: record the payment \"{note}\"",
+                              lambda inv=inv, doc=doc, i=i: record_payment(api, plan, inv, doc, i)))
+        if inv["state"] == "closed" and (not old or old["state"] != "closed"):
+            steps.append((part, f"{num}: write it off",
+                          lambda doc=doc, num=num: api.event("invoice", f"/invoices/{doc['id']}/messages", "close", f"{num} (written off)")))
+    part = "Estimates"
     for est in plan.estimates:
-        currency = CLIENT[est["client"]]["currency"]
-        body = clean({"client_id": ids["client"][est["client"]], "number": est["number"], "subject": est["subject"],
-                      "tax": est.get("tax"), "tax2": est.get("tax2"), "currency": currency, "issue_date": est["issue_date"].isoformat(),
-                      "line_items": [{"kind": k, "description": d, "quantity": q, "unit_price": D(u), "taxed": True,
-                                      "taxed2": bool(est.get("tax2"))} for k, d, q, u in est["lines"]]})
-        eid = api.create("estimate", "/estimates", body, f"{est['number']} {CLIENT[est['client']]['name']}, will be {est['state']}")["id"]
-        if est["state"] != "draft":
-            api.event("estimate", f"/estimates/{eid}/messages", "send", est["number"])
-        if est["state"] in ("accepted", "declined"):
-            api.event("estimate", f"/estimates/{eid}/messages", {"accepted": "accept", "declined": "decline"}[est["state"]], est["number"])
-
-    print("Finishing")
+        num = est["number"]
+        old = have["estimates"].get(num)
+        doc = {"id": old["id"]} if old else {}
+        if not old:
+            steps.append((part, f"{num}: create it", lambda est=est, doc=doc: create_estimate(api, ids, est, doc)))
+        if est["state"] == "draft":
+            continue
+        if not old or old["state"] == "draft":
+            steps.append((part, f"{num}: mark it sent",
+                          lambda doc=doc, num=num: api.event("estimate", f"/estimates/{doc['id']}/messages", "send", num)))
+        if not old or old["state"] != est["state"]:
+            verb = {"accepted": "accept", "declined": "decline"}[est["state"]]
+            steps.append((part, f"{num}: mark it {est['state']}",
+                          lambda doc=doc, num=num, verb=verb: api.event("estimate", f"/estimates/{doc['id']}/messages", verb, num)))
+    part = "Finishing"
     for p in PROJECTS:
-        if p.get("archive"):
-            api.update("project", f"/projects/{ids['project'][p['key']]}", {"is_active": False}, f"{p['name']}: archived")
-    if running_timer:
-        p = PROJECTS[0]
-        api.create("time entry", "/time_entries", {"user_id": oid, "project_id": ids["project"][p["key"]],
-                                                   "task_id": ids["task"]["dev"], "spent_date": plan.today.isoformat(),
-                                                   "notes": "Running timer"}, f"{plan.today} {p['name']}: a running timer")
-    return ids
+        if p.get("archive") and have["projects_active"].get(p["key"], True):
+            steps.append((part, f"{p['name']}: archive it",
+                          lambda p=p: api.update("project", f"/projects/{ids['project'][p['key']]}", {"is_active": False}, f"{p['name']}: archived")))
+    if running_timer and not have["running_timer"]:
+        steps.append((part, "start a timer today", lambda: start_timer(api, ids, owner_id)))
+    return steps
+
+
+def run_steps(api, steps):
+    section = None
+    for n, (part, label, action) in enumerate(steps):
+        if part != section:
+            print(part, flush=True)
+            section = part
+        if not api.dry:
+            print(f"  {label}", flush=True)
+        try:
+            action()
+        except HarvestPaused as e:
+            e.left = [lbl for _, lbl, _ in steps[n:]]
+            raise
+
+
+def create_invoice(api, plan, ids, inv, doc):
+    currency = CLIENT[inv["client"]]["currency"]
+    body = clean({"client_id": ids["client"][inv["client"]], "number": inv["number"], "purchase_order": inv.get("po"),
+                  "tax": inv.get("tax"), "tax2": inv.get("tax2"), "discount": inv.get("discount"),
+                  "subject": inv["subject"], "notes": inv.get("notes"), "currency": currency,
+                  "issue_date": inv["issue_date"].isoformat(), "payment_term": inv["term"]})
+    if "lines" in inv:
+        body["line_items"] = [{"kind": k, "description": d, "quantity": q, "unit_price": D(u), "taxed": True,
+                               "taxed2": bool(inv.get("tax2")), "project_id": ids["project"][proj]} for k, d, q, u, proj in inv["lines"]]
+        what = "free-form"
+    else:
+        imp = {"project_ids": [ids["project"][k] for k in inv["projects"]],
+               "time": {"summary_type": inv["time"], "from": inv["from"].isoformat(), "to": inv["to"].isoformat()}}
+        if inv.get("expenses"):
+            imp["expenses"] = {"summary_type": inv["expenses"], "from": inv["from"].isoformat(), "to": inv["to"].isoformat()}
+        body["line_items_import"] = imp
+        what = f"time {inv['from']} to {inv['to']}" + (" and expenses" if inv.get("expenses") else "")
+    extras = ", ".join(f"{k} {inv[k]}%" for k in ("tax", "tax2", "discount") if inv.get(k))
+    label = f"{inv['number']} {CLIENT[inv['client']]['name']}, {currency}, {what}, {extras}, will be {inv['state']}"
+    obj = api.create("invoice", "/invoices", body, label)
+    iid = obj["id"]
+    if api.dry:
+        amount = plan.invoice_amount(inv)
+    else:
+        # VERIFY: whether imported lines come taxed; make sure they are, as the invoice says.
+        untaxed = [line for line in obj.get("line_items", [])
+                   if (inv.get("tax") and not line.get("taxed")) or (inv.get("tax2") and not line.get("taxed2"))]
+        if untaxed:
+            obj = api.update("invoice", f"/invoices/{iid}", {"line_items": [
+                {"id": line["id"], "taxed": bool(inv.get("tax")), "taxed2": bool(inv.get("tax2"))} for line in untaxed]},
+                f"{inv['number']}: tax on imported lines")
+        amount = D(obj["amount"])
+    inv["amount"] = doc["amount"] = amount
+    doc["id"] = iid
+
+
+def record_payment(api, plan, inv, doc, i):
+    currency = CLIENT[inv["client"]]["currency"]
+    value, days, note = payment_plan(inv, doc["amount"], currency)[i]
+    paid_on = min(inv["issue_date"] + dt.timedelta(days=days), plan.today).isoformat()
+    # send_thank_you defaults to true, which would email the client's contacts.
+    api.create("payment", f"/invoices/{doc['id']}/payments",
+               {"amount": value, "paid_date": paid_on, "notes": note, "send_thank_you": False},
+               f"{inv['number']}: {fmt(value, currency)} {currency} on {paid_on}")
+
+
+def create_estimate(api, ids, est, doc):
+    currency = CLIENT[est["client"]]["currency"]
+    body = clean({"client_id": ids["client"][est["client"]], "number": est["number"], "subject": est["subject"],
+                  "tax": est.get("tax"), "tax2": est.get("tax2"), "currency": currency, "issue_date": est["issue_date"].isoformat(),
+                  "line_items": [{"kind": k, "description": d, "quantity": q, "unit_price": D(u), "taxed": True,
+                                  "taxed2": bool(est.get("tax2"))} for k, d, q, u in est["lines"]]})
+    doc["id"] = api.create("estimate", "/estimates", body, f"{est['number']} {CLIENT[est['client']]['name']}, will be {est['state']}")["id"]
+
+
+def start_timer(api, ids, owner_id):
+    p, today = PROJECTS[0], dt.date.today()
+    api.create("time entry", "/time_entries", {"user_id": owner_id, "project_id": ids["project"][p["key"]],
+                                               "task_id": ids["task"]["dev"], "spent_date": today.isoformat(),
+                                               "notes": "Running timer"}, f"{today} {p['name']}: a running timer")
 
 
 def _multipart(fields, file):
@@ -843,6 +941,144 @@ def delete_all(api, assume_yes):
     for r in found["roles"]:
         api.delete("role", f"/roles/{r['id']}", r["name"])
     print("Done: " + ", ".join(f"{n} {k}" for k, n in sorted(api.counts.items())))
+
+
+# ------------------------------------------------------------------------------------------ finish
+
+
+def first_run_day(clients):
+    """The day the stopped run started, read from when it made its clients. The plan is rebuilt
+    for that day, so the invoices cover the same months and the totals match what was filled."""
+    days = [dt.datetime.fromisoformat(c["created_at"].replace("Z", "+00:00")).astimezone().date()
+            for c in clients if c.get("created_at")]
+    return min(days) if days else dt.date.today()
+
+
+def existing_documents(api, found, owner_id, running_timer):
+    """What a stopped run left in Harvest: the ids --finish needs, the invoices, payments and
+    estimates already there, how many time entries and expenses there are, and what's missing."""
+    ids, have = collections.defaultdict(dict), nothing_yet()
+    entries = expenses = 0
+    missing = []
+    tasks = {t["name"]: t["id"] for t in found["tasks"]}
+    for t in TASKS:
+        if t["name"] + MARK in tasks:
+            ids["task"][t["key"]] = tasks[t["name"] + MARK]
+    clients = {c["name"]: c for c in found["clients"]}
+    for c in CLIENTS:
+        client = clients.get(c["name"] + MARK)
+        if not client:
+            missing.append(f"the client {c['name']}{MARK}")
+            continue
+        cid = ids["client"][c["key"]] = client["id"]
+        projects = {p.get("code"): p for p in api.all("/projects", "projects", {"client_id": cid})}
+        for p in PROJECTS:
+            if p["client"] != c["key"]:
+                continue
+            if p["code"] not in projects:
+                missing.append(f"the project {p['name']}")
+                continue
+            ids["project"][p["key"]] = projects[p["code"]]["id"]
+            have["projects_active"][p["key"]] = projects[p["code"]]["is_active"]
+        for inv in api.all("/invoices", "invoices", {"client_id": cid}):
+            have["invoices"][inv.get("number")] = inv
+        for est in api.all("/estimates", "estimates", {"client_id": cid}):
+            have["estimates"][est.get("number")] = est
+        entries += len(api.all("/time_entries", "time_entries", {"client_id": cid}))
+        expenses += len(api.all("/expenses", "expenses", {"client_id": cid}))
+    if "dev" not in ids["task"] and running_timer:
+        missing.append(f"the task {TASK['dev']['name']}{MARK}")
+    for num, inv in have["invoices"].items():
+        if inv["state"] != "draft":
+            have["payments"][num] = {pay.get("notes") for pay in api.all(f"/invoices/{inv['id']}/payments", "invoice_payments")}
+    if running_timer:
+        have["running_timer"] = bool(api.all("/time_entries", "time_entries", {"user_id": owner_id, "is_running": "true"}))
+    return ids, have, entries, expenses, missing
+
+
+def finish(api, args, me, found, totals_file):
+    if not found["clients"]:
+        print(f"This account has no test data (names ending in '{MARK}') to finish. Run without --finish to fill it.", file=sys.stderr)
+        return 2
+    day = first_run_day(found["clients"])
+    plan = Plan(day, args.seed, me.get("default_hourly_rate"))
+    try:
+        ids, have, entries, expenses, missing = existing_documents(api, found, me["id"], args.with_running_timer)
+    except HarvestPaused as e:
+        e.left = []  # nothing changed yet; the same command works later
+        raise
+    if missing:
+        print("--finish can't complete this account: " + ", ".join(missing) + (" is" if len(missing) == 1 else " are") + " missing.", file=sys.stderr)
+        print("Run --delete, then fill it again.", file=sys.stderr)
+        return 2
+    if entries < len(plan.entries) or expenses < len(plan.expenses):
+        print(f"Harvest has {entries} of the {len(plan.entries)} time entries and {expenses} of the {len(plan.expenses)} expenses "
+              f"the run on {day} planned.", file=sys.stderr)
+        print("--finish doesn't add time entries or expenses. Run --delete, then fill it again.", file=sys.stderr)
+        return 2
+    print(f"Test data from a run on {day}. Harvest has its {entries} time entries and {expenses} expenses; "
+          "--finish leaves them as they are.")
+    steps = document_steps(api, plan, ids, me["id"], have, args.with_running_timer)
+    if steps:
+        print(f"Still to do ({len(steps)}):")
+        for _, label, _ in steps:
+            print(f"  {label}")
+        if not confirm("Do these now?", args.yes):
+            print("Nothing was changed.")
+            return 1
+        print()
+        run_steps(api, steps)
+        print(f"\nFinished with {api.requests} requests.")
+        summary(api, plan)
+    else:
+        print("Nothing left to do: every invoice and estimate is as planned.")
+    end_totals(api, plan, args, totals_file)
+    return 0
+
+
+def again(args, flag):
+    """The command to run next, with the options this run was given that still matter."""
+    extra = (f" --seed {args.seed}" if args.seed != 2026 else "") + (" --with-running-timer" if args.with_running_timer else "")
+    return f"python3 scripts/harvest-fill/harvest_fill.py {flag}{extra}"
+
+
+def paused(api, args, e):
+    hours, minutes = divmod(round(e.seconds / 60), 60)
+    span = " and ".join(x for x in (f"{hours} hour{'s' * (hours != 1)}" if hours else "",
+                                     f"{minutes} minute{'s' * (minutes != 1)}" if minutes else "") if x)
+    when = f"{e.until:%H:%M} on {e.until:%A} {e.until.day} {e.until:%B}"
+    what = " (marking an invoice or estimate)" if e.path.endswith("/messages") else ""
+    print(f"\nHarvest asked us to wait {span} before {e.method} {e.path}{what}: until about {when}.")
+    print("Waiting that long helps nobody, so the script stops here.")
+    done = ", ".join(f"{n} {kind}" for kind, n in sorted(api.counts.items()))
+    print(f"Done in this run: {done or 'nothing'}.")
+    if e.left is None:
+        print("It stopped before the invoices, which --finish can't make up for. After that time, run")
+        print(f"  {again(args, '--delete')}")
+        print("and then fill the account again.")
+        return 3
+    if e.left:
+        print(f"Still to do ({len(e.left)}):")
+        for label in e.left:
+            print(f"  {label}")
+    print("After that time, finish it with the same token, from the same folder:")
+    print(f"  {again(args, '--finish')}")
+    print("If Harvest stops it again, run the same command when it says: each run picks up where the last one stopped.")
+    return 3
+
+
+def end_totals(api, plan, args, totals_file):
+    harvest = harvest_totals(api, plan.start, dt.date.today())
+    harvest["planned"] = planned_totals(plan)["clients"]
+    report(harvest, totals_file)
+    planned = {r["client"]: r for r in harvest["planned"]}
+    for r in harvest["clients"]:
+        want = planned.get(r["client"])
+        if want and (r["hours"] != want["hours"] or r["invoices"] != want["invoices"]):
+            print(f"Note: for {r['client']}, Harvest shows {r['hours']} hours and {r['invoices']} invoice(s); the plan had "
+                  f"{want['hours']} and {want['invoices']}. Time's import compares against Harvest, so Harvest's figures count.")
+    if args.with_running_timer:
+        print("A timer is running on Data platform rebuild, so its hours keep growing until you stop it.")
 
 
 # ------------------------------------------------------------------------------------------ totals
@@ -956,6 +1192,7 @@ def main():
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--delete", action="store_true", help=f"delete everything an earlier run created (marked{MARK})")
     mode.add_argument("--totals", action="store_true", help="only print and save Harvest's totals for the test data")
+    mode.add_argument("--finish", action="store_true", help="finish the invoices and estimates of a run Harvest stopped")
     ap.add_argument("--dry-run", action="store_true", help="print what would be created and the planned totals; sends nothing")
     ap.add_argument("--yes", action="store_true", help="don't ask before filling or deleting")
     ap.add_argument("--seed", type=int, default=2026, help="seed for the made-up time entries (default 2026)")
@@ -974,6 +1211,12 @@ def main():
             print(f"--delete finds clients, tasks, expense categories and roles whose names end in '{MARK}', lists them,")
             print("asks, then deletes: payments, invoices, estimates, projects (with their time and expenses),")
             print("contacts, clients, tasks, expense categories, roles. --totals reads Harvest's time report and invoices.")
+            return 0
+        if args.finish:
+            print(f"--finish reads what a stopped run left (names ending in '{MARK}'), rebuilds the plan for the day that")
+            print("run started, and does only what's missing: invoices and estimates not yet created, marking them sent,")
+            print("payments, writing off, accepting or declining, and archiving the finished project. It never adds")
+            print("time entries or expenses. It lists every step and asks before it starts.")
             return 0
         api = Harvest("", "", dry_run=True, verbose=args.verbose)
         owner = {"id": 0, "first_name": "Account", "last_name": "owner", "default_hourly_rate": None}
@@ -1005,8 +1248,11 @@ def main():
             print("This person isn't an administrator; invoices, estimates and roles need one.", file=sys.stderr)
             return 2
         found = marked(api)
+        if args.finish:
+            return finish(api, args, me, found, totals_file)
         if any(found.values()):
-            print(f"This account already has test data (names ending in '{MARK}'). Run with --delete first.", file=sys.stderr)
+            print(f"This account already has test data (names ending in '{MARK}'). Run with --delete first,", file=sys.stderr)
+            print("or with --finish if a run was stopped while making the invoices.", file=sys.stderr)
             return 2
         plan = Plan(today, args.seed, me.get("default_hourly_rate"))
         print(f"This adds made-up clients, projects, about {len(plan.entries)} time entries, expenses, invoices and estimates.")
@@ -1018,18 +1264,10 @@ def main():
         fill(api, plan, me, timestamps=bool(company.get("wants_timestamp_timers")), running_timer=args.with_running_timer)
         print(f"\nFilled in {time.monotonic() - started:.0f} s with {api.requests} requests.")
         summary(api, plan)
-        harvest = harvest_totals(api, plan.start, today)
-        harvest["planned"] = planned_totals(plan)["clients"]
-        report(harvest, totals_file)
-        planned = {r["client"]: r for r in harvest["planned"]}
-        for r in harvest["clients"]:
-            want = planned.get(r["client"])
-            if want and (r["hours"] != want["hours"] or r["invoices"] != want["invoices"]):
-                print(f"Note: for {r['client']}, Harvest shows {r['hours']} hours and {r['invoices']} invoice(s); the plan had "
-                      f"{want['hours']} and {want['invoices']}. Time's import compares against Harvest, so Harvest's figures count.")
-        if args.with_running_timer:
-            print("A timer is running on Data platform rebuild, so its hours keep growing until you stop it.")
+        end_totals(api, plan, args, totals_file)
         return 0
+    except HarvestPaused as e:
+        return paused(api, args, e)
     except HarvestError as e:
         print(f"\nHarvest said no: {e}", file=sys.stderr)
         print("Anything already created can be removed with --delete; then run again.", file=sys.stderr)
