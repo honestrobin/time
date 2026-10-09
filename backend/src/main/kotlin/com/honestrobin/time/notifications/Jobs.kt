@@ -11,6 +11,8 @@ import com.honestrobin.time.db.tables.records.AccountsRecord
 import com.honestrobin.time.platform.HonestRobinProperties
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
+import com.honestrobin.time.platform.features.Feature
+import com.honestrobin.time.platform.features.Features
 import com.honestrobin.time.platform.mail.Mailer
 import com.github.kagkarlsson.scheduler.task.helper.RecurringTask
 import com.github.kagkarlsson.scheduler.task.helper.Tasks
@@ -33,7 +35,8 @@ import java.util.Locale
 /**
  * Weekly timesheet reminders (spec §2.1): on the first day of the account's week, from 09:00
  * local time, people whose previous week is incomplete get one email. "Incomplete" means below
- * their weekly capacity, or not submitted when approvals are on.
+ * their weekly capacity, or not submitted when approvals are on (the account's setting and the
+ * approvals switch, platform.features).
  */
 @Service
 class TimesheetReminderService(
@@ -42,6 +45,7 @@ class TimesheetReminderService(
     private val mailer: Mailer,
     private val props: HonestRobinProperties,
     private val clock: Clock,
+    private val features: Features,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -76,9 +80,10 @@ class TimesheetReminderService(
             .from(MEMBERSHIPS).join(USERS).on(USERS.ID.eq(MEMBERSHIPS.USER_ID))
             .where(MEMBERSHIPS.IS_ACTIVE.isTrue).and(MEMBERSHIPS.STATUS.eq("active"))
             .fetch()
+        val approvals = account.approvalsEnabled && features.isOn(Feature.APPROVALS)
         var sent = 0
         people.forEach { p ->
-            val incomplete = p.value3() < p.value4() || (account.approvalsEnabled && p.value5() != true)
+            val incomplete = p.value3() < p.value4() || (approvals && p.value5() != true)
             if (incomplete) {
                 mailer.send(
                     "timesheet-reminder", p.value1(), Locale.forLanguageTag(account.locale),

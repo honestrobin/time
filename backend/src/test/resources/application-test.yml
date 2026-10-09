@@ -1,5 +1,7 @@
 honestrobin:
   signup-mode: open
+  # Tests cover every feature, switched on or not by default; SwitchedOffTest runs with the defaults.
+  features: all
   # The first sign-up of an instance needs it (FirstUserSetup); TestClient sends it with every one.
   setup-code: test-setup-code
   mail:

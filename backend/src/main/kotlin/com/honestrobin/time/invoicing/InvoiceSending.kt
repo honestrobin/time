@@ -14,6 +14,8 @@ import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.InvoicesRecord
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
+import com.honestrobin.time.platform.features.Feature
+import com.honestrobin.time.platform.features.Features
 import com.honestrobin.time.platform.mail.MailAttachment
 import com.honestrobin.time.platform.mail.Mailer
 import com.honestrobin.time.platform.mail.OutgoingMail
@@ -167,7 +169,8 @@ class InvoiceSender(
  * Payment reminders (spec §5.5, AT-3.5): on the days the account chose relative to the due date
  * (by default three days before, on the day, and a week after), in the account's time zone. Each
  * reminder goes once; a paid or void invoice gets none. If the job was down for some days, only
- * the most recent missed reminder is sent, not all of them at once.
+ * the most recent missed reminder is sent, not all of them at once. None while invoices are
+ * switched off (platform.features).
  */
 @Service
 class InvoiceReminderService(
@@ -177,10 +180,12 @@ class InvoiceReminderService(
     private val settings: AccountSettingsRepository,
     private val outbound: OutboundMail,
     private val clock: Clock,
+    private val features: Features,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     fun runDue(): Int {
+        if (!features.isOn(Feature.INVOICES)) return 0
         val accounts = tx.system {
             dsl.select(ACCOUNTS.ID, ACCOUNTS.INVOICE_REMINDER_DAYS).from(ACCOUNTS)
                 .where(ACCOUNTS.INVOICE_REMINDERS_ENABLED.isTrue).and(ACCOUNTS.STATUS.eq("active")).fetch()
@@ -193,6 +198,7 @@ class InvoiceReminderService(
     }
 
     fun remindAccount(accountId: UUID, days: Set<Int>): Int {
+        if (!features.isOn(Feature.INVOICES)) return 0
         if (!outbound.canSend(accountId) || !sender.canEmail()) return 0
         val today = settings.get(accountId).today(clock)
         var sent = 0

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Button, PageHeader, useToast } from "../../design";
 import { errorInfo } from "../../lib/api";
 import { formatDate, formatMoney } from "../../lib/format";
+import { useTeamShows } from "../team/reach";
 import { accountQuery } from "./AccountSettingsPage";
 import { call, startTeamCheckout, subscriptionQuery } from "./billing";
 import { CancelPlan } from "./CancelPlan";
@@ -18,6 +19,8 @@ export function BillingPage() {
   const sub = useQuery(subscriptionQuery);
   const { data: account } = useQuery(accountQuery);
   const [waiting, setWaiting] = useState(false);
+  // No Team plan to start while nobody can be invited (the team is switched off, and it's just you).
+  const team = useTeamShows();
 
   const checkout = useMutation({
     mutationFn: (interval: "month" | "year") =>
@@ -70,8 +73,8 @@ export function BillingPage() {
       {s && s.plan === "free" && (
         <section className="stack">
           <h2>{t("billing.freeTitle")}</h2>
-          <p>{t("billing.freeBody")}</p>
-          {s.billing_available && (
+          <p>{t(team ? "billing.freeBody" : "billing.freeBodySolo")}</p>
+          {s.billing_available && team && (
             <div className="plan-options">
               {s.prices
                 .slice()

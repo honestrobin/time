@@ -132,6 +132,22 @@ jobs:
           if docker compose -f deploy/docker-compose.yml logs app | grep -E " ERROR "; then
             echo "The app logged errors during the end-to-end tests"; exit 1
           fi
+      # Most people get the default switches: the same instance again with only the core.
+      - name: The core alone, with the default switches
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --no-build --wait --wait-timeout 300 app
+          timeout 180 bash -c 'until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 2; done'
+          curl -fsS http://localhost:8080/api/v1/auth/config | grep -q '"features":\[\]'
+          pnpm --filter @honestrobin/e2e exec playwright test tests/40-default-core.spec.ts
+          if docker compose -f deploy/docker-compose.yml logs app | grep -E " ERROR "; then
+            echo "The app logged errors with the default switches"; exit 1
+          fi
+        env:
+          HONESTROBIN_EDITION: ${{ matrix.edition }}
+          HONESTROBIN_SETUP_CODE: e2e-setup-code
+          HONESTROBIN_FEATURES: ""
+          CI: "true"
+          HONESTROBIN_E2E_BASE_URL: http://localhost:8080
       - name: App state (threads, database sessions)
         if: failure()
         run: |
