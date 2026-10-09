@@ -1,12 +1,17 @@
 # Honest Robin: Time
 
-Open-source time tracking and invoicing for freelancers and agencies. It works the way people who
-come from Harvest expect, can import your Harvest account, and has e-invoicing built in.
-Run it on your own server, or use Honest Robin Cloud (coming later). It's one of the
+Open-source time tracking for freelancers first, and small teams next. Run it on your own
+server, or use Honest Robin Cloud (coming later). It's one of the
 [Honest Robin](https://honestrobin.com) products: a joy to use, honest, and you come first.
 
 > **Not released yet.** Version 1 is built and being tried out before a first release. See the
 > [roadmap](ROADMAP.md) for what's built, what isn't, and what's still to check.
+>
+> **A small core first.** Time shows a small core: tracking time, clients and projects, reports,
+> and your data. Invoices, e-invoicing, the team, approvals, budgets, expenses and the Harvest
+> import are built too, and switched off by default while we make the core a joy to use. They come
+> back one at a time. A self-hosted instance can switch them on now with `HONESTROBIN_FEATURES`
+> ([self-host.md](docs/self-host.md)).
 
 ![The week timesheet](docs/screenshots/timesheet.png)
 
@@ -40,18 +45,20 @@ Reports of anything that looks wrong are very welcome; see
 
 ## What it does
 
-- **Track time** with timers or day and week timesheets; approvals lock submitted weeks; budgets warn you before they run out.
-- **Invoice** from tracked time and expenses, with gapless numbering, taxes or VAT, PDFs, reminders, and online payment through your own Stripe account (no fee from us).
-- **E-invoicing:** Factur-X/ZUGFeRD, XRechnung and Peppol BIS, sent over Peppol if you like; invoices and payments can go to QuickBooks Online or Xero.
-- **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
-- **Reports** for time, uninvoiced work, budgets and expenses, exported to CSV or Excel.
+- **Track time** with a timer, or in day and week timesheets.
+- **Clients and projects,** with an hourly rate if you want one.
+- **Reports** of hours and amounts by client and project, exported to CSV or Excel.
 - **A browser extension** (Chrome, Firefox) with a timer and a "Track time" button on Jira, Asana, GitHub, Linear and Trello.
 - **Your data stays yours:** one Move out button, on every plan and in every state, gives you a full export, says where you can go next and lists what's still connected. A public REST API, and two-factor sign-in.
 
-<p>
-  <img src="docs/screenshots/report.png" alt="The time report" width="49%">
-  <img src="docs/screenshots/invoice.png" alt="A draft invoice" width="49%">
-</p>
+Built, and switched off by default (`HONESTROBIN_FEATURES`):
+
+- **Invoices** from tracked time and expenses, with gapless numbering, taxes or VAT, PDFs, reminders, and online payment through your own Stripe account (no fee from us).
+- **E-invoicing:** Factur-X/ZUGFeRD, XRechnung and Peppol BIS, sent over Peppol if you like; invoices and payments can go to QuickBooks Online or Xero.
+- **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
+- **Teams:** invitations, approvals that lock submitted weeks, budgets that warn you before they run out, expenses, and a shared list of tasks.
+
+![The time report](docs/screenshots/report.png)
 
 ## Our promises
 

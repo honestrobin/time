@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, SelectField, TextField } from "../../design";
 import { api, errorInfo, setAccountId, unwrap } from "../../lib/api";
+import { featureOn } from "../../lib/features";
 import { useAuthConfig } from "../../lib/session";
 import { CURRENCIES, TIME_ZONES, guessCurrency, guessWeekStart, invoiceLocale } from "../../lib/reference";
 import { AuthLayout } from "./AuthLayout";
@@ -30,8 +31,10 @@ export function SignupPage() {
     onSuccess: async (res) => {
       if (res.account_id) setAccountId(res.account_id);
       await qc.invalidateQueries();
-      // The marketing site's "Import from Harvest" button signs people up with ?import=harvest.
-      await navigate({ to: new URLSearchParams(location.search).get("import") === "harvest" ? "/settings/import" : "/" });
+      // The marketing site's "Import from Harvest" button signs people up with ?import=harvest,
+      // which goes to the import while that feature is switched on (lib/features).
+      const toImport = new URLSearchParams(location.search).get("import") === "harvest" && featureOn(config?.features, "import");
+      await navigate({ to: toImport ? "/settings/import" : "/" });
     },
   });
   const submit = (e: FormEvent) => {

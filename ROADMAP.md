@@ -7,6 +7,13 @@ and the integrations below need checking against the real services.
 
 ## What's in version 1
 
+Since 9 October 2026 the web app shows a small core: time tracking, clients and projects, the time
+reports, and your data. Everything else below is built and switched off by default, while we make
+the core a joy to use first, and comes back one feature at a time (`HONESTROBIN_FEATURES`,
+[self-host.md](docs/self-host.md)): invoicing, e-invoicing, accounting, the Harvest import,
+expenses, the shared task list, the team, approvals and budgets. The API and the export cover
+all of it either way.
+
 - **Time tracking:** timers, day and week timesheets, approvals that lock submitted weeks,
   budgets with alerts, and rates resolved per project, task or person and kept on each entry.
 - **Invoicing:** invoices from uninvoiced time and expenses, gapless numbering, two named taxes or

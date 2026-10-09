@@ -9,6 +9,14 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Time now shows a small core: tracking time, clients and projects, the time reports, and your
+  data (export, Move out, settings and help). Invoices, e-invoicing, online payments, accounting,
+  expenses, the shared task list, the team, approvals, budgets and the Harvest import are built
+  and still work, and they're switched off by default while we make the core a joy to use. They
+  come back one at a time. Nothing is deleted: the API and the export cover everything, and Move
+  out still links to wherever a connection is ended. Self-hosted: to keep everything as it was,
+  set `HONESTROBIN_FEATURES=all`, or name the parts you use (`docs/self-host.md`). The audit log
+  and the API reference moved out of the menu, to Settings → Account and Profile.
 - Editing an invoice runs in a single transaction again. From 4 October until this change it
   didn't. With the Compose setup's default database user, someone allowed to invoice in one
   account could read and change an invoice of another account on the same instance, if they knew

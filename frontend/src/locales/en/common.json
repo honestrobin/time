@@ -47,7 +47,7 @@
   },
   "auth": {
     "signInTitle": "Sign in",
-    "signInLead": "Track time, send invoices, keep your rate.",
+    "signInLead": "Track your time, and see what it's worth.",
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
@@ -164,6 +164,7 @@
     "passwordChanged": "Password changed. Other sessions were signed out.",
     "apiTokens": "Personal access tokens",
     "apiTokensLead": "Use these with the API or the browser extension. A token acts as you in this account.",
+    "apiReferenceLink": "Read the API reference",
     "newToken": "New token",
     "tokenName": "Token name",
     "tokenNameHint": "Something that reminds you where it is used, e.g. \"Browser extension\".",
@@ -256,6 +257,7 @@
     "twoFactorGateTitle": "Set up two-factor sign-in",
     "twoFactorGateLead": "{{account}} requires two-factor sign-in. Set it up to continue: it takes a minute, with any authenticator app on your phone.",
     "security": "Security",
+    "auditLogLink": "See the audit log: who changed what, and when",
     "dateStyle": "Dates on invoices",
     "dateStyleHint": "How dates look on invoices, their PDFs and the page your client sees."
   },

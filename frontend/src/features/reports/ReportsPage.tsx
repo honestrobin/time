@@ -2,6 +2,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { PageHeader, Tabs } from "../../design";
+import { featureOn, useFeatures } from "../../lib/features";
 import { usePermissions } from "../../lib/session";
 import { useAccountSettings } from "../time/hooks";
 import { DetailedReport } from "./DetailedReport";
@@ -22,6 +23,8 @@ const FILTERS_FOR: Record<Tab, FilterKey[]> = {
   expenses: ["client", "project", "person", "team", "category"],
 };
 
+const ALL_TABS: Tab[] = ["time", "detailed", "uninvoiced", "budget", "expenses"];
+
 /** Reports (spec §12): what was worked, what's billable, what's waiting to be invoiced, how budgets stand. */
 export function ReportsPage() {
   const { t } = useTranslation();
@@ -29,9 +32,23 @@ export function ReportsPage() {
   const navigate = useNavigate({ from: "/reports" });
   const perms = usePermissions();
   const account = useAccountSettings();
-  const { options, projects, available } = useFilterOptions();
+  const { options, projects, available: offered } = useFilterOptions();
+  const features = useFeatures();
+  // Reports and filters of switched-off features stay out of sight (lib/features).
+  const shown: Record<Tab, boolean> = {
+    time: true,
+    detailed: true,
+    uninvoiced: perms.isManagerOrAdmin && featureOn(features, "invoices"),
+    budget: featureOn(features, "budgets"),
+    expenses: featureOn(features, "expenses"),
+  };
+  const hiddenFilters: FilterKey[] = [
+    ...(featureOn(features, "tasks") ? [] : (["task"] as const)),
+    ...(featureOn(features, "team") ? [] : (["person", "team"] as const)),
+  ];
+  const available = offered.filter((k) => !hiddenFilters.includes(k));
 
-  const tabs: Tab[] = perms.isManagerOrAdmin ? ["time", "detailed", "uninvoiced", "budget", "expenses"] : ["time", "detailed", "budget", "expenses"];
+  const tabs: Tab[] = ALL_TABS.filter((x) => shown[x]);
   const tab: Tab = search.tab && tabs.includes(search.tab) ? search.tab : "time";
   const unit: Unit = search.unit ?? "month";
   const range: Range =

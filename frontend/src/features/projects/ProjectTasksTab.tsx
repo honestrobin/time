@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Checkbox, SelectField, useToast } from "../../design";
 import { api, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDuration, formatMoney, minorToInput } from "../../lib/format";
+import { useFeature } from "../../lib/features";
 import { usePermissions } from "../../lib/session";
 import { CellDuration, CellMoney } from "./cells";
 import { byName, tasksQuery, useAccountDefaults, useProjectCache, type Project, type ProjectTask } from "./queries";
@@ -17,6 +18,8 @@ export function ProjectTasksTab({ project, onRatesChanged }: { project: Project;
   const { t } = useTranslation();
   const toast = useToast();
   const perms = usePermissions();
+  // The task list is a switched-off feature unless the server says otherwise (lib/features).
+  const taskList = useFeature("tasks");
   const cache = useProjectCache();
   const { durationStyle } = useAccountDefaults();
   const tasksQ = useQuery(tasksQuery);
@@ -208,7 +211,7 @@ export function ProjectTasksTab({ project, onRatesChanged }: { project: Project;
           !tasksQ.isLoading && (
             <p className="muted">
               {t("projects.tasks.allAdded")}{" "}
-              {perms.canManageProjects && <Link to="/tasks">{t("projects.tasks.manageTasks")}</Link>}
+              {perms.canManageProjects && taskList && <Link to="/tasks">{t("projects.tasks.manageTasks")}</Link>}
             </p>
           )
         )}

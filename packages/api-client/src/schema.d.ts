@@ -2315,6 +2315,7 @@ export interface components {
             analytics?: components["schemas"]["ClientAnalyticsConfig"];
             edition: string;
             email_configured: boolean;
+            features: string[];
             magic_links: boolean;
             marketing_url?: string;
             needs_setup: boolean;

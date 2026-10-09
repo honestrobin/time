@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { EmptyState, LoadingRow, PageHeader } from "../../design";
 import { errorInfo } from "../../lib/api";
 import { formatDuration, formatMoney } from "../../lib/format";
+import { useFeature } from "../../lib/features";
 import { usePermissions } from "../../lib/session";
 import { BudgetMeter, budgetFigures } from "./BudgetMeter";
 import { isLineBudget, isMoneyBudget } from "./labels";
@@ -24,13 +25,17 @@ export function ProjectsPage() {
   const list = useQuery(projectsQuery(filter === "active"));
   const projects = list.data?.data ?? [];
 
+  // Budgets and the import are switched-off features unless the server says otherwise (lib/features).
+  const showBudgets = useFeature("budgets");
+  const canImport = useFeature("import");
+
   // Usage per budgeted project: the list endpoint has no spent figures.
-  const budgeted = projects.filter((p) => p.budget_by !== "none");
+  const budgeted = showBudgets ? projects.filter((p) => p.budget_by !== "none") : [];
   const budgets = useQueries({ queries: budgeted.map((p) => budgetQuery(p.id)) });
   const budgetById = new Map(budgeted.map((p, i) => [p.id, budgets[i]?.data]));
 
   const groups = groupByClient(projects);
-  const cols = 4;
+  const cols = showBudgets ? 4 : 3;
 
   const newButton = perms.canManageProjects && (
     <Link to="/projects/new" className="btn btn-primary">
@@ -106,7 +111,7 @@ export function ProjectsPage() {
                   <Link to="/projects/new" className="btn btn-primary">
                     {t("projects.empty.action")}
                   </Link>
-                  {perms.isAdmin && (
+                  {perms.isAdmin && canImport && (
                     <Link to="/settings/import" className="btn">
                       {t("projects.empty.import")}
                     </Link>
@@ -125,7 +130,7 @@ export function ProjectsPage() {
               <th>{t("projects.list.project")}</th>
               <th className="col-narrow">{t("projects.fields.code")}</th>
               <th>{t("projects.list.billing")}</th>
-              <th>{t("projects.list.budget")}</th>
+              {showBudgets && <th>{t("projects.list.budget")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -148,7 +153,7 @@ export function ProjectsPage() {
                     {billing(p)}
                     {p.is_fixed_fee && <span className="badge" style={{ marginLeft: 8 }}>{t("projects.list.fixedFee")}</span>}
                   </td>
-                  <td>{budgetCell(p)}</td>
+                  {showBudgets && <td>{budgetCell(p)}</td>}
                 </tr>
               )),
             ])}

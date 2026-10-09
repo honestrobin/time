@@ -115,6 +115,8 @@ jobs:
         env:
           HONESTROBIN_EDITION: ${{ matrix.edition }}
           HONESTROBIN_SETUP_CODE: e2e-setup-code
+          # The end-to-end tests cover every feature, switched on or not by default.
+          HONESTROBIN_FEATURES: all
       - name: Wait for the app
         run: timeout 180 bash -c 'until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 2; done'
       - run: pnpm --filter @honestrobin/e2e exec playwright install --with-deps chromium

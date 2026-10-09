@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, DurationField, Field, MoneyField, SelectField, TextAreaField, TextField, type Option } from "../../design";
 import type { Schemas } from "../../lib/api";
+import { useFeature } from "../../lib/features";
 import type { DurationStyle } from "../../lib/format";
 import { usePermissions } from "../../lib/session";
 import { BILL_BY, BUDGET_BY, isLineBudget, isMoneyBudget } from "./labels";
@@ -185,6 +186,9 @@ export function ProjectFields({ form, onChange, errors, clients, currency, durat
     label: t(`projects.budgetBy.${b}`),
   }));
   const hasBudget = form.budget_by !== "none";
+  // Budgets are a switched-off feature unless the server says otherwise (lib/features); a budget
+  // set earlier is kept as it is.
+  const budgets = useFeature("budgets");
   const perLine = mode === "create" && (form.bill_by === "tasks" || form.bill_by === "people");
 
   return (
@@ -260,59 +264,61 @@ export function ProjectFields({ form, onChange, errors, clients, currency, durat
         </div>
       </section>
 
-      <section className="form-section">
-        <h2>{t("projects.form.budget")}</h2>
-        <div className="stack">
-          <div className="form-grid">
-            <SelectField label={t("projects.fields.budgetBy")} value={form.budget_by} onChange={set("budget_by")} options={budgetByOptions} error={errors.budget_by} />
-            {form.budget_by === "project" ? (
-              <DurationField
-                label={t("projects.fields.budgetHours")}
-                hint={t("projects.fields.budgetHoursHint")}
-                value={form.budget_seconds}
-                onChange={set("budget_seconds")}
-                style={durationStyle}
-                error={errors.budget_seconds}
-              />
-            ) : form.budget_by === "project_cost" && perms.canSeeRates ? (
-              <MoneyField
-                label={t("projects.fields.budgetAmount")}
-                value={form.budget_amount}
-                onChange={set("budget_amount")}
-                currency={currency}
-                error={errors.budget_amount}
-              />
-            ) : (
-              <div />
+      {budgets && (
+        <section className="form-section">
+          <h2>{t("projects.form.budget")}</h2>
+          <div className="stack">
+            <div className="form-grid">
+              <SelectField label={t("projects.fields.budgetBy")} value={form.budget_by} onChange={set("budget_by")} options={budgetByOptions} error={errors.budget_by} />
+              {form.budget_by === "project" ? (
+                <DurationField
+                  label={t("projects.fields.budgetHours")}
+                  hint={t("projects.fields.budgetHoursHint")}
+                  value={form.budget_seconds}
+                  onChange={set("budget_seconds")}
+                  style={durationStyle}
+                  error={errors.budget_seconds}
+                />
+              ) : form.budget_by === "project_cost" && perms.canSeeRates ? (
+                <MoneyField
+                  label={t("projects.fields.budgetAmount")}
+                  value={form.budget_amount}
+                  onChange={set("budget_amount")}
+                  currency={currency}
+                  error={errors.budget_amount}
+                />
+              ) : (
+                <div />
+              )}
+            </div>
+            {isLineBudget(form.budget_by) && <p className="muted inline-note">{t(`projects.form.lineBudget.${form.budget_by}${mode === "create" ? "Create" : ""}`)}</p>}
+            {hasBudget && (
+              <>
+                {form.budget_by === "project_cost" && (
+                  <Checkbox checked={form.budget_include_expenses} onChange={set("budget_include_expenses")} label={t("projects.fields.includeExpenses")} />
+                )}
+                <Checkbox checked={form.budget_is_monthly} onChange={set("budget_is_monthly")} label={t("projects.fields.monthly")} hint={t("projects.fields.monthlyHint")} />
+                <div className="form-grid">
+                  <PercentField
+                    label={t("projects.fields.alertPercent")}
+                    hint={t("projects.fields.alertPercentHint")}
+                    value={form.budget_alert_percent}
+                    onChange={set("budget_alert_percent")}
+                    error={errors.budget_alert_percent}
+                  />
+                </div>
+                <Checkbox
+                  checked={form.notify_when_over_budget}
+                  onChange={set("notify_when_over_budget")}
+                  label={t("projects.fields.notify")}
+                  hint={t("projects.fields.notifyHint")}
+                />
+                <Checkbox checked={form.show_budget_to_all} onChange={set("show_budget_to_all")} label={t("projects.fields.showBudget")} hint={t("projects.fields.showBudgetHint")} />
+              </>
             )}
           </div>
-          {isLineBudget(form.budget_by) && <p className="muted inline-note">{t(`projects.form.lineBudget.${form.budget_by}${mode === "create" ? "Create" : ""}`)}</p>}
-          {hasBudget && (
-            <>
-              {form.budget_by === "project_cost" && (
-                <Checkbox checked={form.budget_include_expenses} onChange={set("budget_include_expenses")} label={t("projects.fields.includeExpenses")} />
-              )}
-              <Checkbox checked={form.budget_is_monthly} onChange={set("budget_is_monthly")} label={t("projects.fields.monthly")} hint={t("projects.fields.monthlyHint")} />
-              <div className="form-grid">
-                <PercentField
-                  label={t("projects.fields.alertPercent")}
-                  hint={t("projects.fields.alertPercentHint")}
-                  value={form.budget_alert_percent}
-                  onChange={set("budget_alert_percent")}
-                  error={errors.budget_alert_percent}
-                />
-              </div>
-              <Checkbox
-                checked={form.notify_when_over_budget}
-                onChange={set("notify_when_over_budget")}
-                label={t("projects.fields.notify")}
-                hint={t("projects.fields.notifyHint")}
-              />
-              <Checkbox checked={form.show_budget_to_all} onChange={set("show_budget_to_all")} label={t("projects.fields.showBudget")} hint={t("projects.fields.showBudgetHint")} />
-            </>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="form-section">
         <h2>{t("projects.form.datesNotes")}</h2>
