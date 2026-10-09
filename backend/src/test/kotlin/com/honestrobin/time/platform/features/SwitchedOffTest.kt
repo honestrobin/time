@@ -25,8 +25,10 @@ import java.time.ZonedDateTime
 /**
  * An instance with the default switches: everything beyond the core is off. Other tests run with
  * every feature on (application-test.yml). A switched-off feature stops what it would do unasked,
- * because nobody could see it or turn it off: approval locks and reminders, budget alerts,
- * invoice reminders and a Harvest sync. Its data stays, and so do the API and the export.
+ * because nobody could see it or turn it off: the lock on a week sent for approval, timesheet
+ * reminders, budget alerts, invoice reminders and a Harvest sync. Approved time stays locked, and
+ * an approved week can take new entries while approvals are off. Its data stays, and so does the
+ * export; the API refuses sending a week for approval.
  */
 @TestPropertySource(properties = ["honestrobin.features="])
 class SwitchedOffTest : IntegrationTest() {
@@ -89,6 +91,31 @@ class SwitchedOffTest : IntegrationTest() {
     }
 
     @Test
+    fun `approved time stays locked while approvals are switched off`() {
+        val admin = signup()
+        admin.patch("/api/v1/account", mapOf("approvals_enabled" to true)).expect(200)
+        val member = invite(admin, name = "Ana Approved")
+        val task = createTask(admin)
+        val project = createProject(admin, taskIds = listOf(task), members = listOf(member)).id()
+        val monday = LocalDate.of(2026, 9, 7)
+        val entry = member.post("/api/v1/time_entries", mapOf("project_id" to project, "task_id" to task, "spent_date" to monday.toString(), "duration_seconds" to 7200)).expect(201).id()
+        // Approved while approvals were on, as Approvals.approve leaves it.
+        tx.system {
+            dsl.update(TIME_ENTRIES).set(TIME_ENTRIES.APPROVAL_STATE, "approved").set(TIME_ENTRIES.IS_LOCKED, true)
+                .set(TIME_ENTRIES.LOCKED_REASON, "approved").where(TIME_ENTRIES.ID.eq(entry)).execute()
+            dsl.insertInto(TIMESHEET_SUBMISSIONS)
+                .set(TIMESHEET_SUBMISSIONS.ACCOUNT_ID, admin.accountId).set(TIMESHEET_SUBMISSIONS.MEMBERSHIP_ID, member.membershipId)
+                .set(TIMESHEET_SUBMISSIONS.WEEK_START_DATE, monday).set(TIMESHEET_SUBMISSIONS.STATE, "approved").execute()
+        }
+
+        member.patch("/api/v1/time_entries/$entry", mapOf("duration_seconds" to 3600)).expectError(409, "entry_locked")
+        member.delete("/api/v1/time_entries/$entry").expectError(409, "entry_locked")
+        admin.patch("/api/v1/time_entries/$entry", mapOf("duration_seconds" to 3600)).expectError(409, "entry_locked")
+        // Only the approved time is locked: the week itself takes new entries while approvals are off.
+        member.post("/api/v1/time_entries", mapOf("project_id" to project, "task_id" to task, "spent_date" to "2026-09-08", "duration_seconds" to 60)).expect(201)
+    }
+
+    @Test
     fun `timesheet reminders don't count an unsubmitted week while approvals are switched off`() {
         val admin = signup()
         admin.patch("/api/v1/account", mapOf("timesheet_reminders_enabled" to true, "approvals_enabled" to true)).expect(200)
@@ -112,9 +139,10 @@ class SwitchedOffTest : IntegrationTest() {
         val recipient = "billing-$client@client.example"
         admin.post("/api/v1/clients/$client/contacts", mapOf("name" to "Billing", "email" to recipient, "is_invoice_recipient" to true)).expect(201)
         admin.patch("/api/v1/invoice_settings", mapOf("reminders_enabled" to true, "reminder_days" to listOf(0))).expect(200)
+        // Due today, so with invoices on a reminder would go out now, as in OutboundMailTest.
         val invoice = admin.post(
             "/api/v1/invoices",
-            mapOf("client_id" to client, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 100_000))),
+            mapOf("client_id" to client, "payment_terms_days" to 0, "lines" to listOf(mapOf("description" to "Work", "quantity" to 1, "unit_price" to 100_000))),
         ).expect(201).id()
         admin.post("/api/v1/invoices/$invoice/send", mapOf<String, Any>()).expect(200)
         val before = mail.to(recipient).size
