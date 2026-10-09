@@ -67,6 +67,11 @@ payments are recorded without a thank-you email.
 It shows the account's name and asks before it creates anything. A run sends about 400 requests.
 Harvest allows 100 every 15 seconds, so it takes a few minutes.
 
+**If Harvest asks for a long wait.** The script sits out a wait of up to 15 minutes. A longer one
+stops it: it says how long Harvest asked for and until when, what it did, and what's still to do.
+If it stopped once the invoices had started, `--finish` picks up from there (below). Before that,
+run `--delete` and fill the account again.
+
 At the end it prints the figures Time's import is checked against, read back from Harvest the way
 Time's verification screen reads them. For each client and each currency, it gives hours,
 billable hours, billable amount, the number of invoices and their total. It saves the same
@@ -75,6 +80,20 @@ invoice. Run `--totals` to print them again later.
 
 Then import into Time from the Import page in Settings (`/settings/import`), with the same
 token, and compare.
+
+## Finish a stopped run
+
+```sh
+python3 scripts/harvest-fill/harvest_fill.py --finish
+```
+
+It reads what the stopped run left, and rebuilds the plan for the day that run started (from when
+it made its clients), so the invoices cover the same months. It checks that every time entry and
+expense is there, but never adds them. Then it lists what's left of the invoices, estimates and
+projects, and asks before it changes anything. It does only what's missing: an invoice or
+estimate that exists isn't made again, a payment already recorded isn't recorded twice, and one
+already sent isn't sent again. If Harvest stops it again, run the same command after the wait.
+Give it the same `--seed` as the run it finishes.
 
 ## Remove it
 
@@ -87,7 +106,7 @@ with everything under those clients. It lists what it found and asks before dele
 It deletes payments and invoices first, then estimates. Next come the projects, which takes their
 time entries and expenses with them, then contacts and clients. Last go the tasks, categories and
 the role. The script won't fill an account that already holds test data, so run `--delete` before
-you fill it again.
+you fill it again, or `--finish` to complete a stopped run.
 
 ## Options
 
@@ -96,6 +115,7 @@ you fill it again.
 | `--dry-run` | Prints what it would create and the totals it expects. Works offline and needs no token. |
 | `--delete` | Removes what an earlier run created. |
 | `--totals` | Prints and saves Harvest's totals for the test data. |
+| `--finish` | Completes the invoices, estimates and projects of a run Harvest stopped. |
 | `--yes` | Doesn't ask first. |
 | `--seed N` | Gives different time entries (default 2026). |
 | `--with-running-timer` | Also leaves a timer running today. |
@@ -104,9 +124,18 @@ you fill it again.
 
 ## Not yet checked against a live account
 
-Endpoints and fields were checked against Harvest's API v2 docs on 5 October 2026. The script
-hasn't run against a real Harvest account yet. Lines marked `VERIFY` in the code are what the
-docs don't settle:
+Endpoints and fields were checked against Harvest's API v2 docs on 5 October 2026. On 9 October
+2026 a run on a Harvest trial went through everything up to the invoices without an error, then
+stopped on the cap below. How Harvest stored what it accepted hasn't been checked. Lines marked
+`VERIFY` in the code are what the docs don't settle:
+
+- **Marking invoices sent has a cap we don't know.** On 9 October 2026, on a trial, the first five
+  `POST /v2/invoices/{id}/messages` with event `send` went through within a few minutes. The sixth
+  got a 429 with `Retry-After: 86400` (24 hours), while reads still answered 200. Harvest's API
+  docs list no such limit. How big the cap is, whether it's daily, and whether it covers trials
+  only, estimates, or the other events is unknown. A full fill sends 14 such events (11 marked
+  sent, one written off, one accepted, one declined), so on a trial it may take `--finish` on
+  more than one day.
 
 - which `bill_by` a fixed-fee project takes (the script sends `Tasks`, with task rates)
 - whether Harvest assigns default tasks or the project's creator to a new project (the script
