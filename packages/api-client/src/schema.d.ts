@@ -3426,6 +3426,7 @@ export interface components {
             state: string;
         };
         QuickEntryInput: {
+            billable?: boolean;
             /** Format: uuid */
             client_id?: string;
             client_name?: string;

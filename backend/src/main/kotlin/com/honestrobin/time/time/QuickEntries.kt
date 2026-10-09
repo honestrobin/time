@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.honestrobin.time.time
 
+import com.honestrobin.time.accounts.Access
 import com.honestrobin.time.catalog.ClientInput
 import com.honestrobin.time.catalog.ClientService
 import com.honestrobin.time.catalog.ProjectInput
@@ -8,11 +9,15 @@ import com.honestrobin.time.catalog.ProjectService
 import com.honestrobin.time.catalog.ProjectTaskInput
 import com.honestrobin.time.catalog.TaskInput
 import com.honestrobin.time.catalog.TaskService
+import com.honestrobin.time.db.Tables.ACCOUNTS
 import com.honestrobin.time.db.Tables.CLIENTS
+import com.honestrobin.time.db.Tables.PROJECTS
+import com.honestrobin.time.db.Tables.PROJECT_MEMBERS
 import com.honestrobin.time.db.Tables.PROJECT_TASKS
 import com.honestrobin.time.db.Tables.TASKS
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
+import com.honestrobin.time.platform.web.NotFoundException
 import com.honestrobin.time.platform.web.ValidationException
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.jooq.DSLContext
@@ -48,6 +53,8 @@ data class QuickEntryInput(
     /** Omit it to start a timer, as with a plain entry. */
     val durationSeconds: Int? = null,
     val notes: String? = null,
+    /** Unticked, the entry isn't billable. It never makes billable what its project or task isn't. */
+    val billable: Boolean? = null,
 )
 
 /**
@@ -57,6 +64,7 @@ data class QuickEntryInput(
 @Service
 class QuickEntryService(
     private val dsl: DSLContext,
+    private val access: Access,
     private val clients: ClientService,
     private val tasks: TaskService,
     private val projects: ProjectService,
@@ -69,6 +77,9 @@ class QuickEntryService(
         var taskId = input.taskId
         val projectId: UUID
         if (input.projectId == null) {
+            // Checked before any name is looked up, so someone who can't create projects learns
+            // nothing about the account's clients or tasks from the answer.
+            access.requireCanCreateProjects(m)
             if (taskId == null && typedTask.isNotEmpty()) taskId = findOrCreateTask(m, typedTask)
             val clientId = input.clientId ?: findOrCreateClient(m, input.clientName!!.trim())
             // A new project gets the account's default tasks, as it would from the projects page,
@@ -83,8 +94,15 @@ class QuickEntryService(
         } else {
             projectId = input.projectId
             if (taskId == null && typedTask.isNotEmpty()) {
-                taskId = taskOnProject(projectId, typedTask) ?: findOrCreateTask(m, typedTask).also { id ->
-                    step(mapOf("task_id" to "task_name")) { projects.addTask(m, projectId, ProjectTaskInput(taskId = id)) }
+                // Nothing about task names is looked up for someone who isn't on the project, and a
+                // task is added only by someone who manages it: the answer is the same whether or
+                // not the name exists.
+                requireOnProject(m, projectId)
+                taskId = taskOnProject(projectId, typedTask) ?: run {
+                    access.requireManages(m, projectId)
+                    findOrCreateTask(m, typedTask).also { id ->
+                        step(mapOf("task_id" to "task_name")) { projects.addTask(m, projectId, ProjectTaskInput(taskId = id)) }
+                    }
                 }
             }
         }
@@ -96,6 +114,7 @@ class QuickEntryService(
                 spentDate = input.spentDate,
                 durationSeconds = input.durationSeconds,
                 notes = input.notes,
+                billable = input.billable,
             ),
         )
     }
@@ -115,14 +134,36 @@ class QuickEntryService(
         if (errors.isNotEmpty()) throw ValidationException(errors)
     }
 
-    private fun findOrCreateClient(m: Member, name: String): UUID =
-        dsl.select(CLIENTS.ID).from(CLIENTS).where(DSL.lower(CLIENTS.NAME).eq(name.lowercase())).and(CLIENTS.IS_ACTIVE.isTrue).fetchOne()?.value1()
-            ?: step(emptyMap(), fallback = "client_name") { clients.create(m, ClientInput(name = name)) }.id
+    /**
+     * A new client is billed in the account's currency, and the form shows the rate in it. A client
+     * of that name in another currency is refused rather than reused, so no rate is stored in a
+     * currency the person didn't see.
+     */
+    private fun findOrCreateClient(m: Member, name: String): UUID {
+        val existing = dsl.select(CLIENTS.ID, CLIENTS.CURRENCY).from(CLIENTS)
+            .where(DSL.lower(CLIENTS.NAME).eq(name.lowercase())).and(CLIENTS.IS_ACTIVE.isTrue).fetchOne()
+            ?: return step(emptyMap(), fallback = "client_name") { clients.create(m, ClientInput(name = name)) }.id
+        val accountCurrency = dsl.select(ACCOUNTS.DEFAULT_CURRENCY).from(ACCOUNTS).where(ACCOUNTS.ID.eq(m.accountId)).fetchOne()!!.value1()
+        if (existing[CLIENTS.CURRENCY] != accountCurrency) {
+            throw ValidationException("client_name", "A client with this name already exists, in ${existing[CLIENTS.CURRENCY]}: pick it from the list")
+        }
+        return existing[CLIENTS.ID]
+    }
 
     private fun findOrCreateTask(m: Member, name: String): UUID =
         dsl.select(TASKS.ID).from(TASKS).where(DSL.lower(TASKS.NAME).eq(name.lowercase())).and(TASKS.IS_ACTIVE.isTrue).fetchOne()?.value1()
             // The account's first task becomes a default one, so later projects get it too.
             ?: step(emptyMap(), fallback = "task_name") { tasks.create(m, TaskInput(name = name, isDefault = !dsl.fetchExists(TASKS))) }.id
+
+    /** The caller must be on the project, and it must be active. A project they can't see is not found, as before. */
+    private fun requireOnProject(m: Member, projectId: UUID) {
+        val row = dsl.select(PROJECTS.IS_ACTIVE, PROJECT_MEMBERS.IS_ACTIVE).from(PROJECTS)
+            .leftJoin(PROJECT_MEMBERS).on(PROJECT_MEMBERS.PROJECT_ID.eq(PROJECTS.ID).and(PROJECT_MEMBERS.MEMBERSHIP_ID.eq(m.membershipId)))
+            .where(PROJECTS.ID.eq(projectId))
+            .fetchOne() ?: throw NotFoundException("Project")
+        if (row[PROJECTS.IS_ACTIVE] != true) throw ValidationException("project_id", "This project is archived")
+        if (row[PROJECT_MEMBERS.IS_ACTIVE] != true) throw ValidationException("project_id", "This person is not assigned to the project")
+    }
 
     private fun taskOnProject(projectId: UUID, name: String): UUID? =
         dsl.select(PROJECT_TASKS.TASK_ID).from(PROJECT_TASKS).join(TASKS).on(TASKS.ID.eq(PROJECT_TASKS.TASK_ID))

@@ -19,8 +19,15 @@ as they're made.
   and the API reference moved out of the menu, to Settings → Account and Profile.
 - Adding a new project, client or task while tracking time now saves all of it with the entry, or
   none of it. Before, when the entry was refused (for example, more than 24 hours), the project,
-  client and task were created anyway, and the dialog dropped what you had typed. Now nothing is
-  created until everything is right, what you typed stays, and the problem shows at its field.
+  client and task were created anyway, and the dialog switched to the new project, so the names
+  you had typed were no longer there to correct. Now nothing is created until everything is right,
+  what you typed stays, and the problem shows at its field, where it has one.
+- Unticking Billable on a new entry now works. Before, the box was ignored and the entry was saved
+  as billable, so it could end up on an invoice; only editing the entry afterwards changed it. If
+  you unticked it on a new entry, check that entry.
+- A new client with the name of one you already have in another currency is no longer quietly
+  used for the new project: Time says so at the name, so a rate is never saved in a currency you
+  didn't see. Pick the client from the list instead.
 - Editing an invoice runs in a single transaction again. From 4 October until this change it
   didn't. With the Compose setup's default database user, someone allowed to invoice in one
   account could read and change an invoice of another account on the same instance, if they knew
