@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The parts of Time that are built but switched off by default, while the core is made a joy to
 // use first. The server says which are on (`features` in /auth/config, HONESTROBIN_FEATURES);
-// the web app shows only those beside the core. The API and the export don't change.
+// the web app shows only those beside the core. The export stays complete; a switched-off part
+// also stops its work on the server (see Features.kt).
 import { redirect } from "@tanstack/react-router";
 import { queryClient } from "./api";
 import { authConfigQuery, useAuthConfig } from "./session";

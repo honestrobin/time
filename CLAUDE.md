@@ -13,9 +13,11 @@ timer, day and week), clients and projects, one report (hours and amount by clie
 with CSV), export and Move out, settings and help. Everything else is built and switched off by
 default: invoices, payments, accounting, expenses, tasks, team, approvals, budgets and the import
 (`platform.features`, `HONESTROBIN_FEATURES`, `frontend/src/lib/features.ts`). A switch hides a
-feature and stops what it does unasked (approval locks and reminders, budget alerts, invoice
-reminders, a Harvest sync: `SwitchedOffTest`); its data, the API, the export and Move out stay
-complete, and both editions have the same switches. The team also shows while an account has
+feature and stops what it does unasked (the lock on a week sent for approval, timesheet and
+invoice reminders, budget alerts, a Harvest sync: `SwitchedOffTest`). Approved time stays locked,
+and an approved week can take new entries while approvals are off. Its data, the export and Move
+out stay complete; the API refuses sending a week for approval while approvals are off. Both
+editions have the same switches. The team also shows while an account has
 other people (`frontend/src/features/team/reach.ts`), so they can always be deactivated or invited
 again. Connections someone set up themselves (online payments, accounting) keep working until
 they're ended, and Move out lists each one. Nothing new goes into the core, and nothing comes
