@@ -59,7 +59,7 @@ Built, and switched off by default (`HONESTROBIN_FEATURES`):
 - **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
 - **Teams:** invitations, approvals that lock submitted weeks, budgets that warn you before they run out, expenses, and a shared list of tasks. The team shows by itself while an account has other people.
 
-Switched off, a part also stops what it would do unasked (reminders, alerts, approval locks, a Harvest sync); its data stays.
+Switched off, a part also stops what it would do unasked: reminders, alerts, a Harvest sync, and the lock on a week sent for approval. Approved time stays locked, and an approved week can take new entries while approvals are off. Its data stays.
 
 ## Our promises
 

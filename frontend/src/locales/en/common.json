@@ -285,7 +285,7 @@
     "lapsedTeam": "Go to Team",
     "freeTitle": "Free plan",
     "freeBody": "For one person, with every feature. To work with your team, start a Team subscription: you pay for each person who can sign in. Invitations are free until they're accepted, and so are people you deactivate.",
-    "freeBodySolo": "For one person, with every feature. Working as a team is switched off in Time for now, so there's no Team plan to start.",
+    "freeBodySolo": "For one person, with every part of Time this server shows. Working as a team is switched off in Time for now, so there's no Team plan to start.",
     "interval": {
       "month": "Monthly",
       "year": "Yearly"
