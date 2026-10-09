@@ -45,3 +45,32 @@ test("a mistake keeps what was typed and creates nothing; the fix saves it all a
   expect((await call(page, "GET", "/api/v1/clients")).data.map((c: { name: string }) => c.name)).toEqual(["Harbour Ltd"]);
   expect((await call(page, "GET", "/api/v1/tasks")).data.map((t: { name: string }) => t.name)).toEqual(["Design"]);
 });
+
+test("an entry saved with Billable unticked isn't billable", async ({ page, request }) => {
+  await freshWorkspace(page, request, "Unticked & Co");
+  // A first entry, so the dialog starts on its billable project and task.
+  await call(page, "POST", "/api/v1/time_entries/quick", {
+    project_name: "Harbour website",
+    client_name: "Harbour Ltd",
+    task_name: "Design",
+    duration_seconds: 3600,
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Track time/ }).click();
+
+  const dialog = page.getByRole("dialog", { name: "New entry" });
+  const billable = dialog.getByRole("checkbox", { name: "Billable" });
+  await expect(billable).toBeChecked();
+  await billable.click();
+  await expect(billable).not.toBeChecked();
+  await dialog.getByLabel("Notes").fill("Pro bono fix");
+  const time = dialog.getByLabel("Time", { exact: true });
+  await time.fill("0:30");
+  await time.press("Tab");
+  await dialog.getByRole("button", { name: "Save entry" }).click();
+  await expect(dialog).toBeHidden();
+
+  const entries: { notes: string; billable: boolean }[] = (await call(page, "GET", "/api/v1/time_entries")).data;
+  expect(entries.find((e) => e.notes === "Pro bono fix")?.billable, "the unticked entry").toBe(false);
+  expect(entries.find((e) => e.notes !== "Pro bono fix")?.billable, "the first entry").toBe(true);
+});

@@ -94,11 +94,14 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
 
   const creating = creatingProject || creatingTask;
   const showRate = perms.canSeeRates && !!rateCurrency;
+  // The checkbox counts only where it's shown; elsewhere the project and task decide.
+  const showBillable = !!project?.is_billable;
+  const billableField = showBillable ? billable : undefined;
 
   // Whatever is new is created on the server together with the entry, all of it or none of it:
   // when something is refused, nothing exists yet, and everything typed stays in the form.
   const quickBody = () => {
-    const entryFields = { spent_date: date, notes, duration_seconds: duration ?? undefined };
+    const entryFields = { spent_date: date, notes, duration_seconds: duration ?? undefined, billable: billableField };
     if (!creatingProject) return { ...entryFields, project_id: projectId, task_name: taskNameValue };
     return {
       ...entryFields,
@@ -127,6 +130,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
             spent_date: date,
             notes,
             duration_seconds: duration ?? undefined,
+            billable: billableField,
           },
         }),
       );
@@ -296,7 +300,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
               error={err?.fields.duration_seconds}
               placeholder={isToday && !entry ? "0:00" : undefined}
             />
-            {project?.is_billable && (
+            {showBillable && (
               <div style={{ alignSelf: "end", paddingBottom: 8 }}>
                 <Checkbox checked={billable} onChange={setBillable} label={t("time.billable")} />
               </div>

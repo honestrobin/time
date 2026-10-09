@@ -8921,6 +8921,9 @@
       },
       "QuickEntryInput" : {
         "properties" : {
+          "billable" : {
+            "type" : "boolean"
+          },
           "client_id" : {
             "type" : "string",
             "format" : "uuid"

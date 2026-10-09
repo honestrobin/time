@@ -136,6 +136,118 @@ class QuickEntryTest : IntegrationTest() {
     }
 
     @Test
+    fun `a task id from another account is refused, and nothing is created`() {
+        val other = signup(accountName = "Elsewhere")
+        val theirTask = createTask(other, name = "Theirs")
+
+        val admin = signup()
+        val mine = createProject(admin, taskIds = listOf(createTask(admin, name = "Design"))).id()
+        // On a new project, and on one that exists.
+        admin.post("/api/v1/time_entries/quick", mapOf("project_name" to "Mine", "client_name" to "Harbour Ltd", "task_id" to theirTask, "duration_seconds" to 600))
+            .expectError(422, "validation_failed")
+        admin.post("/api/v1/time_entries/quick", mapOf("project_id" to mine, "task_id" to theirTask, "duration_seconds" to 600))
+            .expectError(422, "validation_failed")
+
+        assertThat(names(admin, "/api/v1/clients")).hasSize(1)
+        assertThat(names(admin, "/api/v1/projects")).hasSize(1)
+        assertThat(admin.get("/api/v1/projects/$mine").expect(200)["tasks"].values().map { it["name"].asText() }).containsExactly("Design")
+        assertThat(entries(admin)).isZero()
+        assertThat(names(other, "/api/v1/projects")).isEmpty()
+    }
+
+    @Test
+    fun `a new project gets the account's active default tasks, and an entry with no task goes to the first`() {
+        val admin = signup()
+        val general = createTask(admin, name = "General", isDefault = true)
+        val old = createTask(admin, name = "Old default", isDefault = true)
+        admin.patch("/api/v1/tasks/$old", mapOf("is_active" to false)).expect(200)
+        createTask(admin, name = "Not a default")
+
+        val entry = admin.post("/api/v1/time_entries/quick", mapOf("project_name" to "Logo", "client_name" to "Kestrel", "duration_seconds" to 600)).expect(201)
+        assertThat(entry["task"]["id"].asText()).isEqualTo(general.toString())
+        val onLogo = admin.get("/api/v1/projects/${entry["project"]["id"].asText()}").expect(200)["tasks"].values().map { it["name"].asText() }
+        assertThat(onLogo).containsExactly("General")
+
+        val typed = admin.post(
+            "/api/v1/time_entries/quick",
+            mapOf("project_name" to "Brochure", "client_name" to "Kestrel", "task_name" to "Copywriting", "duration_seconds" to 600),
+        ).expect(201)
+        assertThat(typed["task"]["name"].asText()).isEqualTo("Copywriting")
+        val onBrochure = admin.get("/api/v1/projects/${typed["project"]["id"].asText()}").expect(200)["tasks"].values().map { it["name"].asText() }
+        assertThat(onBrochure).containsExactlyInAnyOrder("General", "Copywriting")
+    }
+
+    @Test
+    fun `a rate from someone who may not see rates is ignored`() {
+        val admin = signup()
+        val manager = invite(admin, role = "manager", extra = mapOf("can_see_rates" to false))
+        val entry = manager.post(
+            "/api/v1/time_entries/quick",
+            mapOf("project_name" to "Logo", "client_name" to "Kestrel", "task_name" to "Design", "hourly_rate" to 9000, "duration_seconds" to 600),
+        ).expect(201)
+        val rate = admin.get("/api/v1/projects/${entry["project"]["id"].asText()}").expect(200)["hourly_rate"]
+        assertThat(rate.isNull || rate.isMissingNode).withFailMessage { "Expected no rate, got $rate" }.isTrue()
+    }
+
+    @Test
+    fun `an unticked entry isn't billable, with a new task or a new project`() {
+        val admin = signup()
+        val project = createProject(admin, taskIds = listOf(createTask(admin, name = "Design"))).id()
+        val unticked = admin.post("/api/v1/time_entries/quick", mapOf("project_id" to project, "task_name" to "Support", "duration_seconds" to 1800, "billable" to false))
+            .expect(201)
+        assertThat(unticked["billable"].asBoolean()).isFalse()
+        val ticked = admin.post("/api/v1/time_entries/quick", mapOf("project_id" to project, "task_name" to "Support", "duration_seconds" to 600, "billable" to true))
+            .expect(201)
+        assertThat(ticked["billable"].asBoolean()).isTrue()
+        val fresh = admin.post(
+            "/api/v1/time_entries/quick",
+            mapOf("project_name" to "Logo", "client_name" to "Kestrel", "task_name" to "Design", "duration_seconds" to 600, "billable" to false),
+        ).expect(201)
+        assertThat(fresh["billable"].asBoolean()).isFalse()
+    }
+
+    @Test
+    fun `a new client named like one in another currency is refused at the name, and nothing is kept`() {
+        val admin = signup(currency = "EUR")
+        createClient(admin, name = "Kestrel & Finch", currency = "GBP")
+        val res = admin.post(
+            "/api/v1/time_entries/quick",
+            mapOf("project_name" to "Logo", "client_name" to "kestrel & finch", "task_name" to "Design", "hourly_rate" to 9000, "duration_seconds" to 600),
+        ).expectError(422, "validation_failed")
+        assertThat(res["fields"]["client_name"].asText()).isEqualTo("A client with this name already exists, in GBP: pick it from the list")
+        assertThat(names(admin, "/api/v1/projects")).isEmpty()
+        assertThat(names(admin, "/api/v1/tasks")).isEmpty()
+        assertThat(entries(admin)).isZero()
+    }
+
+    @Test
+    fun `a member learns nothing about task names from the answer`() {
+        val admin = signup()
+        val member = invite(admin, role = "member")
+        createTask(admin, name = "Research")
+        val onIt = createProject(admin, taskIds = listOf(createTask(admin, name = "Design")), members = listOf(member)).id()
+        val notOnIt = createProject(admin, taskIds = listOf(createTask(admin, name = "Hidden"))).id()
+        val quick = { project: Any, task: String -> member.post("/api/v1/time_entries/quick", mapOf("project_id" to project, "task_name" to task, "duration_seconds" to 600)) }
+
+        // On their own project, a task the account has and a made-up one get the same answer.
+        val known = quick(onIt, "Research")
+        val madeUp = quick(onIt, "No such task")
+        assertThat(known.status).isEqualTo(403)
+        assertThat(madeUp.status).isEqualTo(known.status)
+        assertThat(madeUp.body["message"]).isEqualTo(known.body["message"])
+
+        // On a project they aren't on, a task that's on it and one that isn't get the same answer.
+        val there = quick(notOnIt, "Hidden")
+        val notThere = quick(notOnIt, "Design")
+        assertThat(there.status).isEqualTo(422)
+        assertThat(notThere.status).isEqualTo(there.status)
+        assertThat(notThere.body).isEqualTo(there.body)
+
+        assertThat(names(admin, "/api/v1/tasks")).containsExactlyInAnyOrder("Research", "Design", "Hidden")
+        assertThat(entries(member)).isZero()
+    }
+
+    @Test
     fun `a person who can't manage projects creates nothing`() {
         val admin = signup()
         val member = invite(admin, role = "member")
