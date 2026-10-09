@@ -28,6 +28,8 @@ import com.honestrobin.time.db.Tables.TIME_ENTRIES
 import com.honestrobin.time.db.tables.records.ImportJobsRecord
 import com.honestrobin.time.files.FileService
 import com.honestrobin.time.platform.Money
+import com.honestrobin.time.platform.features.Feature
+import com.honestrobin.time.platform.features.Features
 import com.honestrobin.time.platform.crypto.SecretBox
 import com.honestrobin.time.platform.db.DbContext
 import com.honestrobin.time.platform.db.Tx
@@ -75,6 +77,7 @@ class HarvestImporter(
     private val json: ObjectMapper,
     private val funnel: Funnel,
     private val clock: Clock,
+    private val features: Features,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -145,8 +148,12 @@ class HarvestImporter(
         dsl.update(IMPORT_JOBS).set(IMPORT_JOBS.STATUS, "failed").set(IMPORT_JOBS.ERROR, message).where(IMPORT_JOBS.ID.eq(jobId)).execute()
     }
 
-    /** Syncs every job in its sync window; ends the windows that are over. Runs every [HarvestSettings.syncInterval]. */
+    /**
+     * Syncs every job in its sync window; ends the windows that are over. Runs every
+     * [HarvestSettings.syncInterval]. Nothing while the import is switched off (platform.features).
+     */
     fun syncAll() {
+        if (!features.isOn(Feature.IMPORT)) return
         val jobs = tx.system { dsl.select(IMPORT_JOBS.ID).from(IMPORT_JOBS).where(IMPORT_JOBS.STATUS.eq("syncing")).fetch(IMPORT_JOBS.ID) }
         jobs.forEach { id ->
             try {

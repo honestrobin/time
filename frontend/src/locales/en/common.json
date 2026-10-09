@@ -208,7 +208,7 @@
         "expired": "Expired"
       },
       "importTitle": "Import an export",
-      "importLead": "Bring an account over from another Honest Robin, cloud or self-hosted: choose its export zip. It becomes a new account here and you become its admin. Everyone else keeps their history and comes over as people to invite again from Team, so nobody joins an account without saying yes.",
+      "importLead": "Bring an account over from another Honest Robin, cloud or self-hosted: choose its export zip. It becomes a new account here and you become its admin. Everyone else keeps their history and comes over as people to invite again from Team, so nobody joins an account without saying yes. Parts of Time it used that are switched off here, such as invoices, stay out of sight until they're switched on (the self-hosting guide says how).",
       "importButton": "Choose an export zip…",
       "imported": "{{name}} is imported.",
       "deleteTitle": "Delete this account",
@@ -285,6 +285,7 @@
     "lapsedTeam": "Go to Team",
     "freeTitle": "Free plan",
     "freeBody": "For one person, with every feature. To work with your team, start a Team subscription: you pay for each person who can sign in. Invitations are free until they're accepted, and so are people you deactivate.",
+    "freeBodySolo": "For one person, with every feature. Working as a team is switched off in Time for now, so there's no Team plan to start.",
     "interval": {
       "month": "Monthly",
       "year": "Yearly"

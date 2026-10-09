@@ -7,6 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { FEATURES } from "../../lib/features";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
+import { peopleQuery } from "../team/shared";
 import { AppShell } from "./AppShell";
 import { HELP_EMAIL } from "./Help";
 import { navSections, OUT_OF_MENU } from "./nav";
@@ -33,9 +34,12 @@ const ADMIN: Parameters<typeof navSections>[0] = {
  */
 const PAGES = [...navSections(ADMIN, "cloud", FEATURES).flatMap((section) => section.items.map((item) => item.to)), ...OUT_OF_MENU];
 
-/** The real shell around a stand-in page, signed in, without a server. */
-function renderShellAt(path: string, { role = "member", edition = "selfhost" } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+/** The real shell around a stand-in page, signed in, without a server. Every feature is on unless [features] says otherwise. */
+function renderShellAt(
+  path: string,
+  { role = "member", edition = "selfhost", features = [...FEATURES] as string[], people = [{ id: "membership-1", name: "Marta Owner" }] } = {},
+) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   queryClient.setQueryData(meQuery.queryKey, {
     name: "Marta Owner",
     email: "marta@example.test",
@@ -44,7 +48,8 @@ function renderShellAt(path: string, { role = "member", edition = "selfhost" } =
     current_account_id: "account-1",
     two_factor_setup_required: false,
   } as unknown as Me);
-  queryClient.setQueryData(authConfigQuery.queryKey, { edition, features: [...FEATURES] } as unknown as AuthConfig);
+  queryClient.setQueryData(authConfigQuery.queryKey, { edition, features } as unknown as AuthConfig);
+  queryClient.setQueryData(peopleQuery.queryKey, people as never);
   const rootRoute = createRootRoute({ component: AppShell });
   const pages = PAGES.map((p) => createRoute({ getParentRoute: () => rootRoute, path: p, component: () => <h1>{p}</h1> }));
   const router = createRouter({ routeTree: rootRoute.addChildren(pages), history: createMemoryHistory({ initialEntries: [path] }) });
@@ -61,6 +66,18 @@ beforeAll(async () => {
 
 afterEach(cleanup);
 
+describe("The menu", () => {
+  it("with the default switches, shows the team only while the account has other people", async () => {
+    renderShellAt("/", { role: "admin", features: [] });
+    await screen.findByRole("heading", { name: "/" });
+    expect(screen.queryByRole("link", { name: /^Team/ })).toBeNull();
+    cleanup();
+    renderShellAt("/", { role: "admin", features: [], people: [{ id: "membership-1", name: "Marta Owner" }, { id: "membership-2", name: "Ivo Designer" }] });
+    await screen.findByRole("heading", { name: "/" });
+    expect(await screen.findByRole("link", { name: /^Team/ })).toBeTruthy();
+  });
+});
+
 describe("Help", () => {
   it("a person is one step away from every page, in both editions", { timeout: 30_000 }, async () => {
     for (const edition of ["selfhost", "cloud"]) {
@@ -72,6 +89,17 @@ describe("Help", () => {
         expect(email.getAttribute("href"), `${edition}, ${path}`).toBe(`mailto:${HELP_EMAIL}`);
         cleanup();
       }
+    }
+  });
+
+  it("with the default switches too, a person is one step away from every page of the core", async () => {
+    const core = [...navSections(ADMIN, "selfhost", []).flatMap((section) => section.items.map((item) => item.to)), ...OUT_OF_MENU];
+    for (const path of core) {
+      renderShellAt(path, { role: "admin", features: [] });
+      await screen.findByRole("heading", { name: path });
+      fireEvent.click(screen.getByRole("button", { name: /^Help/ }));
+      expect((await screen.findByRole("link", { name: HELP_EMAIL })).getAttribute("href"), path).toBe(`mailto:${HELP_EMAIL}`);
+      cleanup();
     }
   });
 

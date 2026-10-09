@@ -15,6 +15,8 @@ import com.honestrobin.time.db.Tables.TIME_ENTRIES
 import com.honestrobin.time.db.Tables.USERS
 import com.honestrobin.time.db.tables.records.ProjectsRecord
 import com.honestrobin.time.platform.HonestRobinProperties
+import com.honestrobin.time.platform.features.Feature
+import com.honestrobin.time.platform.features.Features
 import com.honestrobin.time.platform.mail.Mailer
 import com.honestrobin.time.platform.security.Current
 import com.honestrobin.time.platform.security.Member
@@ -175,7 +177,8 @@ class BudgetService(private val dsl: DSLContext, private val accounts: AccountSe
 
 /**
  * Budget alert emails to project managers at the alert percentage and at 100%,
- * once per crossing (spec §5.4). Dropping back below a threshold re-arms it.
+ * once per crossing (spec §5.4). Dropping back below a threshold re-arms it. None while budgets
+ * are switched off (platform.features): nobody could see the budget or turn the alert off.
  */
 @Service
 class BudgetAlertService(
@@ -184,9 +187,11 @@ class BudgetAlertService(
     private val accounts: AccountSettingsRepository,
     private val mailer: Mailer,
     private val props: HonestRobinProperties,
+    private val features: Features,
 ) {
     /** Called after any change to a project's time or expenses, inside the same transaction. */
     fun touch(projectId: UUID) {
+        if (!features.isOn(Feature.BUDGETS)) return
         val p = dsl.selectFrom(PROJECTS).where(PROJECTS.ID.eq(projectId)).fetchOne() ?: return
         if (!p.notifyWhenOverBudget || p.budgetBy == "none") return
         val usage = budgets.compute(p)

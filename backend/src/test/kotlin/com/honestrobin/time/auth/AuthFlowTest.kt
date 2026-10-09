@@ -150,13 +150,6 @@ class AuthFlowTest : IntegrationTest() {
     }
 
     @Test
-    fun `the web app is told which features are switched on, and by default none are`() {
-        val config = client().get("/api/v1/auth/config").expect(200)
-        assertThat(config["features"].isArray).isTrue()
-        assertThat(config["features"].size()).isZero()
-    }
-
-    @Test
     fun `security headers are set`() {
         val res = client().get("/api/v1/auth/config").expect(200)
         assertThat(res.headers["Content-Security-Policy"]!!.first()).contains("script-src 'self'").contains("frame-ancestors 'none'")

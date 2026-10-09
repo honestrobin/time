@@ -8,8 +8,10 @@ import org.springframework.stereotype.Component
 /**
  * The parts of Time that are built but switched off by default, while the core is made a joy to
  * use first (the maintainer's decision of 9 October 2026). Each comes back on its own when it's
- * switched on. The switches change only what the web app shows: every API, the export and Move
- * out stay as they are, and both editions have the same switches.
+ * switched on. Switched off, a part leaves the web app and stops what it would do unasked, since
+ * nobody could see it or turn it off: approval locks and reminders, budget alerts, invoice
+ * reminders, a Harvest sync (SwitchedOffTest). Its data stays, and so do the API, the export and
+ * Move out. Both editions have the same switches.
  */
 enum class Feature(val key: String) {
     INVOICES("invoices"),

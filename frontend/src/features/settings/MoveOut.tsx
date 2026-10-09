@@ -9,6 +9,7 @@ import { Button, PageHeader, useConfirm, useToast } from "../../design";
 import { api, downloadFile, errorInfo, unwrap, type Schemas } from "../../lib/api";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { useMe, usePermissions } from "../../lib/session";
+import { useTeamShows } from "../team/reach";
 import { accountQuery } from "./AccountSettingsPage";
 
 type Export = Schemas["AccountExportView"];
@@ -117,6 +118,7 @@ export function MoveOutPage() {
   const exports = useQuery({ ...exportsQuery, enabled: perms.isAdmin });
   const connections = useQuery({ ...connectionsQuery, enabled: perms.isAdmin });
   const moveOut = useMoveOut();
+  const team = useTeamShows();
   if (!perms.isAdmin) {
     return (
       <div className="page page-narrow">
@@ -166,7 +168,7 @@ export function MoveOutPage() {
 
       <section className="section stack" id="connected">
         <h2>{t("moveOut.connectedTitle")}</h2>
-        <p className="muted">{t("moveOut.connectedLead")}</p>
+        <p className="muted">{t(team ? "moveOut.connectedLead" : "moveOut.connectedLeadSolo")}</p>
         {/* A lapsed account can also deactivate people (decision record 0021); one waiting to be deleted can't. */}
         {readOnly && <p className="notice">{t(account?.status === "lapsed" ? "moveOut.readOnlyLapsed" : "moveOut.readOnly")}</p>}
         {connections.error && <p className="notice notice-error">{errorInfo(connections.error).message}</p>}

@@ -117,7 +117,7 @@ class TimesheetService(
             TimesheetRow(
                 project = n.first, client = n.second, task = n.third,
                 days = perDay.map { list -> list.sumOf { it.durationSeconds } }, entryCounts = perDay.map { it.size },
-                total = cell.sumOf { it.durationSeconds }, isLocked = cell.any { it.isLocked || it.approvalState == "submitted" },
+                total = cell.sumOf { it.durationSeconds }, isLocked = cell.any { it.isLocked || (settings.approvalsEnabled && it.approvalState == "submitted") },
             )
         }.sortedWith(compareBy({ it.client.name.lowercase() }, { it.project.name.lowercase() }, { it.task.name.lowercase() }))
         val person = dsl.select(MEMBERSHIPS.NAME, MEMBERSHIPS.WEEKLY_CAPACITY_SECONDS).from(MEMBERSHIPS).where(MEMBERSHIPS.ID.eq(owner)).fetchOne()

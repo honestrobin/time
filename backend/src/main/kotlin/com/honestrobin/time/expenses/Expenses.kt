@@ -354,7 +354,9 @@ class ExpenseService(
     private fun requireEditable(m: Member, r: ExpensesRecord) {
         if (r.invoiceId != null) throw ConflictException("invoiced", "This expense has been invoiced and is locked")
         if (r.isLocked || r.approvalState == "approved") throw ConflictException("entry_locked", "This expense is locked")
-        if (r.approvalState == "submitted" && r.membershipId == m.membershipId && !m.isAdmin) throw ConflictException("week_submitted", "This expense has been submitted for approval")
+        if (r.approvalState == "submitted" && r.membershipId == m.membershipId && !m.isAdmin && accounts.get(m.accountId).approvalsEnabled) {
+            throw ConflictException("week_submitted", "This expense has been submitted for approval")
+        }
     }
 
     private fun loadVisible(m: Member, id: UUID): ExpensesRecord =

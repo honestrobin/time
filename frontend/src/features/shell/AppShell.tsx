@@ -15,6 +15,7 @@ import { TimerStrip } from "../time/TimerStrip";
 import "../time/time.css";
 import { HelpDialog } from "./Help";
 import { Wordmark } from "./Wordmark";
+import { useTeamShows } from "../team/reach";
 import { navSections, shortcutList } from "./nav";
 
 export function AppShell() {
@@ -39,7 +40,10 @@ export function AppShell() {
   });
 
   const authConfig = useAuthConfig();
-  const sections = navSections(perms, authConfig?.edition, authConfig?.features);
+  // The team shows while the account has other people, even with its switch off (team/reach).
+  const team = useTeamShows();
+  const features = authConfig?.features ?? [];
+  const sections = navSections(perms, authConfig?.edition, team && !features.includes("team") ? [...features, "team"] : features);
   const hotkeys: Record<string, () => void> = { "?": () => setShowHelp(true) };
   sections.flatMap((s) => s.items).forEach((item) => {
     if (item.key) hotkeys[item.key] = () => void navigate({ to: item.to });

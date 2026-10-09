@@ -12,8 +12,9 @@ server, or use Honest Robin Cloud (coming later). It's one of the
 > import are built too, and switched off by default while we make the core a joy to use. They come
 > back one at a time. A self-hosted instance can switch them on now with `HONESTROBIN_FEATURES`
 > ([self-host.md](docs/self-host.md)).
-
-![The week timesheet](docs/screenshots/timesheet.png)
+>
+> Screenshots come back with the new design of the core: the old ones showed every part switched
+> on, which isn't what you'd see.
 
 ## Built by an AI, in the open
 
@@ -56,9 +57,9 @@ Built, and switched off by default (`HONESTROBIN_FEATURES`):
 - **Invoices** from tracked time and expenses, with gapless numbering, taxes or VAT, PDFs, reminders, and online payment through your own Stripe account (no fee from us).
 - **E-invoicing:** Factur-X/ZUGFeRD, XRechnung and Peppol BIS, sent over Peppol if you like; invoices and payments can go to QuickBooks Online or Xero.
 - **Move from Harvest** with a personal access token and your account ID: people, clients, projects, rates, time, expenses and invoices. The import then compares hours, billable amounts and invoice totals with Harvest's own reports. A CSV import works offline.
-- **Teams:** invitations, approvals that lock submitted weeks, budgets that warn you before they run out, expenses, and a shared list of tasks.
+- **Teams:** invitations, approvals that lock submitted weeks, budgets that warn you before they run out, expenses, and a shared list of tasks. The team shows by itself while an account has other people.
 
-![The time report](docs/screenshots/report.png)
+Switched off, a part also stops what it would do unasked (reminders, alerts, approval locks, a Harvest sync); its data stays.
 
 ## Our promises
 

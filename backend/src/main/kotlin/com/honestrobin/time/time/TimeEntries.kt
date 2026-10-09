@@ -467,7 +467,7 @@ class TimeEntryService(
         if (r.invoiceId != null) throw ConflictException("invoiced", "This entry has been invoiced and is locked")
         if (r.isLocked) throw ConflictException("entry_locked", "This entry is locked" + (r.lockedReason?.let { " ($it)" } ?: ""))
         if (r.approvalState == "approved") throw ConflictException("week_approved", "This entry has been approved and is locked")
-        if (r.approvalState == "submitted" && r.membershipId == m.membershipId && !m.isAdmin) {
+        if (settings.approvalsEnabled && r.approvalState == "submitted" && r.membershipId == m.membershipId && !m.isAdmin) {
             throw ConflictException("week_submitted", "This entry has been submitted for approval and can't be changed")
         }
         requireWeekOpen(m, r.membershipId, r.spentDate, settings)

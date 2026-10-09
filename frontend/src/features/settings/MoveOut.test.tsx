@@ -8,14 +8,27 @@ import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { api, type Schemas } from "../../lib/api";
+import { FEATURES, isSwitchedPage } from "../../lib/features";
 import { formatDate } from "../../lib/format";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
+import { peopleQuery } from "../team/shared";
 import { AccountDataSection } from "./AccountData";
 import { accountQuery } from "./AccountSettingsPage";
 import { connectionsQuery, exportsQuery, MoveOutPage } from "./MoveOut";
 
-/** [page], signed in as an admin of an account in [status], without a server. */
-function renderPage(page: () => ReactNode, status: string, connections: Schemas["ConnectionView"][] = []) {
+const MARTA = { id: "membership-1", name: "Marta Owner" };
+const IVO = { id: "membership-2", name: "Ivo Designer" };
+
+/**
+ * [page], signed in as an admin of an account in [status], without a server. By default every
+ * feature is on and the account has a team; [features] and [people] say otherwise.
+ */
+function renderPage(
+  page: () => ReactNode,
+  status: string,
+  connections: Schemas["ConnectionView"][] = [],
+  { features = [...FEATURES] as string[], people = [MARTA, IVO] } = {},
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   queryClient.setQueryData(meQuery.queryKey, {
     name: "Marta Owner",
@@ -26,7 +39,8 @@ function renderPage(page: () => ReactNode, status: string, connections: Schemas[
     current_membership_id: "membership-1",
     two_factor_setup_required: false,
   } as unknown as Me);
-  queryClient.setQueryData(authConfigQuery.queryKey, { edition: "selfhost" } as unknown as AuthConfig);
+  queryClient.setQueryData(authConfigQuery.queryKey, { edition: "selfhost", features } as unknown as AuthConfig);
+  queryClient.setQueryData(peopleQuery.queryKey, people as never);
   queryClient.setQueryData(accountQuery.queryKey, {
     id: "account-1",
     name: "Tour & Co",
@@ -165,6 +179,29 @@ describe("Move out", () => {
     expect(within(dialog).getByText("Its link stops working. Inviting them again waits until the account is active again.")).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Withdraw" }));
     await waitFor(() => expect(del).toHaveBeenCalledWith("/api/v1/people/{id}/invite", { params: { path: { id: "membership-3" } } }));
+  });
+
+  it("with the default switches, every link on Move out still opens, and none is to a switched-off page", async () => {
+    const every: Schemas["ConnectionView"][] = [
+      ...CONNECTIONS,
+      { kind: "subscription", plan: "team", status: "active", interval: "month", renews_at: "2027-10-01T00:00:00Z", end_in: "/settings/billing" },
+      { kind: "qbo", name: "Tour & Co books", end_in: "/settings/accounting" },
+      { kind: "xero", name: "Tour & Co", end_in: "/settings/accounting" },
+      { kind: "storecove", mode: "connect", end_in: "/settings/invoices" },
+      { kind: "harvest_sync", id: "import-8", name: "7654321", end_in: "/settings/import#import-import-8" },
+      { kind: "invoice_reminders", end_in: "/settings/invoices" },
+    ] as Schemas["ConnectionView"][];
+    for (const status of ["active", "lapsed"]) {
+      renderPage(MoveOutPage, status, every, { features: [], people: [MARTA] });
+      await screen.findByRole("heading", { name: "Moving out changes nothing" });
+      const links = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
+      expect(links.length, status).toBeGreaterThan(5);
+      expect(links.filter((href) => href.startsWith("/") && isSwitchedPage(href)), status).toEqual([]);
+      expect(every.map((c) => c.end_in ?? "").filter((path) => path && isSwitchedPage(path)), status).toEqual([]);
+      // Just you: nobody to deactivate in Team, so the page doesn't send you there.
+      expect(screen.getByText("Everything that still connects to this account, and how to end each one.")).toBeTruthy();
+      cleanup();
+    }
   });
 
   it("in an active account the page has the same ways to end each one, without the read-only note", async () => {

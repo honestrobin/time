@@ -12,10 +12,15 @@ A small core that's a joy to use, before anything else (decided 9 October 2026):
 timer, day and week), clients and projects, one report (hours and amount by client and project,
 with CSV), export and Move out, settings and help. Everything else is built and switched off by
 default: invoices, payments, accounting, expenses, tasks, team, approvals, budgets and the import
-(`platform.features`, `HONESTROBIN_FEATURES`, `frontend/src/lib/features.ts`). A switch only hides:
-the API, the export and Move out stay complete, and both editions have the same switches. Nothing
-new goes into the core, and nothing comes back on, until the maintainer says the core is a joy;
-then one feature at a time, when a customer asks for it.
+(`platform.features`, `HONESTROBIN_FEATURES`, `frontend/src/lib/features.ts`). A switch hides a
+feature and stops what it does unasked (approval locks and reminders, budget alerts, invoice
+reminders, a Harvest sync: `SwitchedOffTest`); its data, the API, the export and Move out stay
+complete, and both editions have the same switches. The team also shows while an account has
+other people (`frontend/src/features/team/reach.ts`), so they can always be deactivated or invited
+again. Connections someone set up themselves (online payments, accounting) keep working until
+they're ended, and Move out lists each one. Nothing new goes into the core, and nothing comes
+back on, until the maintainer says the core is a joy; then one feature at a time, when a customer
+asks for it.
 
 ## Project rules
 

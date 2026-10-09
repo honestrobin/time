@@ -9,6 +9,13 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- A part of Time that's switched off now also stops what it would do without being asked, since
+  nobody could see it or turn it off: no budget alerts, no invoice reminders, no Harvest sync, and
+  approvals count as off, so a week sent for approval is open to edit again and reminders don't ask
+  for it. Its data stays, and comes back with the switch. The team stays while an account has
+  other people, even with its switch off: in the menu, on the billing page and in Move out, so
+  anyone can still be deactivated or invited again. With just you and the team switched off, the
+  billing page no longer offers a Team plan.
 - Time now shows a small core: tracking time, clients and projects, the time reports, and your
   data (export, Move out, settings and help). Invoices, e-invoicing, online payments, accounting,
   expenses, the shared task list, the team, approvals, budgets and the Harvest import are built

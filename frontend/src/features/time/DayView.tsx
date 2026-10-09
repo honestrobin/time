@@ -7,6 +7,7 @@ import { Button, EmptyState, Kbd } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { startOfWeek, weekDays } from "../../lib/dates";
 import { formatDate, formatDuration, formatWeekday } from "../../lib/format";
+import { useFeature } from "../../lib/features";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe } from "../../lib/session";
 import { EntryDialog } from "./EntryDialog";
@@ -16,6 +17,7 @@ const LONG_ENTRY = 12 * 3600;
 
 export function DayView({ date }: { date: string }) {
   const { t } = useTranslation();
+  const approvals = useFeature("approvals");
   const me = useMe();
   const account = useAccountSettings();
   const invalidate = useInvalidateTime();
@@ -129,7 +131,7 @@ export function DayView({ date }: { date: string }) {
                     </td>
                     <td style={{ width: 180 }}>
                       <div className="entry-actions">
-                        {!e.is_locked && e.approval_state !== "submitted" && (
+                        {!e.is_locked && !(approvals && e.approval_state === "submitted") && (
                           <Button size="sm" variant={e.is_running ? "danger" : "secondary"} onClick={() => toggle.mutate(e)} busy={toggle.isPending && toggle.variables?.id === e.id}>
                             {e.is_running ? t("time.stop") : t("time.start")}
                           </Button>
@@ -171,10 +173,12 @@ export function DayView({ date }: { date: string }) {
 
 export function StateBadge({ entry }: { entry: Pick<TimeEntry, "approval_state" | "is_locked" | "invoice_id"> }) {
   const { t } = useTranslation();
+  // With approvals switched off, a week sent for approval is open again (the server agrees).
+  const approvals = useFeature("approvals");
   if (entry.invoice_id) return <span className="badge">{t("time.lockedInvoiced")}</span>;
   if (entry.approval_state === "approved") return <span className="badge badge-ok">{t("time.lockedApproved")}</span>;
-  if (entry.approval_state === "submitted") return <span className="badge">{t("time.submitted")}</span>;
-  if (entry.approval_state === "rejected") return <span className="badge badge-warn">{t("time.rejected")}</span>;
+  if (approvals && entry.approval_state === "submitted") return <span className="badge">{t("time.submitted")}</span>;
+  if (approvals && entry.approval_state === "rejected") return <span className="badge badge-warn">{t("time.rejected")}</span>;
   if (entry.is_locked) return <span className="badge">{t("time.locked")}</span>;
   return null;
 }
