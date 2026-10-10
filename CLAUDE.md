@@ -81,5 +81,9 @@ The e2e tests need the backend (`bootRun`, see `docs/development.md`) and Vite (
   account's row is refused by the database.
 - `external_links.system` has a check constraint; add new systems in a migration.
 - Radix Select can't hold an empty value: use `NONE` from `design/Select`.
+- Inside a `<form>`, Radix Select's hidden native select can report `""` through `onValueChange`
+  when the page loads: ignore empty values, or a chosen default is lost.
+- TanStack Router's `Link` sets `aria-current="page"` on the link for the current address and
+  overrides one you set: style a chosen item by class, not by `aria-current`.
 - Chrome content scripts have no `customElements` registry.
 - Never `pkill -f` with a pattern that appears in your own command line: it kills your shell.
