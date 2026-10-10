@@ -12,12 +12,15 @@ import java.util.UUID
  * The product funnel (spec AT-6.5): signup, import started and verified, first timer, first
  * invoice sent, invoices paid online, subscription started. The account is the distinct id, so a
  * team's steps line up; no names or emails are sent. Events leave only after the transaction
- * commits, and only the cloud edition has a real [Analytics]: self-hosted instances send nothing.
+ * commits, only from an account that shares how it uses Time ([UsageSharing], off until it turns
+ * it on), and only the cloud edition has a real [Analytics]: self-hosted instances send nothing.
+ * The firsts are recorded in the account's own data either way.
  */
 @Component
-class Funnel(private val analytics: Analytics, private val dsl: DSLContext) {
+class Funnel(private val analytics: Analytics, private val dsl: DSLContext, private val sharing: UsageSharing) {
 
     fun event(accountId: UUID, name: String, properties: Map<String, Any?> = emptyMap()) {
+        if (!sharing.sharedBy(accountId)) return
         val send = { analytics.capture(name, accountId, properties + ("account_id" to accountId.toString())) }
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {

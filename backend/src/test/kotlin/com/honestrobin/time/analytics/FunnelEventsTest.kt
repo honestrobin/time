@@ -17,12 +17,15 @@ import org.springframework.http.HttpMethod
 import java.time.Instant
 import java.util.UUID
 
-/** AT-6.5: funnel events fire in the cloud edition only, once each, without personal data. */
+/**
+ * AT-6.5, as decision record 0028 changed it: the steps an account reaches are recorded in its own
+ * data, and sent nowhere until it chooses to share how it uses Time, which no account can yet.
+ */
 class FunnelEventsTest : IntegrationTest() {
     @Autowired lateinit var props: HonestRobinProperties
 
     @Test
-    fun `the funnel from signup to an invoice paid online`() {
+    fun `the steps an account reaches are kept in its data and sent nowhere until it chooses to share them`() {
         val admin = signup(name = "Wiremu Owner", accountName = "Tui Design")
         val account = admin.accountId!!
 
@@ -55,21 +58,10 @@ class FunnelEventsTest : IntegrationTest() {
         val milestones = tx.system { dsl.select(ACCOUNT_MILESTONES.KEY).from(ACCOUNT_MILESTONES).where(ACCOUNT_MILESTONES.ACCOUNT_ID.eq(account)).fetch(ACCOUNT_MILESTONES.KEY) }
         assertThat(milestones).containsExactlyInAnyOrder("first_timer_started", "first_invoice_sent")
 
-        val expected = listOf("signup", "import_started", "import_verified", "first_timer_started", "first_invoice_sent", "invoice_paid_online")
-        if (props.edition == Edition.CLOUD) {
-            val deadline = System.currentTimeMillis() + 10_000
-            while (MockPostHog.forAccount(account).size < expected.size && System.currentTimeMillis() < deadline) Thread.sleep(50)
-            Thread.sleep(300) // anything extra would arrive now
-            assertThat(MockPostHog.forAccount(account)).containsExactlyInAnyOrderElementsOf(expected)
-            val sent = MockPostHog.events.filter { it["distinct_id"].asText() == account.toString() }
-            assertThat(sent).allSatisfy { assertThat(it["api_key"].asText()).isEqualTo(MockPostHog.API_KEY) }
-            // Opaque ids only: no names, emails or workspace names.
-            assertThat(sent.joinToString { it.toString() }).doesNotContain("Wiremu").doesNotContain(admin.email).doesNotContain("Tui Design")
-            assertThat(sent.first { it["event"].asText() == "import_verified" }["properties"]["all_match"].asBoolean()).isTrue()
-        } else {
-            Thread.sleep(500)
-            assertThat(MockPostHog.forAccount(account)).isEmpty()
-        }
+        // Nothing leaves, in either edition: no account has chosen to share how it uses Time.
+        Thread.sleep(500)
+        assertThat(MockPostHog.forAccount(account)).isEmpty()
+        assertThat(MockPostHog.events.joinToString { it.toString() }).doesNotContain(account.toString())
     }
 
     @Test
