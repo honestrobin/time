@@ -47,7 +47,14 @@ export function DayView({ date }: { date: string }) {
   const isToday = date === today;
   const dayEntries = entries.filter((e) => e.spent_date === date).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const style = account.durationStyle;
-  const recent = [...entries].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  // The entry touched last this week, or else the newest one of any week (the list is newest first),
+  // so a new week's first timer still starts on the project used last.
+  const latest = useQuery({
+    queryKey: ["time_entries", "latest", me.current_membership_id],
+    queryFn: () => unwrap(api.GET("/api/v1/time_entries", { params: { query: { membership_id: me.current_membership_id ?? undefined, limit: 1 } } })),
+    enabled: account.loaded && isToday,
+  });
+  const recent = [...entries].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0] ?? latest.data?.data[0];
 
   const [dialog, setDialog] = useState<DialogState>({ open: false, entry: null });
   const addByHand = () => setDialog({ open: true, entry: null });
