@@ -81,128 +81,153 @@
   }
 }
 
-/* ---- App shell --------------------------------------------------------- */
+/* ---- App shell: one bar across the top, the page below ------------------- */
 .shell {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar {
+.topbar {
   position: sticky;
   top: 0;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s5);
-  padding: var(--s5) var(--s3) var(--s4);
-  border-right: 1px solid var(--rule-strong);
-  background: var(--paper);
-  overflow-y: auto;
-}
-
-/* A little smaller than on the sign-in pages, so the robin and the name fit the sidebar. */
-.sidebar .wordmark {
-  padding: 0 0 0 var(--s2);
-  font-size: 1.25rem;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.nav-heading {
-  padding: var(--s3) var(--s3) var(--s1);
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
-}
-
-.nav-link {
-  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px var(--s3);
-  border-radius: var(--radius);
+  gap: 36px;
+  min-height: 60px;
+  padding: 0 36px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.topbar .wordmark {
+  gap: 9px;
+  font-size: 1.3125rem;
+  font-weight: 760;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: -0.01em;
+}
+
+.topnav {
+  display: flex;
+  align-self: stretch;
+  gap: 28px;
+}
+
+.topnav-link {
+  display: flex;
+  align-items: center;
+  padding-top: 3px;
+  border-bottom: 3px solid transparent;
   color: var(--ink-soft);
-  font-weight: 500;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.nav-link:hover {
-  background: var(--surface-sunk);
+.topnav-link:hover {
   color: var(--ink);
 }
 
-.nav-link[data-status="active"],
-.nav-link.active {
+.topnav-link[data-status="active"],
+.topnav-link.active {
   color: var(--ink);
-  font-weight: 700;
-  background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--action);
+  border-bottom-color: var(--action);
 }
 
-.nav-link .kbd {
-  font-weight: 500;
+.topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Help, at the foot of the sidebar on every page, just above the account. */
-.sidebar-help {
-  width: 100%;
-  margin-top: auto;
-  border: 0;
+.help-button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule-input);
+  border-radius: 50%;
   background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
   cursor: pointer;
-  text-align: left;
 }
 
-.sidebar-foot {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
+.settings-button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
   gap: var(--s2);
-}
-
-.sidebar-help + .sidebar-foot {
-  margin-top: calc(var(--s2) - var(--s5));
-}
-
-.account-button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--surface);
+  padding: 0 14px 0 6px;
+  border: 1px solid var(--rule-input);
+  border-radius: 18px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  text-align: left;
 }
 
-.account-button:hover {
-  border-color: var(--rule-strong);
+.help-button:hover,
+.settings-button:hover {
+  background: var(--surface);
 }
 
-.account-button strong {
-  font-size: var(--text-sm);
+.avatar {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+/* The running timer, on every page where Track's timer isn't in view: one quiet pill. */
+.timer-pill {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 260px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.timer-pill span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-.account-button span {
-  font-size: var(--text-xs);
-  color: var(--ink-faint);
 }
 
 .main {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.main > main {
+  flex: 1;
 }
 
 .skip-link {
@@ -219,117 +244,36 @@
   left: 8px;
 }
 
-/* Only phones and narrow windows fold the menu away (see the 800 px rules below). */
-.nav-toggle {
-  display: none;
-}
-
-@media (max-width: 800px) {
-  /* The bar takes only its own height; spare height on a short page goes to the content. */
-  .shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .sidebar .wordmark {
-    order: 1;
-  }
-
-  .nav-toggle {
-    order: 2;
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 0 var(--s3);
-    border: 1px solid var(--rule-strong);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  /* Folded until the button opens it; then a full-width list with its section headings. */
-  .sidebar .nav {
-    order: 4;
-    display: none;
-    flex-basis: 100%;
-    flex-direction: column;
-  }
-
-  .sidebar.menu-open .nav {
-    display: flex;
-  }
-
-  .sidebar.menu-open .nav-heading {
-    display: block;
-  }
-
-  /* No keyboard on a phone, so no shortcut letters. */
-  .nav .kbd {
-    display: none;
-  }
-
-  .sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
+/* On a phone the menu gets its own row under the name, Help and Settings, and scrolls sideways. */
+@media (max-width: 720px) {
+  .topbar {
     flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s2);
-    padding: var(--s3);
-    border-right: 0;
-    border-bottom: 1px solid var(--rule-strong);
+    gap: 0 var(--s3);
+    padding: var(--s2) var(--s4) 0;
   }
 
-  .nav-heading {
-    display: none;
-  }
-
-  /* The account and sign-out live in the opened menu, below the links. */
-  .sidebar-foot {
-    order: 5;
-    display: none;
-    flex-basis: 100%;
-    margin-top: 0;
-    flex-direction: row;
-  }
-
-  .sidebar.menu-open .sidebar-foot {
-    display: flex;
-  }
-
-  /* Help stays in the bar, next to Menu, so a person is one tap away on a phone too. With the
-     menu open, it's a row below the links. */
-  .sidebar-help {
+  .topnav {
     order: 3;
-    width: auto;
-    min-height: 40px;
-    margin-top: 0;
-    border: 1px solid var(--rule-strong);
-    background: var(--surface);
-    color: var(--ink);
-    font-weight: 600;
-  }
-
-  .sidebar.menu-open .sidebar-help {
-    order: 4;
     flex-basis: 100%;
-    min-height: 0;
-    border: 0;
-    background: none;
-    color: var(--ink-soft);
-    font-weight: 500;
+    gap: var(--s5);
+    min-height: 44px;
+    overflow-x: auto;
   }
 
-  .sidebar-help + .sidebar-foot {
-    margin-top: 0;
+  .topbar-end {
+    gap: var(--s2);
   }
 
-  .sidebar-help .kbd {
+  .settings-label {
     display: none;
+  }
+
+  .settings-button {
+    padding: 0 6px;
+  }
+
+  .timer-pill {
+    max-width: 150px;
   }
 }
 
@@ -355,7 +299,7 @@
   flex-wrap: wrap;
   gap: var(--s3);
   align-items: center;
-  padding: var(--s2) var(--s6);
+  padding: var(--s2) 36px;
   background: var(--warn-tint);
   border-bottom: 1px solid var(--warn);
   font-size: var(--text-sm);

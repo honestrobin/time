@@ -31,7 +31,8 @@ test("first user sets up the instance and becomes admin", async ({ page, request
   await snap(page, "time-empty");
 
   // Admin-only settings are available to the first user.
-  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: /Owner & Co/ }).click();
+  await page.getByRole("menuitem", { name: "Account", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Account settings" })).toBeVisible();
   await snap(page, "account-settings");
 

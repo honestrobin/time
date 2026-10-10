@@ -12,13 +12,21 @@ test("with the default switches, the menu is the core and a person is one step a
   test.skip((config.features ?? []).length > 0, "runs against an instance with the default switches");
 
   await freshWorkspace(page, request, "Core & Co");
+  // The work pages are in the bar across the top; the settings pages behind Settings.
   const menu = page.getByRole("navigation", { name: "Main navigation" });
-  for (const name of ["Time", "Reports", "Projects", "Clients", "Account", "Profile"]) {
+  for (const name of ["Track", "Reports", "Projects", "Clients"]) {
     await expect(menu.getByRole("link", { name: new RegExp(`^${name}`) }), name).toBeVisible();
+  }
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  const settings = page.getByRole("menu");
+  for (const name of ["Account", "Profile"]) {
+    await expect(settings.getByRole("menuitem", { name: new RegExp(`^${name}`) }), name).toBeVisible();
   }
   for (const name of ["Invoices", "Expenses", "Approvals", "Tasks", "Team", "Import from Harvest"]) {
     await expect(menu.getByRole("link", { name: new RegExp(`^${name}`) }), name).toHaveCount(0);
+    await expect(settings.getByRole("menuitem", { name: new RegExp(`^${name}`) }), name).toHaveCount(0);
   }
+  await page.keyboard.press("Escape");
 
   // A switched-off page goes to Time.
   await page.goto("/invoices");

@@ -1,121 +1,99 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/* ---- Running timer: a straight red line across the top of the app --------- */
-.timer-strip {
-  position: sticky;
-  top: 0;
-  z-index: 20;
+/* ---- Track: the page --------------------------------------------------- */
+.track {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 26px var(--s5) var(--s8);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.track-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.track-head h1 {
+  font-size: 1.875rem;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.step-button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  cursor: pointer;
+}
+
+.step-button:hover {
+  border-color: var(--rule-strong);
+}
+
+.today-badge,
+.today-link {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.today-badge {
+  background: var(--action-tint);
+  color: var(--action);
+}
+
+.today-link {
+  border: 1px solid var(--rule-input);
+  background: none;
+  color: var(--ink-soft);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.today-link:hover {
+  color: var(--ink);
+  border-color: var(--action);
+}
+
+.track-head-end {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--s3);
-  padding: var(--s2) var(--s6);
-  border-bottom: 1px solid var(--rule);
-  background: var(--surface);
-}
-
-.timer-line {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: var(--signal);
-}
-
-.timer-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--signal);
-  flex: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .timer-dot {
-    animation: timer-pulse 2s ease-in-out infinite;
-  }
-}
-
-@keyframes timer-pulse {
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* One hop when a timer starts: a little squash, up, and a soft landing, all in one smooth arc. */
-.timer-robin {
-  margin: -4px 0;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .timer-robin {
-    transform-origin: 50% 100%;
-    animation: timer-robin-hop 900ms ease-in-out both;
-  }
-}
-
-@keyframes timer-robin-hop {
-  0% {
-    transform: translateY(0) scale(1, 1);
-  }
-  18% {
-    transform: translateY(0) scale(1.08, 0.9);
-  }
-  48% {
-    transform: translateY(-7px) rotate(-6deg) scale(0.96, 1.05);
-  }
-  76% {
-    transform: translateY(0) rotate(0) scale(1.05, 0.95);
-  }
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
-}
-
-.timer-what {
-  display: flex;
-  gap: var(--s2);
-  min-width: 0;
-  color: var(--ink);
-  text-decoration: none;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.timer-clock {
-  margin-left: auto;
-  font-stretch: var(--stretch-condensed);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--signal);
-}
-
-/* ---- Time page header -------------------------------------------------- */
-.time-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex-wrap: wrap;
 }
 
 .segmented {
   display: inline-flex;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.segmented a {
-  padding: 6px var(--s3);
-  font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  text-decoration: none;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--rule-input);
+  border-radius: 11px;
   background: var(--surface);
 }
 
-.segmented a + a {
-  border-left: 1px solid var(--rule-strong);
+.segmented a {
+  padding: 6px 16px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
 }
 
 .segmented a[aria-current="page"] {
@@ -123,123 +101,597 @@
   color: var(--paper);
 }
 
-.time-date {
-  font-stretch: var(--stretch-semi);
-  font-weight: 650;
-  font-size: var(--text-lg);
-  min-width: 14ch;
-  text-align: center;
+/* ---- The running dot: the robin's orange, only while a timer runs -------- */
+.live-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--robin);
 }
 
-/* ---- Week strip (day view) --------------------------------------------- */
-.week-strip {
+.live-dot.small {
+  width: 8px;
+  height: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .timer-card .live-dot,
+  .timer-pill .live-dot {
+    animation: live 1.6s ease-out infinite;
+  }
+}
+
+@keyframes live {
+  0% {
+    box-shadow: 0 0 0 0 rgb(242 106 46 / 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgb(242 106 46 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(242 106 46 / 0);
+  }
+}
+
+/* ---- Today's timer -------------------------------------------------------- */
+.timer-card {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr)) max-content;
-  margin-bottom: var(--s5);
-  border-top: 1px solid var(--ink);
-  border-bottom: 1px solid var(--rule-strong);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s4);
+  min-height: 64px;
+  padding: 22px 24px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.timer-card.is-running {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  column-gap: 28px;
+}
+
+.timer-card.is-running .live-dot {
+  width: 12px;
+  height: 12px;
+  align-self: start;
+  margin: 9px -14px 0 0;
+}
+
+.timer-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.timer-label {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.timer-input {
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 2px dashed var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+.timer-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.timer-input:focus {
+  outline: none;
+  border-bottom-color: var(--action);
+}
+
+.timer-input[aria-invalid="true"] {
+  border-bottom-color: var(--signal);
+}
+
+.project-chip {
+  height: 44px;
+  max-width: 300px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 14px;
+  border: 1px solid var(--rule-input);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-chip:hover {
+  border-color: var(--action);
+}
+
+.project-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-button {
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--action);
+  color: var(--action-ink);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.timer-button:hover:not(:disabled) {
+  background: var(--action-hover);
+}
+
+.timer-button.is-stop {
+  background: var(--ink);
+}
+
+.timer-button.is-stop:hover:not(:disabled) {
+  background: #0e1a14;
+}
+
+.timer-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.timer-button .kbd {
+  border-color: rgb(243 245 240 / 0.4);
+  background: none;
+  color: inherit;
+}
+
+.stop-square {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.timer-what {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.timer-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.375rem;
+  font-weight: 650;
+}
+
+.timer-note.is-empty {
+  color: var(--ink-faint);
+}
+
+.timer-what:hover .timer-note {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 4px;
+}
+
+.timer-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.timer-chip {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  color: var(--ink);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-clock {
+  font-size: 4.125rem;
+  font-weight: 720;
+  font-stretch: var(--stretch-wide);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.timer-sec {
+  color: var(--ink-muted);
+  font-size: 1.875rem;
+  font-weight: 500;
+}
+
+.timer-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--signal);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+/* ---- The week, filling up ------------------------------------------------- */
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--s2);
 }
 
 .week-day {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--s2) var(--s3);
-  border: 0;
-  border-right: 1px solid var(--rule);
-  background: none;
-  text-align: left;
-  color: var(--ink-soft);
+  gap: 5px;
+  padding: 10px 12px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  color: var(--ink);
   text-decoration: none;
-  cursor: pointer;
 }
 
 .week-day:hover {
   background: var(--surface);
 }
 
-.week-day[aria-current="date"] {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: inset 0 -3px 0 var(--action);
+.week-day.is-selected {
+  padding: 9px 11px 10px;
+  border: 2px solid var(--action);
+  background: var(--action-tint);
 }
 
 .week-day .d-name {
-  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .week-day .d-total {
-  font-stretch: var(--stretch-semi);
-  font-weight: 650;
   font-size: var(--text-lg);
-  color: var(--ink);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.week-day .d-total.zero {
+.week-day .d-total.is-zero {
   color: var(--ink-faint);
-  font-weight: 400;
+  font-weight: 500;
 }
 
-.week-day .d-today {
-  font-size: var(--text-xs);
-  color: var(--action);
-  font-weight: 600;
+/* Measured against the week's longest day, never against a target. */
+.d-fill {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--rule-faint);
 }
 
-.week-sum {
+.d-fill > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--rule-strong);
+}
+
+.week-day.is-selected .d-fill > span {
+  background: var(--action);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .d-fill > span {
+    transition: width 0.6s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+}
+
+/* ---- The day's entries ---------------------------------------------------- */
+.day-entries {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: var(--s2) var(--s4);
-  text-align: right;
+  gap: 10px;
 }
 
-.week-sum .d-total {
-  font-stretch: var(--stretch-semi);
+.day-entries-head {
+  display: flex;
+  align-items: baseline;
+  padding: 0 2px;
+}
+
+.day-entries-head h2 {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
   font-weight: 700;
-  font-size: var(--text-lg);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-/* ---- Day entries -------------------------------------------------------- */
-.entry-what strong {
-  display: block;
+.day-entries-head .link-button {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
-.entry-what .entry-sub {
+.day-empty {
+  margin: 0;
+  padding: 30px 28px;
+  border: 1.5px dashed var(--rule-input);
+  border-radius: 16px;
   color: var(--ink-soft);
+  font-size: var(--text-md);
+}
+
+.entries {
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.entries ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto 76px;
+  align-items: center;
+  gap: var(--s4);
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+/* A day of time added by hand has no ranges, so it gives their column back. */
+.entries.no-ranges .entry {
+  grid-template-columns: minmax(0, 1fr) auto 76px;
+}
+
+.entries.no-ranges .entry-range {
+  display: none;
+}
+
+.entry-range {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entry-what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.entry-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+button.entry-open {
+  cursor: pointer;
+}
+
+button.entry-open:hover .entry-title {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+
+.entry-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+
+.entry-note {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-link {
   font-size: var(--text-sm);
 }
 
-.entry-notes {
-  margin-top: 2px;
+.entry-state {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.running-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+/* Continue is there when you look for it: quiet until the row is pointed at or reached by Tab. */
+.entry-continue {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  background: var(--paper);
   color: var(--ink);
-  white-space: pre-wrap;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration);
+}
+
+.entry:hover .entry-continue,
+.entry-continue:focus-visible {
+  opacity: 1;
 }
 
 .entry-duration {
-  font-stretch: var(--stretch-semi);
-  font-weight: 650;
-  font-size: var(--text-lg);
+  font-size: 1.0625rem;
+  font-weight: 720;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
 
-.entry-duration.running {
-  color: var(--signal);
-}
-
-.entry-actions {
+.entries-total {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--s1);
-  white-space: nowrap;
+  align-items: baseline;
+  margin-top: -1px;
+  padding: 14px 22px 16px;
+  border-top: 3px double var(--signal);
+  font-size: var(--text-md);
+  font-weight: 700;
 }
 
-.day-total {
-  font-stretch: var(--stretch-semi);
-  font-size: var(--text-lg);
+.entries-total-sum {
+  margin-left: auto;
+  font-size: 1.5rem;
+  font-weight: 780;
+  font-stretch: var(--stretch-wide);
+  font-variant-numeric: tabular-nums;
+}
+
+.keys-hint {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+/* On a phone: the timer stacks, the week shows its seven days narrower, and the range goes. */
+@media (max-width: 720px) {
+  .track {
+    padding: var(--s4) var(--s3) var(--s7);
+    gap: 14px;
+  }
+
+  .track-head h1 {
+    font-size: 1.375rem;
+  }
+
+  .track-head-end {
+    margin-left: 0;
+  }
+
+  .timer-card,
+  .timer-card.is-running {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s3);
+    padding: var(--s4);
+  }
+
+  .timer-card.is-running .live-dot {
+    display: none;
+  }
+
+  .timer-clock {
+    font-size: 4rem;
+  }
+
+  .timer-button {
+    justify-content: center;
+  }
+
+  .project-chip {
+    max-width: none;
+  }
+
+  .week-days {
+    gap: 4px;
+  }
+
+  .week-day,
+  .week-day.is-selected {
+    padding: 7px 4px 8px;
+    align-items: center;
+  }
+
+  .week-day .d-name {
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+  }
+
+  .week-day .d-total {
+    font-size: var(--text-sm);
+  }
+
+  .d-fill {
+    width: 70%;
+  }
+
+  .entry {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 16px;
+  }
+
+  .entry-range,
+  .entry-state {
+    display: none;
+  }
+
+  .keys-hint {
+    display: none;
+  }
 }
 
 /* ---- Week grid ------------------------------------------------------------ */
@@ -291,31 +743,10 @@
   align-items: center;
 }
 
-@media (max-width: 800px) {
-  .timer-strip {
-    padding: var(--s2) var(--s4);
-  }
-
-  .week-strip {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .week-sum {
-    display: none;
-  }
-}
-
-.time-nav .nav-arrow {
-  min-width: 32px;
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
 /* On a phone the tables scroll sideways rather than squeeze the project name to a few letters. */
 @media (max-width: 800px) {
   .week-grid th:first-child,
-  .week-grid td:first-child,
-  .day-grid td:first-child {
+  .week-grid td:first-child {
     min-width: 10rem;
   }
 }

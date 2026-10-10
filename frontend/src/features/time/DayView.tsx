@@ -3,21 +3,26 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, Kbd } from "../../design";
-import { api, unwrap } from "../../lib/api";
+import { api, errorInfo, unwrap } from "../../lib/api";
 import { startOfWeek, weekDays } from "../../lib/dates";
-import { formatDate, formatDuration, formatWeekday } from "../../lib/format";
+import { formatDuration, formatWeekday } from "../../lib/format";
 import { useFeature } from "../../lib/features";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe } from "../../lib/session";
 import { EntryDialog } from "./EntryDialog";
-import { liveSeconds, useAccountSettings, useInvalidateTime, useNow, type TimeEntry } from "./hooks";
+import { liveSeconds, useAccountSettings, useInvalidateTime, useNow, useRunningTimer, type TimeEntry } from "./hooks";
+import { TimerCard } from "./TimerCard";
+import { entryRange, fillPercents } from "./track";
 
 const LONG_ENTRY = 12 * 3600;
 
+type DialogState = { open: boolean; entry: TimeEntry | null; notes?: string; projectId?: string; newProject?: boolean };
+
+/** Track, one day: today's timer, the week filling up, and the day's entries with their total. */
 export function DayView({ date }: { date: string }) {
   const { t } = useTranslation();
   const approvals = useFeature("approvals");
+  const tasks = useFeature("tasks");
   const me = useMe();
   const account = useAccountSettings();
   const invalidate = useInvalidateTime();
@@ -33,139 +38,175 @@ export function DayView({ date }: { date: string }) {
       ),
     enabled: account.loaded,
   });
+  const timer = useRunningTimer();
   const entries = q.data?.data ?? [];
   const running = entries.some((e) => e.is_running);
   const now = useNow(running);
   const secondsOf = (e: TimeEntry) => liveSeconds(e, now, q.dataUpdatedAt);
   const today = account.today;
+  const isToday = date === today;
   const dayEntries = entries.filter((e) => e.spent_date === date).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const style = account.durationStyle;
+  const recent = [...entries].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
 
-  const [dialog, setDialog] = useState<{ open: boolean; entry: TimeEntry | null }>({ open: false, entry: null });
-  const last = [...entries].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  const [dialog, setDialog] = useState<DialogState>({ open: false, entry: null });
+  const addByHand = () => setDialog({ open: true, entry: null });
 
-  const toggle = useMutation({
+  // Continue starts a new entry with the same project, task and note, so every range stays true.
+  const continueEntry = useMutation({
     mutationFn: (e: TimeEntry) =>
-      e.is_running
-        ? unwrap(api.POST("/api/v1/time_entries/{id}/stop", { params: { path: { id: e.id } } }))
-        : unwrap(api.POST("/api/v1/time_entries/{id}/start", { params: { path: { id: e.id } } })),
+      unwrap(
+        api.POST("/api/v1/time_entries", {
+          body: { project_id: e.project.id, task_id: e.task.id, spent_date: today, notes: e.notes ?? undefined, billable: e.billable },
+        }),
+      ),
+    onSuccess: () => invalidate(),
+  });
+  const stop = useMutation({
+    mutationFn: (id: string) => unwrap(api.POST("/api/v1/time_entries/{id}/stop", { params: { path: { id } } })),
     onSuccess: () => invalidate(),
   });
 
-  useHotkeys({
-    n: () => setDialog({ open: true, entry: null }),
-    s: () => {
-      const r = entries.find((e) => e.is_running);
-      if (r) toggle.mutate(r);
+  // On today, N and S belong to the timer; on other days N adds time to that day.
+  useHotkeys(
+    {
+      n: addByHand,
+      s: () => {
+        if (timer.entry) stop.mutate(timer.entry.id);
+      },
     },
-  });
+    !isToday,
+  );
 
+  const totals = days.map((d) => entries.filter((e) => e.spent_date === d).reduce((s, e) => s + secondsOf(e), 0));
+  const fills = fillPercents(totals);
   const dayTotal = dayEntries.reduce((s, e) => s + secondsOf(e), 0);
-  const weekTotal = entries.reduce((s, e) => s + secondsOf(e), 0);
+  const weekday = formatWeekday(date, "long");
 
   return (
     <>
-      <nav className="week-strip" aria-label={t("time.week")}>
-        {days.map((d) => {
-          const total = entries.filter((e) => e.spent_date === d).reduce((s, e) => s + secondsOf(e), 0);
-          return (
-            <Link key={d} to="/day/$date" params={{ date: d }} className="week-day" aria-current={d === date ? "date" : undefined}>
-              <span className="d-name">
-                {formatWeekday(d)} {Number(d.slice(8))}
-              </span>
-              <span className={total ? "d-total" : "d-total zero"}>{formatDuration(total, style)}</span>
-              {d === today && <span className="d-today">{t("time.today")}</span>}
-            </Link>
-          );
-        })}
-        <div className="week-sum">
-          <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-            {t("time.weekTotal")}
-          </span>
-          <span className="d-total">{formatDuration(weekTotal, style)}</span>
-        </div>
+      {isToday && (
+        <TimerCard
+          running={timer.entry}
+          fetchedAt={timer.fetchedAt}
+          recent={recent}
+          onEdit={(entry) => setDialog({ open: true, entry })}
+          onNeedDetails={(start) => setDialog({ open: true, entry: null, ...start })}
+        />
+      )}
+
+      <nav className="week-days" aria-label={t("time.thisWeek")}>
+        {days.map((d, i) => (
+          // The router marks the link for the address you're on as the page, so a class shades the
+          // chosen day whichever address got you here ("/" or "/day/…").
+          <Link key={d} to="/day/$date" params={{ date: d }} className={d === date ? "week-day is-selected" : "week-day"} aria-current={d === date ? "date" : undefined}>
+            <span className="d-name">
+              {formatWeekday(d)} {Number(d.slice(8))}
+            </span>
+            <span className={totals[i] ? "d-total" : "d-total is-zero"}>{totals[i] ? formatDuration(totals[i], style) : "–"}</span>
+            <span className="d-fill" aria-hidden>
+              <span style={{ width: `${fills[i]}%` }} />
+            </span>
+          </Link>
+        ))}
       </nav>
 
-      <div className="row" style={{ marginBottom: 12 }}>
-        <Button variant="primary" onClick={() => setDialog({ open: true, entry: null })}>
-          {date === today ? t("time.trackTime") : t("time.newEntry")} <Kbd>N</Kbd>
-        </Button>
-      </div>
+      <section className="day-entries" aria-labelledby="day-entries-title">
+        <div className="day-entries-head">
+          <h2 id="day-entries-title">{t("time.dayEntries", { weekday })}</h2>
+          <button type="button" className="link-button" onClick={addByHand}>
+            + {t("time.addByHand")}
+          </button>
+        </div>
 
-      {dayEntries.length === 0 && !q.isLoading ? (
-        <EmptyState robin="nest" title={t("time.nothingTracked", { date: formatDate(date, "long") })} body={t("time.nothingTrackedBody")} />
-      ) : (
-        <div className="table-scroll">
-          <table className="ledger day-grid">
-            <tbody>
+        {dayEntries.length === 0 && !q.isLoading ? (
+          <p className="day-empty">{isToday ? t("time.emptyToday") : t("time.emptyDay", { weekday })}</p>
+        ) : (
+          <div className={dayEntries.some((e) => e.start_time) ? "entries" : "entries no-ranges"}>
+            <ul>
               {dayEntries.map((e) => {
                 const seconds = secondsOf(e);
+                const range = entryRange(e, t("time.now"));
+                const editable = !e.is_locked;
+                const what = (
+                  <>
+                    <span className="entry-title">
+                      {e.client.name} · {e.project.name}
+                      {!e.billable && <span className="badge">{t("time.nonBillable")}</span>}
+                    </span>
+                    {(e.notes || tasks) && <span className="entry-note">{[tasks ? e.task.name : null, e.notes].filter(Boolean).join(" · ")}</span>}
+                  </>
+                );
                 return (
-                  <tr key={e.id}>
-                    <td className="entry-what">
-                      <strong>
-                        {e.project.code ? `[${e.project.code}] ` : ""}
-                        {e.project.name} <span className="muted" style={{ fontWeight: 400 }}>({e.client.name})</span>
-                      </strong>
-                      <span className="entry-sub">
-                        {e.task.name}
-                        {!e.billable && (
-                          <span className="badge" style={{ marginLeft: 8 }}>
-                            {t("time.nonBillable")}
-                          </span>
-                        )}
-                      </span>
-                      {e.notes && <div className="entry-notes">{e.notes}</div>}
+                  <li key={e.id} className={e.is_running ? "entry is-running" : "entry"}>
+                    <span className="entry-range">{range}</span>
+                    <div className="entry-what">
+                      {editable ? (
+                        <button type="button" className="entry-open" aria-haspopup="dialog" onClick={() => setDialog({ open: true, entry: e })}>
+                          {what}
+                        </button>
+                      ) : (
+                        <span className="entry-open">{what}</span>
+                      )}
                       {e.external_reference?.url && (
-                        <a href={e.external_reference.url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)" }}>
+                        <a className="entry-link" href={e.external_reference.url} target="_blank" rel="noreferrer">
                           {e.external_reference.title || t("time.external")}
                         </a>
                       )}
-                      {seconds > LONG_ENTRY && <div className="field-error">{t("time.longEntry")}</div>}
-                    </td>
-                    <td style={{ width: 120 }}>
-                      <StateBadge entry={e} />
-                    </td>
-                    <td className={e.is_running ? "entry-duration running" : "entry-duration"} style={{ width: 110 }}>
-                      {formatDuration(seconds, style)}
-                    </td>
-                    <td style={{ width: 180 }}>
-                      <div className="entry-actions">
-                        {!e.is_locked && !(approvals && e.approval_state === "submitted") && (
-                          <Button size="sm" variant={e.is_running ? "danger" : "secondary"} onClick={() => toggle.mutate(e)} busy={toggle.isPending && toggle.variables?.id === e.id}>
-                            {e.is_running ? t("time.stop") : t("time.start")}
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => setDialog({ open: true, entry: e })} disabled={e.is_locked}>
-                          {t("app.edit")}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                      {seconds > LONG_ENTRY && <span className="field-error">{t("time.longEntry")}</span>}
+                    </div>
+                    <span className="entry-state">
+                      {e.is_running ? (
+                        <span className="running-label">
+                          <span className="live-dot small" aria-hidden />
+                          {t("time.running")}
+                        </span>
+                      ) : (
+                        <StateBadge entry={e} />
+                      )}
+                      {isToday && !running && !e.is_running && !(approvals && e.approval_state === "submitted") && (
+                        <button type="button" className="entry-continue" onClick={() => continueEntry.mutate(e)} disabled={continueEntry.isPending}>
+                          ▶ {t("time.continue")}
+                        </button>
+                      )}
+                    </span>
+                    <span className="entry-duration">{formatDuration(seconds, style)}</span>
+                  </li>
                 );
               })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={2} className="num muted">
-                  {t("time.total")}
-                </td>
-                <td className="num total day-total">{formatDuration(dayTotal, style)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
+            </ul>
+            <div className="entries-total">
+              <span>{isToday ? t("time.today") : t("time.total")}</span>
+              <span className="entries-total-sum">{formatDuration(dayTotal, style)}</span>
+            </div>
+          </div>
+        )}
+        {continueEntry.error && (
+          <p className="timer-error" role="alert">
+            {errorInfo(continueEntry.error).message}
+          </p>
+        )}
+      </section>
+
+      <p className="keys-hint">
+        {t("time.keysLabel")} <b>N</b> {isToday ? t("time.keys.start") : t("time.keys.add")} · <b>S</b> {t("time.keys.stop")} · <b>D</b> {t("time.keys.day")} · <b>W</b>{" "}
+        {t("time.keys.week")} · <b>← →</b> {t("time.keys.move")}
+      </p>
 
       <EntryDialog
         open={dialog.open}
         onOpenChange={(open) => setDialog((d) => ({ ...d, open }))}
         date={date}
-        isToday={date === today}
+        isToday={isToday}
         entry={dialog.entry}
         durationStyle={style}
-        initial={last ? { projectId: last.project.id, taskId: last.task.id } : undefined}
+        initial={
+          dialog.projectId || dialog.notes || dialog.newProject
+            ? { projectId: dialog.projectId, notes: dialog.notes, newProject: dialog.newProject }
+            : recent
+              ? { projectId: recent.project.id, taskId: recent.task.id }
+              : undefined
+        }
       />
     </>
   );

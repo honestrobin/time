@@ -70,16 +70,18 @@ test("the extension signs in with a code approved in the web app", async () => {
 
 test("a timer started in the extension shows in the web app within 2 s, and the other way round (AT-4.1)", async () => {
   await app.goto("/");
-  await expect(app.locator(".timer-strip")).toHaveCount(0);
+  // Today's timer, on Track: a form while stopped, the running timer once started.
+  const timer = app.getByRole("region", { name: "Timer" });
+  await expect(timer).toHaveCount(0);
 
   await popup.getByLabel("Notes").fill("From the toolbar");
   await popup.getByRole("button", { name: "Start timer" }).click();
   await expect(popup.locator(".running")).toContainText("Mobile app");
   await snap(popup, "m4-popup-running");
-  await expect(app.locator(".timer-strip")).toContainText("From the toolbar", { timeout: 2_000 });
+  await expect(timer).toContainText("From the toolbar", { timeout: 2_000 });
 
   // Stopped in the web app: the popup notices.
-  await app.locator(".timer-strip").getByRole("button", { name: "Stop" }).click();
+  await timer.getByRole("button", { name: "Stop" }).click();
   await expect(popup.locator(".running")).toHaveCount(0, { timeout: 2_000 });
 
   // Started in the web app: the popup shows it.

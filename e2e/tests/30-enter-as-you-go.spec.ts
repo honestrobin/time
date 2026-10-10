@@ -10,7 +10,7 @@ import { call, freshWorkspace } from "./helpers";
 test("a mistake keeps what was typed and creates nothing; the fix saves it all at once", async ({ page, request }) => {
   await freshWorkspace(page, request, "Quick & Co");
   await page.goto("/");
-  await page.getByRole("button", { name: /^Track time/ }).click();
+  await page.getByRole("button", { name: /Add time by hand/ }).click();
 
   const dialog = page.getByRole("dialog", { name: "New entry" });
   await dialog.getByLabel("Project name").fill("Harbour website");
@@ -56,7 +56,7 @@ test("an entry saved with Billable unticked isn't billable", async ({ page, requ
     duration_seconds: 3600,
   });
   await page.goto("/");
-  await page.getByRole("button", { name: /^Track time/ }).click();
+  await page.getByRole("button", { name: /Add time by hand/ }).click();
 
   const dialog = page.getByRole("dialog", { name: "New entry" });
   const billable = dialog.getByRole("checkbox", { name: "Billable" });

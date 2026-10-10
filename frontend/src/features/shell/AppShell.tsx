@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Kbd, Menu } from "../../design";
+import { Menu } from "../../design";
 import { api, setAccountId, unwrap } from "../../lib/api";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useAuthConfig, useMe, usePermissions } from "../../lib/session";
@@ -11,13 +11,14 @@ import { AccountStatusBanner, EmailVerificationBanner } from "../settings/Accoun
 import { ReauthDialog } from "../auth/ReauthDialog";
 import { TwoFactorGate } from "../settings/TwoFactorGate";
 import { LiveUpdates } from "../time/LiveUpdates";
-import { TimerStrip } from "../time/TimerStrip";
+import { RunningTimerTab, TimerPill } from "../time/RunningTimer";
 import "../time/time.css";
 import { HelpDialog } from "./Help";
 import { Wordmark } from "./Wordmark";
 import { useTeamShows } from "../team/reach";
 import { navSections, shortcutList } from "./nav";
 
+/** The shell: one bar across the top with the menu, Help and Settings; the page below it. */
 export function AppShell() {
   const { t } = useTranslation();
   const me = useMe();
@@ -26,9 +27,6 @@ export function AppShell() {
   const pathname = useLocation({ select: (l) => l.pathname });
   const qc = useQueryClient();
   const [showHelp, setShowHelp] = useState(false);
-  // On a phone the menu folds away behind a button, so a page starts with its content.
-  const [menuOpen, setMenuOpen] = useState(false);
-  useEffect(() => setMenuOpen(false), [pathname]);
   const current = me.accounts.find((a) => a.id === me.current_account_id);
 
   const logout = useMutation({
@@ -57,73 +55,73 @@ export function AppShell() {
     location.reload();
   };
 
+  // The work pages go in the bar; the settings pages behind Settings, with the account and sign-out.
+  const pages = sections.filter((s) => s.id !== "settings").flatMap((s) => s.items);
+  const settingsPages = sections.find((s) => s.id === "settings")?.items ?? [];
+  const settingsMenu: Parameters<typeof Menu>[0]["items"] = [
+    { heading: current?.name ?? "—" },
+    ...settingsPages.map((item) => ({ label: t(item.label), onSelect: () => void navigate({ to: item.to }) })),
+    ...(me.accounts.length > 1
+      ? [
+          "separator" as const,
+          { heading: t("nav.switchAccount") },
+          ...me.accounts.map((a) => ({ label: a.id === current?.id ? `✓ ${a.name}` : a.name, onSelect: () => void switchTo(a.id) })),
+        ]
+      : []),
+    "separator" as const,
+    { label: t("nav.signOut"), onSelect: () => logout.mutate() },
+  ];
+
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
-        Skip to content
+        {t("nav.skipToContent")}
       </a>
-      <aside className={menuOpen ? "sidebar menu-open" : "sidebar"}>
-        <Wordmark />
-        <button type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="app-nav" onClick={() => setMenuOpen((o) => !o)}>
-          {menuOpen ? t("nav.closeMenu") : t("nav.menu")}
-        </button>
-        <nav id="app-nav" className="nav" aria-label={t("nav.mainNavigation")}>
-          {sections.map((section) => (
-            <NavSection key={section.id} heading={section.heading ? t(section.heading) : undefined}>
-              {section.items.map((item) => {
-                const alsoActive = item.alsoActive?.some((p) => pathname.startsWith(p));
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={alsoActive ? "nav-link active" : "nav-link"}
-                    activeProps={{ className: "active" }}
-                    aria-current={alsoActive ? "page" : undefined}
-                  >
-                    <span>{t(item.label)}</span>
-                    {item.key && <Kbd>{item.key.toUpperCase()}</Kbd>}
-                  </Link>
-                );
-              })}
-            </NavSection>
-          ))}
+      <header className="topbar">
+        <Wordmark short />
+        <nav id="app-nav" className="topnav" aria-label={t("nav.mainNavigation")}>
+          {pages.map((item) => {
+            const alsoActive = item.alsoActive?.some((p) => pathname.startsWith(p));
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={alsoActive ? "topnav-link active" : "topnav-link"}
+                activeProps={{ className: "active" }}
+                aria-current={alsoActive ? "page" : undefined}
+              >
+                {t(item.label)}
+              </Link>
+            );
+          })}
         </nav>
-        {/* A person is one step away from every page: Help is in the sidebar, and on a phone in the bar. */}
-        <button type="button" className="nav-link sidebar-help" aria-haspopup="dialog" onClick={() => setShowHelp(true)}>
-          <span>{t("help.title")}</span>
-          <Kbd>?</Kbd>
-        </button>
-        <div className="sidebar-foot">
+        <div className="topbar-end">
+          {!me.two_factor_setup_required && <TimerPill />}
+          {/* A person is one step away from every page: Help is in the bar, and behind "?". */}
+          <button type="button" className="help-button" aria-label={t("help.title")} aria-haspopup="dialog" onClick={() => setShowHelp(true)}>
+            ?
+          </button>
           <Menu
-            align="start"
+            align="end"
             trigger={
-              <button className="account-button" type="button">
-                <strong>{current?.name ?? "—"}</strong>
-                <span>{me.name}</span>
+              <button type="button" className="settings-button" aria-label={`${t("nav.settings")}, ${current?.name ?? ""}`}>
+                <span className="avatar" aria-hidden>
+                  {initials(me.name)}
+                </span>
+                <span className="settings-label">{t("nav.settings")}</span>
               </button>
             }
-            items={[
-              ...(me.accounts.length > 1
-                ? [
-                    { heading: t("nav.switchAccount") },
-                    ...me.accounts.map((a) => ({ label: a.id === current?.id ? `✓ ${a.name}` : a.name, onSelect: () => void switchTo(a.id) })),
-                    "separator" as const,
-                  ]
-                : []),
-              { label: t("nav.profile"), onSelect: () => void navigate({ to: "/settings/profile" }) },
-              "separator" as const,
-              { label: t("nav.signOut"), onSelect: () => logout.mutate() },
-            ]}
+            items={settingsMenu}
           />
         </div>
-      </aside>
+      </header>
       <div className="main">
         <EmailVerificationBanner />
         <AccountStatusBanner />
         {!me.two_factor_setup_required && (
           <>
             <LiveUpdates />
-            <TimerStrip />
+            <RunningTimerTab />
           </>
         )}
         <main id="main" tabIndex={-1}>
@@ -136,11 +134,11 @@ export function AppShell() {
   );
 }
 
-function NavSection({ heading, children }: { heading?: string; children: ReactNode }) {
-  return (
-    <>
-      {heading && <div className="nav-heading">{heading}</div>}
-      {children}
-    </>
-  );
+/** "Marta Owner" → "MO": the person's initials, for the round badge on Settings. */
+export function initials(name: string | undefined): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = [...parts[0]][0] ?? "";
+  const last = parts.length > 1 ? ([...parts[parts.length - 1]][0] ?? "") : "";
+  return (first + last).toUpperCase();
 }
