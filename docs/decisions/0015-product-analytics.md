@@ -1,6 +1,6 @@
 # 0015. Product analytics (Honest Robin Cloud only)
 
-- Status: accepted
+- Status: accepted; point 5 superseded by 0028 (11 October 2026)
 - Date: 2026-10-03
 - Spec reference: §2 (PostHog), §13 (privacy), AT-6.5
 
