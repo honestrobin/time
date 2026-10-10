@@ -8,13 +8,13 @@ import i18n from "../../i18n";
 import { FEATURES } from "../../lib/features";
 import { authConfigQuery, meQuery, type AuthConfig, type Me } from "../../lib/session";
 import { peopleQuery } from "../team/shared";
-import { AppShell } from "./AppShell";
+import { AppShell, initials } from "./AppShell";
 import { HELP_EMAIL } from "./Help";
 import { navSections, OUT_OF_MENU } from "./nav";
 
 // The parts of the shell that poll or stream from the server. Help doesn't depend on them.
 vi.mock("../time/LiveUpdates", () => ({ LiveUpdates: () => null }));
-vi.mock("../time/TimerStrip", () => ({ TimerStrip: () => null }));
+vi.mock("../time/RunningTimer", () => ({ RunningTimerTab: () => null, TimerPill: () => null }));
 vi.mock("../settings/AccountData", () => ({ AccountStatusBanner: () => null, EmailVerificationBanner: () => null }));
 vi.mock("../settings/TwoFactorGate", () => ({ TwoFactorGate: () => null }));
 vi.mock("../auth/ReauthDialog", () => ({ ReauthDialog: () => null }));
@@ -115,5 +115,14 @@ describe("Help", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Help/ }));
     const exportLink = await screen.findByRole("link", { name: "Export all data" });
     expect(exportLink.getAttribute("href")).toBe("/settings/account#export");
+  });
+});
+
+describe("Settings", () => {
+  it("shows the person's initials", () => {
+    expect(initials("Marta Owner")).toBe("MO");
+    expect(initials("Ana")).toBe("A");
+    expect(initials("  ana maría de la vega ")).toBe("AV");
+    expect(initials("")).toBe("?");
   });
 });

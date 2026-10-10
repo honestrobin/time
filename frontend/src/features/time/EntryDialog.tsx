@@ -19,8 +19,11 @@ interface Props {
   /** Present when editing. */
   entry?: TimeEntry | null;
   durationStyle: "hm" | "decimal";
-  /** Pre-select a project and task (e.g. from the most recent entry). */
-  initial?: { projectId?: string; taskId?: string };
+  /**
+   * Pre-select a project and task (e.g. from the most recent entry), keep a note typed elsewhere,
+   * or start on a new project.
+   */
+  initial?: { projectId?: string; taskId?: string; notes?: string; newProject?: boolean };
 }
 
 export function EntryDialog({ open, onOpenChange, date, isToday, entry, durationStyle, initial }: Props) {
@@ -63,10 +66,10 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
     if (!open) return;
     setProjectId(entry?.project.id ?? initial?.projectId);
     setTaskId(entry?.task.id ?? initial?.taskId);
-    setNotes(entry?.notes ?? "");
+    setNotes(entry?.notes ?? initial?.notes ?? "");
     setDuration(entry ? entry.duration_seconds : null);
     setBillable(entry?.billable ?? true);
-    setNewProject(false);
+    setNewProject(!entry && !!initial?.newProject);
     setProjectName("");
     setClientChoice(undefined);
     setClientName(undefined);
@@ -75,7 +78,7 @@ export function EntryDialog({ open, onOpenChange, date, isToday, entry, duration
     setTaskName(undefined);
     setHourlyRate(null);
     setFormError({});
-  }, [open, entry, initial?.projectId, initial?.taskId]);
+  }, [open, entry, initial?.projectId, initial?.taskId, initial?.notes, initial?.newProject]);
 
   const clients = (clientList.data?.data ?? []).filter((c) => c.is_active).sort(byName);
   const tasks = (taskList.data?.data ?? []).filter((x) => x.is_active).sort(byName);

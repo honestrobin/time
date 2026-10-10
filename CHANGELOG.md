@@ -9,6 +9,13 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Track is redrawn, and the menu moved to a bar across the top, with Help and Settings at its
+  right end. Today's timer asks what you're working on: type a note and press Enter (or N), and it
+  runs on the project you used last; S stops it. While it runs, the time and the project are in the
+  browser tab and, on every other page, in the top bar. Each day of the week shows its hours and a
+  bar measured against the week's longest day, and the day you're looking at stays shaded however
+  you got there. Entries show when they ran, and Continue starts a new entry with the same project
+  and note, so the earlier one keeps its true times. If a timer can't start, what you typed stays.
 - A part of Time that's switched off now also stops what it would do without being asked, since
   nobody could see it or turn it off: no budget alerts, no invoice reminders, no Harvest sync, and
   approvals count as off, so a week sent for approval is open to edit again and reminders don't ask

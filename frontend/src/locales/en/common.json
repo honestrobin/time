@@ -18,7 +18,7 @@
     "no": "No"
   },
   "nav": {
-    "time": "Time",
+    "time": "Track",
     "settings": "Settings",
     "account": "Account",
     "billing": "Billing",
@@ -43,7 +43,8 @@
     "accounting": "Accounting",
     "developers": "API",
     "menu": "Menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "skipToContent": "Skip to content"
   },
   "auth": {
     "signInTitle": "Sign in",

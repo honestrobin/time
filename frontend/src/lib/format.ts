@@ -177,6 +177,28 @@ export function formatDateTime(iso: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
+/** A day as a heading: "Friday, 9 October", in the reader's own order. */
+export function formatDayHeading(isoDate: string): string {
+  return new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${isoDate}T12:00:00`));
+}
+
+/** A 24-hour clock writes "08:40", a 12-hour one "8:40 AM". */
+function hourStyle(): "2-digit" | "numeric" {
+  const cycle = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle;
+  return cycle === "h11" || cycle === "h12" ? "numeric" : "2-digit";
+}
+
+/** A time of day as the API sends it ("08:40:00") → "08:40", in the reader's own way of writing it. */
+export function formatTimeOfDay(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return new Intl.DateTimeFormat(locale, { hour: hourStyle(), minute: "2-digit" }).format(new Date(2000, 0, 1, h, m));
+}
+
+/** The time of day of a moment, in a time zone: when a timer started, "13:05". */
+export function formatMomentTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(locale, { hour: hourStyle(), minute: "2-digit", timeZone }).format(new Date(iso));
+}
+
 export function formatWeekday(isoDate: string, style: "short" | "long" = "short"): string {
   return new Intl.DateTimeFormat(locale, { weekday: style }).format(new Date(`${isoDate}T12:00:00`));
 }

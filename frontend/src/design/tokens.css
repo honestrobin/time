@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /*
  * Honest Robin design tokens. The palette comes from accountants' columnar pads (pale green paper,
- * green rules, red totals) and punch-clock time cards. Red is reserved for the running timer,
- * totals rules, destructive actions and over-budget states.
+ * green rules, red totals) and punch-clock time cards. The robin's orange marks a running timer and
+ * nothing else; red is reserved for totals rules, destructive actions and over-budget states.
  */
 :root {
   /* colour */
@@ -12,8 +12,11 @@
   --ink: #1c2b25;
   --ink-soft: #4b5a53;
   --ink-faint: #7a8781;
+  --ink-muted: #5e6b65;
   --rule: #c5d6ca;
   --rule-strong: #7fa08c;
+  --rule-faint: #e3eae3;
+  --rule-input: #a9bdb0;
   --action: #1f5c45;
   --action-hover: #17493a;
   --action-ink: #f3f5f0;
@@ -23,11 +26,13 @@
   --warn: #b7791f;
   --warn-tint: #f6ecd9;
   --focus: #2f6fd6;
+  --robin: #f26a2e;
 
   /* type */
   --font: "Archivo Variable", "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --stretch-condensed: 72%;
   --stretch-semi: 88%;
+  --stretch-wide: 112%;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-md: 0.9375rem;
@@ -49,8 +54,9 @@
 
   --radius: 4px;
   --radius-lg: 8px;
+  --radius-card: 18px;
+  --shadow-card: 0 1px 2px rgb(28 43 37 / 0.05), 0 12px 32px rgb(28 43 37 / 0.06);
   --shadow-pop: 0 6px 24px rgb(28 43 37 / 0.14), 0 1px 3px rgb(28 43 37 / 0.12);
-  --sidebar-width: 224px;
   --duration: 140ms;
 }
 

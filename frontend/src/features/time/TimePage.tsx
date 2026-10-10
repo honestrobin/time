@@ -2,10 +2,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Button, PageLoading, Select } from "../../design";
+import { PageLoading, Select } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { addDays, startOfWeek } from "../../lib/dates";
-import { formatDate } from "../../lib/format";
+import { formatDate, formatDayHeading } from "../../lib/format";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe, usePermissions } from "../../lib/session";
 import { DayView } from "./DayView";
@@ -13,7 +13,7 @@ import { useAccountSettings } from "./hooks";
 import { WeekView } from "./WeekView";
 import "./time.css";
 
-/** Time: a day view (entries and timers) and a week view (grid), like a paper time card. */
+/** Track: a day (today's timer and the day's entries) and a week (a grid), like a paper time card. */
 export function TimePage() {
   const { t } = useTranslation();
   const account = useAccountSettings();
@@ -47,14 +47,28 @@ export function TimePage() {
     enabled: perms.isManagerOrAdmin,
   });
 
+  const isTodayInView = mode === "day" ? date === account.today : account.today >= weekStart && account.today <= addDays(weekStart, 6);
   const label =
-    mode === "day" ? formatDate(date, "long") : `${formatDate(weekStart, "medium")} – ${formatDate(addDays(weekStart, 6), "medium")}`;
+    mode === "day" ? formatDayHeading(date) : `${formatDate(weekStart, "medium")} – ${formatDate(addDays(weekStart, 6), "medium")}`;
 
   return (
-    <div className="page">
-      <header className="page-header">
-        <h1>{t("time.title")}</h1>
-        <div className="actions time-nav">
+    <div className="track">
+      <header className="track-head">
+        <button type="button" className="step-button" aria-label={mode === "day" ? t("time.previousDay") : t("time.previousWeek")} onClick={prev}>
+          ‹
+        </button>
+        <h1>{label}</h1>
+        {isTodayInView ? (
+          <span className="today-badge">{mode === "day" ? t("time.today") : t("time.thisWeekBadge")}</span>
+        ) : (
+          <button type="button" className="today-link" onClick={() => go(mode, mode === "day" ? account.today : startOfWeek(account.today, account.weekStart))}>
+            {mode === "day" ? t("time.goToToday") : t("time.goToThisWeek")}
+          </button>
+        )}
+        <button type="button" className="step-button" aria-label={mode === "day" ? t("time.nextDay") : t("time.nextWeek")} onClick={next}>
+          ›
+        </button>
+        <div className="track-head-end">
           {perms.isManagerOrAdmin && mode === "week" && (people.data?.data.length ?? 0) > 1 && (
             <div style={{ width: 200 }}>
               <Select
@@ -65,7 +79,7 @@ export function TimePage() {
               />
             </div>
           )}
-          <div className="segmented" role="navigation" aria-label={t("time.title")}>
+          <div className="segmented" role="group" aria-label={t("time.show")}>
             <Link to="/day/$date" params={{ date: mode === "week" ? (account.today >= weekStart && account.today <= addDays(weekStart, 6) ? account.today : weekStart) : date }} aria-current={mode === "day" ? "page" : undefined}>
               {t("time.day")}
             </Link>
@@ -73,16 +87,6 @@ export function TimePage() {
               {t("time.week")}
             </Link>
           </div>
-          <Button size="sm" variant="ghost" className="nav-arrow" aria-label={mode === "day" ? t("time.previousDay") : t("time.previousWeek")} onClick={prev}>
-            ‹
-          </Button>
-          <span className="time-date">{label}</span>
-          <Button size="sm" variant="ghost" className="nav-arrow" aria-label={mode === "day" ? t("time.nextDay") : t("time.nextWeek")} onClick={next}>
-            ›
-          </Button>
-          <Button size="sm" onClick={() => go(mode, mode === "day" ? account.today : startOfWeek(account.today, account.weekStart))}>
-            {t("time.today")}
-          </Button>
         </div>
       </header>
       {!account.loaded ? <PageLoading /> : mode === "day" ? <DayView date={date} /> : <WeekView date={weekStart} personId={personId} />}
