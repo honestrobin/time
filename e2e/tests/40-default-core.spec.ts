@@ -22,11 +22,18 @@ test("with the default switches, the menu is the core and a person is one step a
   for (const name of ["Account", "Profile"]) {
     await expect(settings.getByRole("menuitem", { name: new RegExp(`^${name}`) }), name).toBeVisible();
   }
-  for (const name of ["Invoices", "Expenses", "Approvals", "Tasks", "Team", "Import from Harvest"]) {
+  for (const name of ["Invoices", "Expenses", "Approvals", "Tasks", "Team", "Import from Harvest", "Invoice settings", "Online payments", "Accounting", "Expense categories"]) {
     await expect(menu.getByRole("link", { name: new RegExp(`^${name}`) }), name).toHaveCount(0);
     await expect(settings.getByRole("menuitem", { name: new RegExp(`^${name}`) }), name).toHaveCount(0);
   }
   await page.keyboard.press("Escape");
+
+  // On a phone too, Help is in the bar.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /^Help/ }).click();
+  await expect(page.getByRole("dialog", { name: "Help" }).getByRole("link", { name: "hello@honestrobin.com" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // A switched-off page goes to Time.
   await page.goto("/invoices");

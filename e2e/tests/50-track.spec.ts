@@ -95,3 +95,13 @@ test("Track: a refused start keeps what was typed and starts nothing", async ({ 
   await page.keyboard.press("s");
   await expect(timer).toHaveCount(0);
 });
+
+test("Track: a new week's first timer starts on the project used last, not the first in the list", async ({ page, request }) => {
+  await freshWorkspace(page, request, "Monday & Co");
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+  // Nothing this week. Two weeks ago, the last work was for the client that sorts last.
+  await call(page, "POST", "/api/v1/time_entries/quick", { client_name: "Aalto Studio", project_name: "Annual report", task_name: "Design", duration_seconds: 3600, spent_date: daysAgo(21) });
+  await call(page, "POST", "/api/v1/time_entries/quick", { client_name: "Zephyr Labs", project_name: "Zine", task_name: "Design", duration_seconds: 3600, spent_date: daysAgo(14) });
+  await page.goto("/");
+  await expect(page.getByRole("combobox", { name: "Project" })).toContainText("Zephyr Labs · Zine");
+});
