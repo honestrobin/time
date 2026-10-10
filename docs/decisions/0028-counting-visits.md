@@ -1,31 +1,37 @@
-# 0028. Page views are counted for every visit; anything more is opt-in
+# 0028. Count visits by default; everything else only by choice
 
 - Status: accepted (by the maintainer on 11 October 2026)
 - Date: 2026-10-11
-- Spec reference: §2 (PostHog), §13 (privacy)
-- Supersedes: point 5 of 0015 ("Browsers that refuse tracking are respected")
+- Spec reference: §2 (PostHog), §13 (privacy), AT-6.5
+- Supersedes: in 0015, point 1 for the funnel (events now need the account's choice), point 2
+  for page views (they no longer carry the account's id), and point 5 (Do Not Track and Global
+  Privacy Control no longer stop page views)
 
 ## Context
 
-0015 skipped page views when a browser sent Global Privacy Control or Do Not Track, because the
-Robin's Code then promised it. Those signals were made against following people from site to
-site and building profiles of them. A page view in Time does neither: it goes out without cookies,
-under the account's id, with the route's pattern and nothing about the person. Skipping it only
-made the counts wrong for the people most careful about their privacy.
+The Robin's Code, article 5, now says: by default we only count visits, without cookies, without
+following anyone to other sites, and never who they are. Anything more, such as how an account
+uses a product, is off until someone turns it on; it helps us decide what to build next.
 
-The Robin's Code, article 5, now says instead what we count, and that any tracking beyond it is
-off until someone turns it on.
+Time sent two things to PostHog: page views under the account's id, and funnel events (the steps
+an account reaches) for every account in the cloud. Both said how an account uses Time.
 
 ## Decision
 
-1. **Every signed-in page view is counted,** whatever the browser's tracking signals say, with
-   everything else in 0015 unchanged: the cloud edition only, the account's id, the route's
-   pattern, no cookies, no PostHog script, no location lookup.
-2. **Nothing beyond that count without a choice.** Time sends no other tracking. If it ever does,
-   it's off by default and someone turns it on for themselves.
+1. **Page views count visits, nothing more.** Each carries a fresh random id, the route's pattern
+   and nothing about the account or the person. A browser's Do Not Track or Global Privacy Control
+   doesn't stop them: counting a visit isn't following anyone.
+2. **The funnel only by choice.** The steps an account reaches are still recorded in its own data
+   (they're in its export) and sent to PostHog only if the account shares how it uses Time
+   (`UsageSharing`). The setting to choose that isn't built yet, so for now no account shares
+   anything. When it's built: off by default, asked at most once, both answers equally easy.
+
+Everything else in 0015 stands: the cloud edition only, no PostHog script, nothing stored in the
+browser for analytics, no location lookup, the EU region.
 
 ## Consequences
 
-`lib/analytics.ts` no longer reads `navigator.doNotTrack` or `navigator.globalPrivacyControl`.
-The test that checked they stopped page views now checks that a page view under them carries only
-what every page view carries. The ledger row and `docs/companies.md` say the same.
+- We lose the funnel until the setting exists, and see visits rather than accounts.
+- The browser still sends page views itself, so PostHog sees its IP address (0015, point 7).
+  Counting them on our own server instead would end that, and settle whether reading anything
+  from the browser for analytics needs consent.

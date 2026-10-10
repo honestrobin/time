@@ -53,21 +53,17 @@ Where we couldn't confirm a fact yet, it says "(to be checked)".
 
 - **Country:** United States (PostHog Inc.). The code sends to PostHog's EU region,
   `eu.i.posthog.com`, which keeps the data in Frankfurt, Germany, on Amazon Web Services.
-- **What it does:** counts how accounts use the product: which steps they reach, and which pages
-  they open.
+- **What it does:** counts visits to the app's pages. Nothing more: the steps an account reaches,
+  such as its first invoice, stay in its own data and go to PostHog only if the account chooses to
+  share how it uses Time, a setting that isn't built yet.
 - **What it sees:**
-  - your workspace's random ID, never a person's;
-  - the steps a workspace reaches: sign-up, an import started and checked, the first timer, the
-    first invoice sent, an invoice paid online, a subscription started. Some steps add one
-    detail: where an import came from and whether its totals matched, the currency of an online
-    payment, or the billing period and number of seats of a subscription;
-  - the pages opened, as a pattern such as `/invoices/$invoiceId`, never the address you see;
+  - the pages opened, as a pattern such as `/invoices/$invoiceId`, never the address you see,
+    each with a fresh random ID, never your workspace's or a person's;
   - with each page view, your browser's IP address and its name and version. PostHog is asked not
     to work out a location from the IP address. Whether our PostHog project throws IP addresses
     away is a setting there: (to be checked).
 
-  Never names, email addresses, amounts or anything about your clients. That's all we count;
-  any tracking beyond it would be off until you turn it on.
+  Never names, email addresses, amounts or anything about your clients.
 
 ### Have I Been Pwned
 
