@@ -66,8 +66,8 @@ Where we couldn't confirm a fact yet, it says "(to be checked)".
     to work out a location from the IP address. Whether our PostHog project throws IP addresses
     away is a setting there: (to be checked).
 
-  Never names, email addresses, amounts or anything about your clients. When your browser asks
-  not to be tracked (Do Not Track or Global Privacy Control), it sends no page views.
+  Never names, email addresses, amounts or anything about your clients. That's all we count;
+  any tracking beyond it would be off until you turn it on.
 
 ### Have I Been Pwned
 

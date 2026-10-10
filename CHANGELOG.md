@@ -9,6 +9,9 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- Page views in Honest Robin Cloud are now counted for every signed-in visit, also when your
+  browser asks not to be tracked: still under the account, never the person, without cookies,
+  and nothing else. Any tracking beyond that count would be off until you turn it on.
 - Track is redrawn, and the menu moved to a bar across the top, with Help and Settings at its
   right end. Today's timer asks what you're working on: type a note and press Enter (or N), and it
   runs on the project you used last; S stops it. While it runs, the time and the project are in the

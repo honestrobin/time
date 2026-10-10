@@ -3,18 +3,14 @@
 // never on self-hosted instances. No script from PostHog and nothing stored in the browser. What
 // goes out is the route's pattern ("/invoices/$invoiceId"), not the address (a search can hold a
 // client's name), under the account's id, as the server's funnel events use, and only while
-// someone is signed in. Browsers that ask not to be tracked (Global Privacy Control, Do Not Track)
-// send nothing. The request goes from the browser, so PostHog sees its IP address; it's asked not
-// to look up a location from it ($geoip_disable), and the project should discard IPs (setting).
+// someone is signed in. That's all it counts (decision record 0028): a browser's Do Not Track or
+// Global Privacy Control doesn't stop it, and nothing beyond it is sent. The request goes from the
+// browser, so PostHog sees its IP address; it's asked not to look up a location from it
+// ($geoip_disable), and the project should discard IPs (setting).
 
 export interface AnalyticsConfig {
   posthog_key: string;
   posthog_host: string;
-}
-
-function trackingRefused(): boolean {
-  const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
-  return nav.globalPrivacyControl === true || navigator.doNotTrack === "1";
 }
 
 /** Sends one page view; returns whether it did. */
@@ -24,7 +20,7 @@ export function sendPageView(
   route: string,
   send: typeof fetch = fetch,
 ): boolean {
-  if (!config || !accountId || trackingRefused()) return false;
+  if (!config || !accountId) return false;
   const body = JSON.stringify({
     api_key: config.posthog_key,
     event: "$pageview",
