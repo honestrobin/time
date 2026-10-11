@@ -4,8 +4,9 @@
 - Date: 2026-10-11
 - Spec reference: §2 (PostHog), §13 (privacy), AT-6.5
 - Supersedes: in 0015, point 1 for the funnel (events now need the account's choice), point 2
-  for page views (they no longer carry the account's id), and point 5 (Do Not Track and Global
-  Privacy Control no longer stop page views)
+  for page views (they no longer carry the account's id), point 5 (Do Not Track and Global
+  Privacy Control no longer stop page views), and in point 7, that page views are linked to the
+  account id
 
 ## Context
 
@@ -32,6 +33,10 @@ browser for analytics, no location lookup, the EU region.
 ## Consequences
 
 - We lose the funnel until the setting exists, and see visits rather than accounts.
+- The steps an account reaches are still recorded (`account_milestones`) and exported, though
+  nothing sends them now. When the setting is built, a test that what's shared carries no names,
+  email addresses or workspace names comes back, with one that one admin's choice is clear about
+  covering the whole team.
 - The browser still sends page views itself, so PostHog sees its IP address (0015, point 7).
   Counting them on our own server instead would end that, and settle whether reading anything
   from the browser for analytics needs consent.
