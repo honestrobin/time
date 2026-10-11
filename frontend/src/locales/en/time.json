@@ -115,15 +115,16 @@
     "clientProject": "Client · project",
     "runningHere": "A timer is running: {{time}}",
     "notATime": "“{{text}}” isn't a time. Type 1:30 or 1.5, and the totals catch up.",
-    "typeIntoAnyDay": "Type 1:30 or 1.5 into any day. It saves as you go.",
     "showAs": "Show as",
     "table": "Table",
     "strip": "Strip",
     "stripLabel": "The week as strips of paper, {{from}} to {{to}}",
     "stripDay": "{{day}}, {{time}} tracked",
     "stripDayEmpty": "{{day}}, nothing tracked",
-    "stripLegend": "Clients",
+    "stripLegend": "What the colours mean",
     "stripPick": "Click a day to see it larger.",
-    "stripUntimed": "Time typed in without a start time sits at the end of its day."
+    "stripUntimed": "Time typed in without a start time is drawn lighter, after the day's timed work or from {{time}}: it shows how long, not when.",
+    "typeIntoADay": "Type 1:30 or 1.5 into a day. It saves as you go.",
+    "noStartTime": "No start time"
   }
 }
