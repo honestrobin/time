@@ -76,7 +76,7 @@ paying for Honest Robin Cloud. Who may sign up is a setting ([0004](decisions/00
 - **Peppol through Storecove:** e-invoices are made on the server and sent with the account's own Storecove contract ([0014](decisions/0014-einvoicing-and-accounting.md)).
 - **QuickBooks Online and Xero:** invoices and payments pushed one way, through a queue that retries.
 - **Harvest:** import over its API or from CSV, and an optional sync while a team switches ([0011](decisions/0011-harvest-import.md)).
-- **PostHog:** cloud only, in the EU: page views and funnel steps per account ([0015](decisions/0015-product-analytics.md)).
+- **PostHog:** cloud only, in the EU: page views without the account; funnel steps only from an account that chooses to share them ([0015](decisions/0015-product-analytics.md), [0028](decisions/0028-counting-visits.md)).
 - **Have I Been Pwned:** new passwords are checked without being sent; self-hosters can turn it off.
 - **Mail:** any SMTP server ([0012](decisions/0012-outbound-mail.md)). Every company the code can reach is in [companies.md](companies.md).
 

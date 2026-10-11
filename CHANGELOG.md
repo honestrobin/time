@@ -9,9 +9,11 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
-- Honest Robin Cloud now only counts visits to Time's pages, without your workspace's id or
-  anything about you. The steps your workspace reaches, such as its first invoice, are no longer
-  sent anywhere; a setting to share them, off by default, comes later.
+- Honest Robin Cloud now only counts visits to Time's pages, without your workspace's id: each
+  view gets a random one. Your browser's IP address, name and version still reach PostHog with
+  each view. Visits are now counted also when your browser asks not to be tracked. The steps your
+  workspace reaches, such as its first invoice, are no longer sent anywhere; a setting to share
+  them, off by default, comes later.
 - Track is redrawn, and the menu moved to a bar across the top, with Help and Settings at its
   right end. Today's timer asks what you're working on: type a note and press Enter (or N), and it
   runs on the project you used last; S stops it. While it runs, the time and the project are in the

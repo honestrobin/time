@@ -13,6 +13,15 @@ export interface AnalyticsConfig {
   posthog_host: string;
 }
 
+/** A fresh id for one view. Older browsers lack crypto.randomUUID; they get one shaped the same. */
+function randomId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 /** Sends one page view; returns whether it did. */
 export function sendPageView(
   config: AnalyticsConfig | null | undefined,
@@ -24,7 +33,7 @@ export function sendPageView(
   const body = JSON.stringify({
     api_key: config.posthog_key,
     event: "$pageview",
-    distinct_id: crypto.randomUUID(),
+    distinct_id: randomId(),
     timestamp: new Date().toISOString(),
     properties: { $pathname: route, $current_url: location.origin + route, $process_person_profile: false, $geoip_disable: true },
   });

@@ -1,6 +1,6 @@
 # Companies that touch your data
 
-Last changed: 5 October 2026. Every change is in
+Last changed: 11 October 2026. Every change is in
 [this file's history](https://github.com/honestrobin/time/commits/main/docs/companies.md).
 
 This is every company that touches your data on Honest Robin Cloud, the service we run for you.
@@ -20,7 +20,7 @@ Each company here has subcontractors of its own. Their lists are on their own we
 |---|---|---|---|
 | Hetzner | Germany | Runs our servers, where your data is stored | Always |
 | Cloudflare | United States | Passes traffic on to our servers and protects them from attacks | Always |
-| PostHog | United States, with our data in Germany | Counts how accounts use the product | Always |
+| PostHog | United States, with our data in Germany | Counts visits to the app's pages | Always |
 | Have I Been Pwned | Australia | Checks new passwords against known data breaches | When someone sets a password |
 | Mail provider | Not chosen yet | Sends our emails | Always |
 | Paddle | United Kingdom | Sells our paid plan to you | When you subscribe |

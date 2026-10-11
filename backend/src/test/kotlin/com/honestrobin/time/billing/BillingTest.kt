@@ -184,8 +184,10 @@ class BillingTest : IntegrationTest() {
         deliver(subscriptionEvent(account, type = "subscription.resumed", status = "active", quantity = 2, unitPrice = 7200))
         assertThat(admin.get("/api/v1/account")["status"].asText()).isEqualTo("active")
 
-        val events = (1..100).asSequence().map { Thread.sleep(50); MockPostHog.forAccount(account) }.first { "subscription_started" in it }
-        assertThat(events.count { it == "subscription_started" }).isEqualTo(1)
+        // The step is kept in the account's data and sent nowhere: it hasn't chosen to share how it
+        // uses Time (decision record 0028).
+        Thread.sleep(300)
+        assertThat(MockPostHog.forAccount(account)).doesNotContain("subscription_started")
     }
 
     @Test
