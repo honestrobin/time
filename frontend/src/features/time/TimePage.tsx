@@ -1,19 +1,45 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageLoading, Select } from "../../design";
 import { api, unwrap } from "../../lib/api";
 import { addDays, startOfWeek } from "../../lib/dates";
-import { formatDate, formatDayHeading } from "../../lib/format";
+import { formatDayHeading, formatWeekHeading } from "../../lib/format";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe, usePermissions } from "../../lib/session";
 import { DayView } from "./DayView";
 import { useAccountSettings } from "./hooks";
-import { WeekView } from "./WeekView";
+import { WeekView, type WeekShape } from "./WeekView";
 import "./time.css";
 
-/** Track: a day (today's timer and the day's entries) and a week (a grid), like a paper time card. */
+const SHAPE_KEY = "honestrobin.weekShape";
+
+/** Table or Strip, remembered in this browser only: a convenience, so it may be forgotten. */
+function useWeekShape() {
+  const [shape, setShape] = useState<WeekShape>(() => {
+    try {
+      return localStorage.getItem(SHAPE_KEY) === "strip" ? "strip" : "table";
+    } catch {
+      return "table";
+    }
+  });
+  const choose = (next: WeekShape) => {
+    setShape(next);
+    try {
+      localStorage.setItem(SHAPE_KEY, next);
+    } catch {
+      // Storage is off in this browser: the choice lasts until the page is left.
+    }
+  };
+  return [shape, choose] as const;
+}
+
+/**
+ * Track: a day (today's timer and the day's entries) and a week (a table, or strips of paper),
+ * like a paper time card. Both show one chosen day, the address's date, so Day and Week keep it.
+ */
 export function TimePage() {
   const { t } = useTranslation();
   const account = useAccountSettings();
@@ -27,18 +53,19 @@ export function TimePage() {
   const date = params.date ?? account.today;
   const weekStart = startOfWeek(date, account.weekStart);
   const personId = search.person;
+  const [shape, setShape] = useWeekShape();
 
-  const go = (m: "day" | "week", d: string, person = personId) =>
-    void navigate({ to: m === "day" ? "/day/$date" : "/week/$date", params: { date: d }, search: person ? { person } : {} });
+  const go = (m: "day" | "week", d: string, person = personId, replace = false) =>
+    void navigate({ to: m === "day" ? "/day/$date" : "/week/$date", params: { date: d }, search: person ? { person } : {}, replace });
   const step = mode === "day" ? 1 : 7;
-  const prev = () => go(mode, addDays(mode === "day" ? date : weekStart, -step));
-  const next = () => go(mode, addDays(mode === "day" ? date : weekStart, step));
+  const prev = () => go(mode, addDays(date, -step));
+  const next = () => go(mode, addDays(date, step));
 
   useHotkeys({
     ArrowLeft: prev,
     ArrowRight: next,
-    d: () => go("day", mode === "week" && date === weekStart && account.today >= weekStart && account.today <= addDays(weekStart, 6) ? account.today : date),
-    w: () => go("week", weekStart),
+    d: () => go("day", date),
+    w: () => go("week", date),
   });
 
   const people = useQuery({
@@ -48,11 +75,10 @@ export function TimePage() {
   });
 
   const isTodayInView = mode === "day" ? date === account.today : account.today >= weekStart && account.today <= addDays(weekStart, 6);
-  const label =
-    mode === "day" ? formatDayHeading(date) : `${formatDate(weekStart, "medium")} – ${formatDate(addDays(weekStart, 6), "medium")}`;
+  const label = mode === "day" ? formatDayHeading(date) : formatWeekHeading(weekStart, addDays(weekStart, 6), account.today.slice(0, 4));
 
   return (
-    <div className="track">
+    <div className={mode === "week" ? "track is-week" : "track"}>
       <header className="track-head">
         <button type="button" className="step-button" aria-label={mode === "day" ? t("time.previousDay") : t("time.previousWeek")} onClick={prev}>
           ‹
@@ -61,7 +87,7 @@ export function TimePage() {
         {isTodayInView ? (
           <span className="today-badge">{mode === "day" ? t("time.today") : t("time.thisWeekBadge")}</span>
         ) : (
-          <button type="button" className="today-link" onClick={() => go(mode, mode === "day" ? account.today : startOfWeek(account.today, account.weekStart))}>
+          <button type="button" className="today-link" onClick={() => go(mode, account.today)}>
             {mode === "day" ? t("time.goToToday") : t("time.goToThisWeek")}
           </button>
         )}
@@ -74,22 +100,46 @@ export function TimePage() {
               <Select
                 aria-label={t("time.person")}
                 value={personId ?? me.current_membership_id ?? undefined}
-                onChange={(v) => go("week", weekStart, v === me.current_membership_id ? undefined : v)}
+                onChange={(v) => go("week", date, v === me.current_membership_id ? undefined : v)}
                 options={(people.data?.data ?? []).map((p) => ({ value: p.id, label: p.id === me.current_membership_id ? t("time.me") : p.name }))}
               />
             </div>
           )}
+          {mode === "week" && (
+            <div className="shape-switch" role="group" aria-label={t("time.showAs")}>
+              <button type="button" aria-pressed={shape === "table"} onClick={() => setShape("table")}>
+                {t("time.table")}
+              </button>
+              <span aria-hidden="true">/</span>
+              <button type="button" aria-pressed={shape === "strip"} onClick={() => setShape("strip")}>
+                {t("time.strip")}
+              </button>
+            </div>
+          )}
           <div className="segmented" role="group" aria-label={t("time.show")}>
-            <Link to="/day/$date" params={{ date: mode === "week" ? (account.today >= weekStart && account.today <= addDays(weekStart, 6) ? account.today : weekStart) : date }} aria-current={mode === "day" ? "page" : undefined}>
+            <Link to="/day/$date" params={{ date }} aria-current={mode === "day" ? "page" : undefined}>
               {t("time.day")}
             </Link>
-            <Link to="/week/$date" params={{ date: weekStart }} aria-current={mode === "week" ? "page" : undefined}>
+            <Link to="/week/$date" params={{ date }} aria-current={mode === "week" ? "page" : undefined}>
               {t("time.week")}
             </Link>
           </div>
         </div>
       </header>
-      {!account.loaded ? <PageLoading /> : mode === "day" ? <DayView date={date} /> : <WeekView date={weekStart} personId={personId} />}
+      {!account.loaded ? (
+        <PageLoading />
+      ) : mode === "day" ? (
+        <DayView date={date} />
+      ) : (
+        <WeekView
+          key={`${weekStart}:${personId ?? ""}`}
+          date={weekStart}
+          selected={date}
+          onSelect={(d) => go("week", d, personId, true)}
+          shape={shape}
+          personId={personId}
+        />
+      )}
     </div>
   );
 }

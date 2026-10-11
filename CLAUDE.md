@@ -85,5 +85,7 @@ The e2e tests need the backend (`bootRun`, see `docs/development.md`) and Vite (
   when the page loads: ignore empty values, or a chosen default is lost.
 - TanStack Router's `Link` sets `aria-current="page"` on the link for the current address and
   overrides one you set: style a chosen item by class, not by `aria-current`.
+- CSS classes are global, whichever feature's file they're in: prefix a feature's own (`.week-…`).
+  A plain `.add-row` in the week picked up the margin of projects' `.add-row`.
 - Chrome content scripts have no `customElements` registry.
 - Never `pkill -f` with a pattern that appears in your own command line: it kills your shell.

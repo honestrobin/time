@@ -17,18 +17,29 @@ interface DurationInputProps {
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
   onEnter?: () => void;
+  /** Hears what was typed while it isn't a time, and null once it is again. */
+  onInvalid?: (text: string | null) => void;
 }
 
 /**
  * Text field for durations. Accepts "1:30", "1.5", "1,5", "90m" or "1h 30m"; reformats on blur.
  * Invalid input keeps the text and reports null plus aria-invalid.
  */
-export function DurationInput({ value, onChange, style = "hm", onEnter, className, ...rest }: DurationInputProps) {
+export function DurationInput({ value, onChange, style = "hm", onEnter, onInvalid, className, ...rest }: DurationInputProps) {
   const [text, setText] = useState(value === null ? "" : formatDuration(value, style));
   const [invalid, setInvalid] = useState(false);
+  const heard = useRef(onInvalid);
+  heard.current = onInvalid;
   useEffect(() => {
     setText(value === null ? "" : formatDuration(value, style));
+    setInvalid(false);
+    heard.current?.(null);
   }, [value, style]);
+  const check = (next: string) => {
+    const bad = parseDuration(next) === null;
+    setInvalid(bad);
+    onInvalid?.(bad ? next : null);
+  };
   return (
     <input
       {...rest}
@@ -38,8 +49,7 @@ export function DurationInput({ value, onChange, style = "hm", onEnter, classNam
       aria-invalid={invalid || rest["aria-invalid"] || undefined}
       onChange={(e) => {
         setText(e.target.value);
-        const parsed = parseDuration(e.target.value);
-        setInvalid(parsed === null);
+        check(e.target.value);
       }}
       onBlur={() => {
         const parsed = parseDuration(text);

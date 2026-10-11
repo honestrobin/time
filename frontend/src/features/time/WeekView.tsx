@@ -6,21 +6,41 @@ import { useTranslation } from "react-i18next";
 import { Button, Dialog, DialogActions, DurationInput, useConfirm, useToast } from "../../design";
 import { api, errorInfo, unwrap } from "../../lib/api";
 import { useFeature } from "../../lib/features";
-import { formatDate, formatDuration, formatWeekday } from "../../lib/format";
+import { formatDate, formatDayHeading, formatDuration, formatWeekday } from "../../lib/format";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useMe } from "../../lib/session";
-import { liveSeconds, useAccountSettings, useAssignments, useNow, type Week } from "./hooks";
+import { liveSeconds, useAccountSettings, useAssignments, useNow, type TimeEntry, type Week } from "./hooks";
 import { ProjectTaskPicker } from "./ProjectTaskPicker";
+import { fillPercents } from "./track";
+import { WeekStrip } from "./WeekStrip";
 
 type Row = Week["rows"][number];
+export type WeekShape = "table" | "strip";
 
-export function WeekView({ date, personId }: { date: string; personId?: string }) {
+/**
+ * Track, one week: a table of hours by project and day that saves as you type (the default), or
+ * the same week as strips of paper. One day is chosen, as in the day view, and shaded.
+ */
+export function WeekView({
+  date,
+  selected,
+  onSelect,
+  shape,
+  personId,
+}: {
+  date: string;
+  selected: string;
+  onSelect: (day: string) => void;
+  shape: WeekShape;
+  personId?: string;
+}) {
   const { t } = useTranslation();
   const me = useMe();
   const qc = useQueryClient();
   const toast = useToast();
   const account = useAccountSettings();
   const style = account.durationStyle;
+  const tasks = useFeature("tasks");
   const membershipId = personId ?? me.current_membership_id ?? undefined;
   const isSelf = membershipId === me.current_membership_id;
   // Submitting a week for approval is part of the approvals feature (lib/features).
@@ -35,6 +55,16 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
   const now = useNow(running);
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  // What was typed into a cell that isn't a time, by cell. It stays in its cell until it's fixed.
+  const [notTimes, setNotTimes] = useState<Record<string, string>>({});
+  const heard = (cell: string) => (text: string | null) =>
+    setNotTimes((was) => {
+      if (text === null ? !(cell in was) : was[cell] === text) return was;
+      const next = { ...was };
+      if (text === null) delete next[cell];
+      else next[cell] = text;
+      return next;
+    });
 
   const onWeek = (w: Week) => {
     qc.setQueryData(key, w);
@@ -85,23 +115,32 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
   });
   const [confirmRemove, askRemove] = useConfirm({ title: t("time.removeRow"), body: t("time.removeRowConfirm"), confirmLabel: t("time.removeRow") });
 
-  useHotkeys({ n: () => setAddOpen(true) }, !week?.is_read_only);
+  useHotkeys({ n: () => setAddOpen(true) }, !week?.is_read_only && shape === "table");
 
   if (!week) return <p className="muted">{t("app.loading")}</p>;
   const readOnly = week.is_read_only;
-  const today = account.today;
-  const entrySeconds = (projectId: string, taskId: string, day: string) =>
-    week.entries
-      .filter((e) => e.project.id === projectId && e.task.id === taskId && e.spent_date === day)
-      .reduce((s, e) => s + liveSeconds(e, now, q.dataUpdatedAt), 0);
-  const dayTotal = (day: string) => week.entries.filter((e) => e.spent_date === day).reduce((s, e) => s + liveSeconds(e, now, q.dataUpdatedAt), 0);
-  const total = week.entries.reduce((s, e) => s + liveSeconds(e, now, q.dataUpdatedAt), 0);
+  const seconds = (e: TimeEntry) => liveSeconds(e, now, q.dataUpdatedAt);
+  const sum = (list: TimeEntry[]) => list.reduce((s, e) => s + seconds(e), 0);
+  const inRow = (row: Row) => week.entries.filter((e) => e.project.id === row.project.id && e.task.id === row.task.id);
+  const dayTotals = week.days.map((d) => sum(week.entries.filter((e) => e.spent_date === d)));
+  const fills = fillPercents(dayTotals);
+  const total = sum(week.entries);
   const sub = week.submission;
+  const notATime = Object.values(notTimes)[0];
+  const shade = (d: string) => (d === selected ? "is-selected" : undefined);
+  const hint =
+    notATime !== undefined
+      ? t("time.notATime", { text: notATime })
+      : shape === "strip"
+        ? [t("time.stripPick"), week.entries.some((e) => !e.start_time) ? t("time.stripUntimed") : ""].join(" ").trim()
+        : readOnly
+          ? ""
+          : t("time.typeIntoAnyDay");
 
   return (
     <>
       {sub && (
-        <p className={sub.state === "rejected" ? "notice notice-warn" : sub.state === "approved" ? "notice notice-ok" : "notice"} style={{ marginBottom: 16 }}>
+        <p className={sub.state === "rejected" ? "notice notice-warn" : sub.state === "approved" ? "notice notice-ok" : "notice"}>
           {t(`time.submission.${sub.state}`, {
             date: formatDate((sub.decided_at ?? sub.submitted_at).slice(0, 10)),
             name: sub.decided_by?.name ?? "",
@@ -110,118 +149,157 @@ export function WeekView({ date, personId }: { date: string; personId?: string }
         </p>
       )}
       {error && (
-        <p className="notice notice-error" role="alert" style={{ marginBottom: 16 }}>
+        <p className="notice notice-error" role="alert">
           {error}
         </p>
       )}
-      <div className="table-scroll">
-        <table className="ledger week-grid">
-          <thead>
-            <tr>
-              <th>{t("time.project")}</th>
-              {week.days.map((d) => (
-                <th key={d} className={d === today ? "day today" : "day"}>
-                  <Link to="/day/$date" params={{ date: d }} style={{ color: "inherit", textDecoration: "none" }}>
-                    {formatWeekday(d)} {Number(d.slice(8))}
-                  </Link>
-                </th>
-              ))}
-              <th className="num">{t("time.total")}</th>
-              <th aria-label={t("time.removeRow")} />
-            </tr>
-          </thead>
-          <tbody>
-            {week.rows.map((row) => (
-              <tr key={`${row.project.id}:${row.task.id}`}>
-                <td className="row-label">
-                  <strong>
-                    {row.project.code ? `[${row.project.code}] ` : ""}
-                    {row.project.name}
-                  </strong>
-                  <span>
-                    {row.client.name}, {row.task.name}
-                  </span>
-                </td>
-                {week.days.map((d, i) => {
-                  const count = row.entry_counts[i];
-                  const editable = !readOnly && !row.is_locked && count <= 1 && !week.entries.some((e) => e.is_running && e.spent_date === d && e.project.id === row.project.id && e.task.id === row.task.id);
-                  const seconds = entrySeconds(row.project.id, row.task.id, d);
+      {shape === "strip" ? (
+        <WeekStrip week={week} selected={selected} onSelect={onSelect} seconds={seconds} />
+      ) : (
+        <div className="week-card">
+          <div className="table-scroll">
+            <table className="week-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="week-label">
+                    {t("time.clientProject")}
+                  </th>
+                  {week.days.map((d) => (
+                    <th scope="col" key={d} className={shade(d)}>
+                      <button type="button" className="week-pick" aria-pressed={d === selected} aria-label={formatDayHeading(d)} onClick={() => onSelect(d)}>
+                        <span className="d-name">{formatWeekday(d)}</span>
+                        <span className="d-num">{Number(d.slice(8))}</span>
+                      </button>
+                    </th>
+                  ))}
+                  <th scope="col" className="week-sum">
+                    {t("time.total")}
+                  </th>
+                  {!readOnly && <th className="week-remove" aria-label={t("time.removeRow")} />}
+                </tr>
+              </thead>
+              <tbody>
+                {week.rows.map((row) => {
+                  const rowKey = `${row.project.id}:${row.task.id}`;
+                  const entries = inRow(row);
                   return (
-                    <td key={d} className="cell">
-                      {editable ? (
-                        <DurationInput
-                          value={seconds || null}
-                          style={style}
-                          aria-label={`${row.project.name}, ${row.task.name}, ${formatDate(d)}`}
-                          onChange={(v) => {
-                            const next = v ?? 0;
-                            if (next !== seconds) setCell.mutate({ row, day: d, seconds: next });
-                          }}
-                        />
-                      ) : (
-                        <Link
-                          to="/day/$date"
-                          params={{ date: d }}
-                          className="cell-static"
-                          title={count > 1 ? t("time.multipleEntries", { count }) : undefined}
-                        >
-                          {seconds ? formatDuration(seconds, style) : ""}
-                        </Link>
+                    <tr key={rowKey}>
+                      <th scope="row" className="week-label">
+                        <strong>
+                          {row.project.code ? `[${row.project.code}] ` : ""}
+                          {row.project.name}
+                        </strong>
+                        <span>
+                          {row.client.name}
+                          {tasks ? ` · ${row.task.name}` : ""}
+                        </span>
+                      </th>
+                      {week.days.map((d, i) => {
+                        const here = entries.filter((e) => e.spent_date === d);
+                        const time = sum(here);
+                        const isRunning = here.some((e) => e.is_running);
+                        const count = row.entry_counts[i];
+                        const editable = !readOnly && !row.is_locked && count <= 1 && !isRunning;
+                        const cell = `${rowKey}:${d}`;
+                        return (
+                          <td key={d} className={shade(d)}>
+                            {editable ? (
+                              <DurationInput
+                                className="week-cell"
+                                value={time || null}
+                                style={style}
+                                placeholder="–"
+                                aria-label={`${row.project.name}, ${row.task.name}, ${formatDate(d)}`}
+                                onInvalid={heard(cell)}
+                                onChange={(v) => {
+                                  const next = v ?? 0;
+                                  if (next !== time) setCell.mutate({ row, day: d, seconds: next });
+                                }}
+                              />
+                            ) : time ? (
+                              <Link
+                                to="/day/$date"
+                                params={{ date: d }}
+                                className={isRunning ? "week-cell-static is-running" : "week-cell-static"}
+                                aria-label={isRunning ? t("time.runningHere", { time: formatDuration(time, style) }) : undefined}
+                                title={isRunning ? undefined : count > 1 ? t("time.multipleEntries", { count }) : undefined}
+                              >
+                                {isRunning && <span className="live-dot small" aria-hidden="true" />}
+                                {formatDuration(time, style)}
+                              </Link>
+                            ) : null}
+                          </td>
+                        );
+                      })}
+                      <td className="week-sum">{formatDuration(sum(entries), style)}</td>
+                      {!readOnly && (
+                        <td className="week-remove">
+                          {!row.is_locked && (
+                            <button
+                              type="button"
+                              className="week-remove-button"
+                              aria-label={`${t("time.removeRow")}: ${row.project.name}`}
+                              onClick={() => askRemove(() => removeRow.mutate(row))}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </td>
                       )}
-                    </td>
+                    </tr>
                   );
                 })}
-                <td className="num" style={{ fontWeight: 650 }}>
-                  {formatDuration(week.days.reduce((sum, d) => sum + entrySeconds(row.project.id, row.task.id, d), 0), style)}
-                </td>
-                <td className="num">
-                  {!readOnly && !row.is_locked && (
-                    <Button size="sm" variant="ghost" aria-label={t("time.removeRow")} onClick={() => askRemove(() => removeRow.mutate(row))}>
-                      ✕
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {week.rows.length === 0 && (
-              <tr>
-                <td colSpan={10} className="ledger-empty">
-                  {t("time.nothingTrackedBody")}
-                </td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td className="muted">
-                {t("time.capacity", { tracked: formatDuration(total, style), capacity: formatDuration(week.capacity_seconds, style) })}
-              </td>
-              {week.days.map((d) => (
-                <td key={d} className="num total">
-                  {formatDuration(dayTotal(d), style)}
-                </td>
-              ))}
-              <td className="num total">{formatDuration(total, style)}</td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {!readOnly && (
-        <div className="week-actions">
-          <Button onClick={() => setAddOpen(true)}>{t("time.addRow")}</Button>
-          <Button variant="ghost" onClick={() => copy.mutate()} busy={copy.isPending}>
-            {t("time.copyRows")}
-          </Button>
-          <span className="spacer" />
-          {isSelf && approvals && week.approvals_enabled && sub?.state !== "submitted" && sub?.state !== "approved" && (
-            <Button variant="primary" onClick={() => submit.mutate()} busy={submit.isPending} disabled={week.entries.length === 0}>
-              {t("time.submitWeek")}
-            </Button>
-          )}
+                {week.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={readOnly ? 9 : 10} className="ledger-empty">
+                      {t("time.nothingTrackedBody")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" className="week-label">
+                    {t("time.thisWeek")}
+                  </th>
+                  {week.days.map((d, i) => (
+                    <td key={d} className={shade(d)}>
+                      <span className={dayTotals[i] ? "week-day-total" : "week-day-total is-zero"}>{dayTotals[i] ? formatDuration(dayTotals[i], style) : "–"}</span>
+                      <span className="d-fill" aria-hidden="true">
+                        <span style={{ width: `${fills[i]}%` }} />
+                      </span>
+                    </td>
+                  ))}
+                  <td className="week-sum week-total">{formatDuration(total, style)}</td>
+                  {!readOnly && <td />}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
+
+      <div className="week-foot">
+        {shape === "table" && !readOnly && (
+          <>
+            <button type="button" className="week-add-row" onClick={() => setAddOpen(true)}>
+              <span aria-hidden="true">+ </span>
+              {t("time.addRow")}
+            </button>
+            <Button variant="ghost" onClick={() => copy.mutate()} busy={copy.isPending}>
+              {t("time.copyRows")}
+            </Button>
+          </>
+        )}
+        <p className={notATime !== undefined ? "week-hint is-error" : "week-hint"} aria-live="polite">
+          {hint}
+        </p>
+        {!readOnly && isSelf && approvals && week.approvals_enabled && sub?.state !== "submitted" && sub?.state !== "approved" && (
+          <Button variant="primary" onClick={() => submit.mutate()} busy={submit.isPending} disabled={week.entries.length === 0}>
+            {t("time.submitWeek")}
+          </Button>
+        )}
+      </div>
 
       <AddRowDialog open={addOpen} onOpenChange={setAddOpen} start={date} membershipId={membershipId} onAdded={onWeek} />
       {confirmRemove}
