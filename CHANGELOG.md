@@ -25,11 +25,12 @@ as they're made.
   typed stays.
 - The week is redrawn too. The table is still where you type hours into a day, and it saves as
   you go. Something that isn't a time stays in its cell, in red, and nothing is saved until it's
-  fixed. Click a day to choose it: Day opens it, and the week keeps it when you come back. The
-  week's total is no longer shown against a weekly capacity; instead, the bar under each day
-  compares it with the week's longest day. Strip, beside Table, draws the same week as strips of
-  paper, one a day, with each entry where it ran; time typed in without a start time sits at the
-  end of its day. Your browser remembers which of the two you chose.
+  fixed. Click a day to choose it: Day opens it, and Week comes back to it. The week's total is
+  no longer shown against a weekly capacity; instead, the bar under each day compares that day's
+  hours with the week's longest day. Strip, beside Table, draws the same week as strips of paper,
+  one a day, with each entry where it ran; time typed in without a start time is drawn lighter,
+  after the day's timed work, as it shows how long but not when. Your browser remembers which of
+  the two you chose.
 - A part of Time that's switched off now also stops what it would do without being asked, since
   nobody could see it or turn it off: no budget alerts, no invoice reminders, no Harvest sync, and
   approvals count as off, so a week sent for approval is open to edit again and reminders don't ask

@@ -124,6 +124,12 @@ export function WeekStrip({
               {c.name}
             </li>
           ))}
+          {strips.days.some((d) => d.bands.some((b) => b.untimed)) && (
+            <li>
+              <span className="swatch is-untimed" />
+              {t("time.noStartTime")}
+            </li>
+          )}
           {notBillable && (
             <li>
               <span className="swatch is-not-billable" />

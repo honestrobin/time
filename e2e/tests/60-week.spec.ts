@@ -50,6 +50,12 @@ test("The week: type hours into a day, fix a typo, pick a day, see it as strips"
   await expect(cell).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByText("“half an hour” isn't a time. Type 1:30 or 1.5, and the totals catch up.")).toBeVisible();
   await expect(total).toHaveText("0:30");
+  // Looking at the strips meanwhile doesn't lose it.
+  await page.getByRole("group", { name: "Show as" }).getByRole("button", { name: "Strip" }).click();
+  await expect(page.getByText(/isn't a time/)).toHaveCount(0);
+  await page.getByRole("group", { name: "Show as" }).getByRole("button", { name: "Table" }).click();
+  await expect(cell).toHaveValue("half an hour");
+  await expect(page.getByText("“half an hour” isn't a time. Type 1:30 or 1.5, and the totals catch up.")).toBeVisible();
   const saved = async () => ((await call(page, "GET", `/api/v1/time_entries?from=${other}&to=${other}`)).data as Entry[]).map((e) => e.duration_seconds);
   expect(await saved()).toEqual([]);
 
@@ -79,7 +85,8 @@ test("The week: type hours into a day, fix a typo, pick a day, see it as strips"
   await expect(chosen).toHaveCount(1);
   await expect(chosen).toHaveAccessibleName(/1:30 tracked$/);
   await expect(chosen).toContainText("Harbour website");
-  await expect(page.getByText("Time typed in without a start time sits at the end of its day.")).toBeVisible();
+  await expect(page.getByText(/Time typed in without a start time is drawn lighter/)).toBeVisible();
+  await expect(strips.getByRole("list", { name: "What the colours mean" })).toContainText("No start time");
 
   // The choice is remembered in this browser, and Table is one click back.
   await page.reload();
