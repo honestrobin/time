@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
-import { setFormatLocale } from "../../lib/format";
+import { formatWeekHeading, setFormatLocale } from "../../lib/format";
 import { entryRange, fillPercents, runningTabTitle } from "./track";
 
 describe("the week filling up", () => {
@@ -30,6 +30,25 @@ describe("an entry's range", () => {
 
   it("is left out for time added by hand", () => {
     expect(entryRange({ is_running: false }, "now")).toBeNull();
+  });
+});
+
+describe("the week's heading", () => {
+  // Intl puts thin spaces around the dash; the words are what's tested.
+  const heading = (start: string, end: string) => formatWeekHeading(start, end, "2026").replace(/\s/g, " ");
+
+  it("names the days and the month once, the way the reader writes dates", () => {
+    setFormatLocale("en-GB");
+    expect(heading("2026-10-05", "2026-10-11")).toBe("5 – 11 October");
+    expect(heading("2026-09-28", "2026-10-04")).toBe("28 September – 4 October");
+    setFormatLocale("en-US");
+    expect(heading("2026-10-05", "2026-10-11")).toBe("October 5 – 11");
+    setFormatLocale("en-GB");
+  });
+
+  it("adds the year only when the week isn't in this one", () => {
+    expect(heading("2025-12-29", "2026-01-04")).toBe("29 December 2025 – 4 January 2026");
+    expect(heading("2025-10-06", "2025-10-12")).toBe("6 – 12 October 2025");
   });
 });
 

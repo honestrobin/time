@@ -694,59 +694,568 @@ button.entry-open:hover .entry-title {
   }
 }
 
-/* ---- Week grid ------------------------------------------------------------ */
-.week-grid td.cell {
-  padding: 4px;
-  width: 80px;
+/* ---- The week ------------------------------------------------------------- */
+/* Seven columns of numbers need more room than a day. */
+.track.is-week {
+  max-width: 1128px;
 }
 
-.week-grid .cell .input {
-  min-height: 32px;
-  padding: 0 var(--s2);
-  border-color: var(--rule);
+/* Table / Strip: a quiet choice of how the week is drawn. */
+.shape-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--rule-input);
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
-.week-grid .cell .input:hover {
-  border-color: var(--rule-strong);
+.shape-switch button {
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  cursor: pointer;
 }
 
-.week-grid .cell-static {
+.shape-switch button:hover {
+  color: var(--ink);
+}
+
+.shape-switch button[aria-pressed="true"] {
+  color: var(--ink);
+  text-decoration: underline 2px var(--action);
+  text-underline-offset: 6px;
+}
+
+.week-card,
+.week-strip {
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- The week as a table: hours by project and day ----------------------- */
+.week-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-table th,
+.week-table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--rule-faint);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.week-table thead th {
+  padding: 0;
+  border-bottom-color: var(--rule);
+}
+
+.week-table thead .week-label,
+.week-table thead .week-sum {
+  padding: 14px 20px;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.week-table .week-label {
+  width: 300px;
+  padding: 12px 20px;
+  text-align: left;
+}
+
+.week-table tbody .week-label {
+  font-weight: 400;
+}
+
+.week-table tbody .week-label strong {
   display: block;
-  padding: 0 var(--s2);
-  text-align: right;
-  color: var(--ink-soft);
+  font-size: var(--text-md);
+  font-weight: 650;
 }
 
-.week-grid th.day {
-  text-align: right;
-  width: 80px;
+.week-table tbody .week-label span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
 }
 
-.week-grid th.day.today {
+.week-table .week-sum {
+  width: 100px;
+  padding: 12px 20px;
+  text-align: right;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.week-table .week-remove {
+  width: 44px;
+  padding: 0 8px 0 0;
+}
+
+/* The chosen day, as in the day view: shaded, with a green rule down each side. */
+.week-table .is-selected {
+  background: var(--action-tint);
+  box-shadow:
+    inset 2px 0 0 var(--action),
+    inset -2px 0 0 var(--action);
+}
+
+.week-table thead .is-selected {
+  box-shadow:
+    inset 2px 0 0 var(--action),
+    inset -2px 0 0 var(--action),
+    inset 0 3px 0 var(--action);
+}
+
+.week-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.week-pick .d-name {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.week-pick .d-num {
+  font-size: 1.0625rem;
+  font-weight: 720;
+}
+
+.week-pick:hover .d-num {
   color: var(--action);
 }
 
-.week-grid .row-label strong {
-  display: block;
+/* A day's cell: type a time, and it saves when you leave it. */
+.week-cell.input {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 4px;
+  border: 1px solid var(--rule-faint);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--paper) 50%, var(--surface));
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: center;
 }
 
-.week-grid .row-label span {
+.week-cell.input:hover {
+  border-color: var(--rule-strong);
+}
+
+.week-table .is-selected .week-cell.input {
+  background: var(--surface);
+}
+
+/* Not a time: the cell keeps what was typed, and says so in red until it's fixed. */
+.week-cell.input[aria-invalid="true"] {
+  border: 2px solid var(--signal);
+  background: var(--signal-tint);
+}
+
+.week-cell-static {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  color: var(--ink-soft);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.week-cell-static.is-running {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+/* Remove is there when you look for it, like Continue in the day. */
+.week-remove-button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-faint);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration);
+}
+
+.week-table tbody tr:hover .week-remove-button,
+.week-remove-button:focus-visible {
+  opacity: 1;
+}
+
+.week-remove-button:hover {
+  background: var(--signal-tint);
+  color: var(--signal);
+}
+
+/* The week's totals, under a red double rule like the foot of a ledger page. */
+.week-table tfoot th,
+.week-table tfoot td {
+  border-top: 3px double var(--signal);
+  border-bottom: 0;
+}
+
+.week-table tfoot td {
+  padding: 12px 4px 10px;
+}
+
+.week-table tfoot .week-label {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.week-day-total {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: 720;
+}
+
+.week-day-total.is-zero {
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+.week-table tfoot .d-fill {
+  margin: 6px 10px 0;
+}
+
+.week-table tfoot .is-selected .d-fill > span {
+  background: var(--action);
+}
+
+.week-table tfoot .week-total {
+  padding: 12px 20px;
+  font-size: 1.375rem;
+  font-weight: 780;
+  font-stretch: var(--stretch-wide);
+}
+
+.week-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+  min-height: 40px;
+}
+
+.week-add-row {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 11px;
+  background: none;
+  color: var(--action);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.week-add-row:hover {
+  border-style: solid;
+  background: var(--surface);
+}
+
+.week-hint {
+  flex: 1;
+  min-width: 14rem;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.week-hint.is-error {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+/* ---- The week as strips of chart paper ------------------------------------ */
+.week-strip {
+  --lane-start: 96px;
+  --lane-end: 84px;
+  /* One ink a client. Orange never: it means a timer is running. */
+  --client-0: var(--action);
+  --client-1: #46399a;
+  --client-2: var(--ink);
+  --client-3: #2e5f86;
+  --client-4: #7a4e2d;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where a moment sits on the lane between the day's name and its total. */
+.strip-hour,
+.band {
+  position: absolute;
+  left: calc(var(--lane-start) + (100% - var(--lane-start) - var(--lane-end)) * var(--at));
+}
+
+.strip-ruler {
+  position: relative;
+  height: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.strip-lane {
+  position: absolute;
+  inset: 0 var(--lane-end) 0 var(--lane-start);
+}
+
+.strip-lane > span {
+  position: absolute;
+  left: calc(100% * var(--at));
+  top: 10px;
+  padding-left: 4px;
+  color: var(--ink-muted);
+  font-size: 0.71875rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.strip {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule-faint);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.strip:hover {
+  background: color-mix(in srgb, var(--action-tint) 40%, var(--surface));
+}
+
+.strip.is-selected {
+  height: 92px;
+  background: var(--action-tint);
+  box-shadow: inset 3px 0 0 var(--action);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .strip {
+    transition: height 0.2s ease;
+  }
+}
+
+.strip-hour {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule-faint);
+}
+
+.strip.is-selected .strip-hour {
+  background: color-mix(in srgb, var(--action) 14%, transparent);
+}
+
+.strip-day,
+.strip-total {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.strip-day {
+  left: 20px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.strip.is-selected .strip-day {
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 750;
+}
+
+.strip-total {
+  right: 20px;
+  font-size: var(--text-md);
+  font-weight: 750;
+}
+
+.strip-total.is-zero {
+  color: var(--ink-faint);
+}
+
+.strip.is-selected .strip-total {
+  font-size: 1.375rem;
+}
+
+/* An entry: the client's ink, where it ran. */
+.band {
+  top: 9px;
+  bottom: 9px;
+  width: max(4px, calc((100% - var(--lane-start) - var(--lane-end)) * var(--long)));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--band-ink);
+  color: var(--surface);
+}
+
+.strip.is-selected .band {
+  top: 12px;
+  bottom: 12px;
+  padding: 6px 8px;
+}
+
+.band.is-not-billable {
+  border: 1.5px dashed var(--band-ink);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* Typed in without a start time: drawn after the day's timed work, lighter, as it isn't where it ran. */
+.band.is-untimed {
+  border-left: 3px solid var(--band-ink);
+  background: color-mix(in srgb, var(--band-ink) 28%, var(--surface));
+  color: var(--ink);
+}
+
+.band.is-running {
+  border: 1.5px solid var(--robin);
+  border-right: 0;
+  background: repeating-linear-gradient(135deg, rgb(242 106 46 / 0.14) 0 7px, rgb(242 106 46 / 0.28) 7px 14px);
+  color: var(--ink);
+}
+
+.band-project {
+  overflow: hidden;
+  font-size: 0.78125rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.band-time {
+  font-size: 1rem;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.strip-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 18px;
+  margin-top: -1px;
+  padding: 12px 20px 14px;
+  border-top: 3px double var(--signal);
+}
+
+.strip-foot-label {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.strip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
-.week-actions {
+.strip-legend li {
   display: flex;
-  gap: var(--s2);
-  margin-top: var(--s4);
-  flex-wrap: wrap;
   align-items: center;
+  gap: 6px;
 }
 
-/* On a phone the tables scroll sideways rather than squeeze the project name to a few letters. */
+.swatch {
+  width: 11px;
+  height: 11px;
+  background: var(--band-ink);
+}
+
+.swatch.is-not-billable {
+  box-sizing: border-box;
+  border: 1px dashed var(--ink-muted);
+  background: none;
+}
+
+.strip-foot-total {
+  margin-left: auto;
+  font-size: 1.375rem;
+  font-weight: 780;
+  font-stretch: var(--stretch-wide);
+}
+
+/* On a narrow screen the table scrolls sideways rather than squeeze the names to a few letters,
+   and the strips keep every other hour. */
 @media (max-width: 800px) {
-  .week-grid th:first-child,
-  .week-grid td:first-child {
-    min-width: 10rem;
+  .week-table {
+    min-width: 680px;
+  }
+
+  .week-table .week-label {
+    width: 10rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .week-strip {
+    --lane-start: 52px;
+    --lane-end: 52px;
+  }
+
+  .strip-day,
+  .strip.is-selected .strip-day {
+    left: 10px;
+    font-size: var(--text-sm);
+  }
+
+  .strip-total,
+  .strip.is-selected .strip-total {
+    right: 10px;
+    font-size: var(--text-sm);
+  }
+
+  .week-hint {
+    min-width: 0;
+    flex-basis: 100%;
   }
 }

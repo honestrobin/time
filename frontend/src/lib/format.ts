@@ -182,6 +182,15 @@ export function formatDayHeading(isoDate: string): string {
   return new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${isoDate}T12:00:00`));
 }
 
+/** A week as a heading: "5 – 11 October", with the year only when it isn't [thisYear]'s. */
+export function formatWeekHeading(start: string, end: string, thisYear: string): string {
+  const year = start.slice(0, 4) !== thisYear || end.slice(0, 4) !== thisYear ? "numeric" : undefined;
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year }).formatRange(
+    new Date(`${start}T12:00:00`),
+    new Date(`${end}T12:00:00`),
+  );
+}
+
 /** A 24-hour clock writes "08:40", a 12-hour one "8:40 AM". */
 function hourStyle(): "2-digit" | "numeric" {
   const cycle = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle;
