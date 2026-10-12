@@ -2,8 +2,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.spring") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.spring") version "2.4.21"
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
@@ -73,7 +73,7 @@ dependencies {
     implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.
-    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.87")
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.94")
     // Report exports to Excel (spec §12); streams rows, Apache-2.0.
     implementation("org.dhatim:fastexcel:0.20.2")
     // CSV imports (Harvest's own exports, spec §6.6), Apache-2.0.
@@ -87,7 +87,7 @@ dependencies {
     }
     // CII to UBL for Peppol BIS; the current ph-commons generation, as the validators in tests use.
     // (Mustang only pulls the older 2.x along; it doesn't call it.)
-    implementation("com.helger:en16931-cii2ubl:4.0.1")
+    implementation("com.helger:en16931-cii2ubl:4.0.2")
     // JAXB for reading CII and writing UBL, version from the Spring Boot BOM.
     implementation("org.glassfish.jaxb:jaxb-runtime")
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -112,7 +112,7 @@ dependencies {
     testImplementation("com.helger.phive.rules:phive-rules-xrechnung:4.6.3")
     testImplementation("com.helger.phive.rules:phive-rules-peppol:4.6.3")
     // PDF/A-3 conformance of the Factur-X PDFs (AT-5.1), MPL-2.0 (dual GPL).
-    testImplementation("org.verapdf:validation-model-jakarta:1.30.2")
+    testImplementation("org.verapdf:validation-model-jakarta:1.30.3")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
@@ -122,7 +122,7 @@ dependencies {
     codegenImplementation("org.flywaydb:flyway-database-postgresql")
     codegenImplementation("org.testcontainers:testcontainers-postgresql")
     codegenRuntimeOnly("org.postgresql:postgresql")
-    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    codegenRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
 }
 
 val jooqCodegen by tasks.registering(JavaExec::class) {
