@@ -15,7 +15,7 @@ What version 1 of Honest Robin: Time does and how it is built: an open-source (A
 ### 1.1 One-liner
 The time tracking and invoicing workflows agencies know from Harvest, a seat price locked for the life of each subscription, a move from Harvest in minutes, and e-invoicing built in.
 
-### 1.2 Non-negotiables (trust charter, enforced in code)
+### 1.2 Non-negotiables (the trust charter)
 1. **No usage-based pricing mechanics.** No code may meter projects, clients, tasks, invoices or entries for billing. Plan limits exist only on seats (cloud) and never on self-hosted.
 2. **Full export always works**, on every plan and edition, including free and suspended/unpaid accounts (read-only + export for at least 12 months after lapse).
 3. **Self-hosted edition is complete.** Same codebase, same features. The only cloud-only capabilities are those that depend on a paid third-party network service operated by Honest Robin (e-invoice sending via Honest Robin's access-point contract, managed Harvest continuous sync infrastructure). Self-hosters can plug in their own provider credentials for these.
