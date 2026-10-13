@@ -21,7 +21,8 @@ server, or use Honest Robin Cloud (coming later). It's one of the
 Honest Robin: Time is the first Honest Robin product, and it shows how they're made: by an AI,
 given a clear brief and good habits. The code, tests and documentation were written by **Claude**
 (Anthropic's model, working in [Claude Code](https://claude.com/claude-code)). A human maintainer
-wrote the [product specification](docs/spec.md), made the product decisions and kept it on course.
+gives the instructions, makes the product decisions and keeps it on course; the
+[product specification](docs/spec.md) says what Time should do.
 
 How it's made is in the open:
 
@@ -29,18 +30,11 @@ How it's made is in the open:
   dependency updates. The first commit gathers the work on version 1; the work since is in the
   history, change by change.
 - **Every decision** someone might question is written down in [`docs/decisions/`](docs/decisions/),
-  with the reasoning.
-- **The code is tested:** backend tests in both editions, frontend and extension tests, and
-  end-to-end tests that run the packaged app and the browser extension in a real browser. The
-  Harvest import compares hours, billable amounts and invoice totals with
-  Harvest's own reports (so far with a stand-in for Harvest's API, not a real account), and
-  e-invoices are checked against the official validation rules.
+    with the reasoning.
 
-Before a release the maintainer will test the product, review the full architecture and read the
-code that matters most: invoices and payments, your data, and who can see what. AI agents make
-most of the corrections and check our claims against the facts. He approves only the parts he
-has checked. That review isn't done yet, and neither is an independent security audit, so treat
-Time as pre-release software: try it with made-up data, and don't run your business on it yet.
+The maintainer tests Time himself and approves every release. Each release record says what he
+read, what agents checked and what nobody checked. Time isn't released yet: try it with made-up
+data, and don't run your business on it yet.
 Reports of anything that looks wrong are very welcome; see
 [SECURITY.md](SECURITY.md).
 
@@ -67,18 +61,15 @@ What we promise, and what holds us to it:
 
 1. **No usage-based pricing.** Nothing is metered for billing. Honest Robin Cloud's plans differ only in seats, and the self-hosted edition has no plan limits. Where anyone can sign up, daily mail limits guard against abuse; they're never billed.
 2. **Export always works,** including on free and lapsed accounts.
-3. **The self-hosted edition is complete:** the same code with the same features. Tests fail if the editions' endpoints differ, apart from paying for Honest Robin Cloud, or if code outside billing, analytics and the edition switch tells them apart.
+3. **The self-hosted edition is complete:** the same code with the same features, apart from paying for Honest Robin Cloud.
 4. **No dark patterns:** no hidden fees, no forced annual plans, and you cancel Honest Robin Cloud in the app, in two clicks. Not in the 30 minutes before a renewal: Paddle takes no changes then, the app says so, and a renewal charged after that needs a person.
 
-Tests guard the first three, and the monthly-or-yearly choice and cancelling in the fourth, so a
-change that breaks them by accident fails. Billing is tested against a stand-in for Paddle, not Paddle itself. Code
-can't stop us breaking a promise on purpose, though, so all four will also go into the terms of service. And the last
-guarantee is yours: you can export everything and run the same software yourself.
+All four will go into the terms of service, so breaking one on purpose would be a breach. And if
+we broke one anyway, you can export everything and run the same software yourself.
 
 They sit on top of the [Robin's Code](https://honestrobin.com/code), the promises every Honest
 Robin product is measured against. It's a draft until it's in the terms of service.
-[`PROMISES.md`](PROMISES.md) goes through every one of them and says what keeps it today: a test,
-code without a test, how we work, or nothing yet.
+[`PROMISES.md`](PROMISES.md) goes through every one of them and says what keeps it today.
 
 Every company that touches your data on Honest Robin Cloud is [listed](docs/companies.md), with
 its country and what it sees.
