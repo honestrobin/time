@@ -30,11 +30,11 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `f
 
 ## Project rules that are not up for debate
 
-The [trust charter](README.md#our-promises) is enforced in code:
+Every change keeps these, because [our promises](README.md#our-promises) rest on them:
 
 - No code may meter projects, clients, tasks, invoices or entries for billing.
 - Export must work for every account in every state.
-- The edition flag (`HONESTROBIN_EDITION`) may only switch Paddle billing, PostHog analytics, Honest Robin-operated provider credentials and marketing links. `EditionParityTest` enforces this.
+- The edition flag (`HONESTROBIN_EDITION`) may only switch Paddle billing, PostHog analytics, Honest Robin-operated provider credentials and marketing links. `EditionParityTest` checks it.
 
 Design decisions and deviations from the spec are recorded in `docs/decisions/` as short ADRs. Add one when you make a decision that someone might later ask "why?" about.
 
