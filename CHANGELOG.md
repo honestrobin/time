@@ -9,6 +9,8 @@ wasn't.
 Time hasn't had its first release yet. Until it does, changes people will notice are listed here
 as they're made.
 
+- With the HTTPS setup in `deploy/`, Caddy now asks search engines not to list your instance:
+  everything in it is behind a sign-in.
 - Honest Robin Cloud now only counts visits to Time's pages, without your workspace's id: each
   view gets a random one. Your browser's IP address, name and version still reach PostHog with
   each view. Visits are now counted also when your browser asks not to be tracked. The steps your
