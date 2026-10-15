@@ -58,7 +58,7 @@ If the service can't be reached, the password is accepted.
 3. `HONESTROBIN_DOMAIN=time.example.com docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.https.yml up -d --build`
 4. Open `https://time.example.com`. The first person to sign up becomes the admin, with the setup code from the app's log; everyone else joins by invitation.
 
-Caddy gets the certificate by itself. Without SMTP settings, sign-in links and invitations are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
+Caddy gets the certificate by itself, and asks search engines not to list the instance: everything in it is behind a sign-in. Without SMTP settings, sign-in links and invitations are written to the app's log (`docker compose -f deploy/docker-compose.yml logs app`); add SMTP in `deploy/.env` before inviting people.
 
 ## Prebuilt images
 

@@ -13,6 +13,9 @@
 
 {$HONESTROBIN_DOMAIN} {
 	encode zstd gzip
+	# Everything in Time is behind a sign-in, so search engines have nothing to list but the
+	# sign-in page. This asks them to leave the instance out of their results.
+	header X-Robots-Tag noindex
 	# What anyone can reach without signing in takes small bodies. The app caps every body itself
 	# too (2 MB, uploads aside); this stops oversized ones before they reach it.
 	@public path /webhooks/* /api/v1/auth/* /api/v1/public/*
