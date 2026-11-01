@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version "2.4.21"
     kotlin("plugin.spring") version "2.4.21"
-    id("org.springframework.boot") version "4.1.1"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.github.jk1.dependency-license-report") version "3.1.4"
 }
@@ -66,14 +66,14 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.2.0")
     // swagger-core, which springdoc uses for the API description, still reads models with Jackson 2.
     // With its Kotlin module it sees non-null properties as required and keeps `is_…` names.
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.github.kagkarlsson:db-scheduler-spring-boot-4-starter:16.12.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // Invoice PDFs: HTML rendered to PDF (PDF/A-capable), spec §3.1.
-    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.94")
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.104")
     // Report exports to Excel (spec §12); streams rows, Apache-2.0.
     implementation("org.dhatim:fastexcel:0.20.2")
     // CSV imports (Harvest's own exports, spec §6.6), Apache-2.0.
@@ -87,7 +87,7 @@ dependencies {
     }
     // CII to UBL for Peppol BIS; the current ph-commons generation, as the validators in tests use.
     // (Mustang only pulls the older 2.x along; it doesn't call it.)
-    implementation("com.helger:en16931-cii2ubl:4.0.2")
+    implementation("com.helger:en16931-cii2ubl:4.0.3")
     // JAXB for reading CII and writing UBL, version from the Spring Boot BOM.
     implementation("org.glassfish.jaxb:jaxb-runtime")
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -106,7 +106,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     // Property-based tests for the time and money arithmetic.
-    testImplementation("io.kotest:kotest-property:6.2.5")
+    testImplementation("io.kotest:kotest-property:6.2.6")
     // The official EN 16931, XRechnung and Peppol BIS validation rules, to check our e-invoices (AT-5.1).
     testImplementation("com.helger.phive.rules:phive-rules-en16931:4.6.3")
     testImplementation("com.helger.phive.rules:phive-rules-xrechnung:4.6.3")
